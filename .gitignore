@@ -1,0 +1,14 @@
+# Build
+build/**
+
+# Thirdparty
+thirdparty/install/**
+
+# VSCode
+.idea/**
+.cache/**
+.vscode/**
+.history/**
+
+# OS
+.DS_Store
