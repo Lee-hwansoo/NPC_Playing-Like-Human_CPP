@@ -1,3 +1,27 @@
-# cpp_project_template
+# NPC: Playing Like Human
 
-The template for cpp projects
+## Task
+
+## Result
+
+## Method
+
+## Project Tree
+
+``` bash
+
+```
+
+## Installation
+
+``` bash
+# 설치
+$
+```
+
+## Usage
+
+``` bash
+# 사용
+$
+```

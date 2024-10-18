@@ -1,0 +1,10 @@
+message(STATUS "---------------Project information---------------")
+message(STATUS "PROJECT_NAME: ${PROJECT_NAME}")
+message(STATUS "${PROJECT_NAME}_VERSION: ${PROJECT_VERSION}")
+message(STATUS "${PROJECT_NAME}_DESCRIPTION: ${PROJECT_DESCRIPTION}\n")
+
+message(STATUS "---------------Project path information---------------")
+message(STATUS "${PROJECT_NAME}_ROOT_PATH: ${${PROJECT_NAME}_ROOT_PATH}")
+message(STATUS "${PROJECT_NAME}_SOURCE_PATH: ${${PROJECT_NAME}_SOURCE_PATH}")
+message(STATUS "${PROJECT_NAME}_INCLUDE_PATH: ${${PROJECT_NAME}_INCLUDE_PATH}")
+message(STATUS "${PROJECT_NAME}_THIRDPARTY_PATH: ${${PROJECT_NAME}_THIRDPARTY_PATH}")
