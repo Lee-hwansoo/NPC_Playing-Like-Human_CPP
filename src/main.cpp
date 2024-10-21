@@ -1,6 +1,6 @@
 #include <npc/example.hpp>
 #include <SDL.h>
-// #include <Eigen/Dense>
+#include <Eigen/Dense>
 #include <cstdint>
 #include <iostream>
 #include <cassert>
@@ -97,38 +97,38 @@ void testSDL2() {
     std::cout << "SDL2 test completed successfully.\n";
 }
 
-// void testEigen3() {
-//     std::cout << "\nTesting Eigen3 matrix operations:\n";
+void testEigen3() {
+    std::cout << "\nTesting Eigen3 matrix operations:\n";
 
-//     // 3x3 행렬 생성
-//     Eigen::Matrix3d matrix;
-//     matrix << 1, 2, 3,
-//               4, 5, 6,
-//               7, 8, 9;
+    // 3x3 행렬 생성
+    Eigen::Matrix3d matrix;
+    matrix << 1, 2, 3,
+              4, 5, 6,
+              7, 8, 9;
 
-//     std::cout << "Original matrix:\n" << matrix << "\n\n";
+    std::cout << "Original matrix:\n" << matrix << "\n\n";
 
-//     // 행렬의 전치 계산
-//     Eigen::Matrix3d transposed = matrix.transpose();
-//     std::cout << "Transposed matrix:\n" << transposed << "\n\n";
+    // 행렬의 전치 계산
+    Eigen::Matrix3d transposed = matrix.transpose();
+    std::cout << "Transposed matrix:\n" << transposed << "\n\n";
 
-//     // 행렬의 역행렬 계산
-//     Eigen::Matrix3d inverse = matrix.inverse();
-//     std::cout << "Inverse matrix:\n" << inverse << "\n\n";
+    // 행렬의 역행렬 계산
+    Eigen::Matrix3d inverse = matrix.inverse();
+    std::cout << "Inverse matrix:\n" << inverse << "\n\n";
 
-//     // 행렬과 그 역행렬의 곱 계산 (단위 행렬이 나와야 함)
-//     Eigen::Matrix3d identity = matrix * inverse;
-//     std::cout << "Matrix multiplied by its inverse (should be identity):\n" << identity << "\n\n";
+    // 행렬과 그 역행렬의 곱 계산 (단위 행렬이 나와야 함)
+    Eigen::Matrix3d identity = matrix * inverse;
+    std::cout << "Matrix multiplied by its inverse (should be identity):\n" << identity << "\n\n";
 
-//     // 단위 행렬인지 확인
-//     assert((identity - Eigen::Matrix3d::Identity()).norm() < 1e-12);
+    // 단위 행렬인지 확인
+    assert((identity - Eigen::Matrix3d::Identity()).norm() < 1e-12);
 
-//     // 고유값 계산
-//     Eigen::EigenSolver<Eigen::Matrix3d> solver(matrix);
-//     std::cout << "Eigenvalues:\n" << solver.eigenvalues() << "\n";
+    // 고유값 계산
+    Eigen::EigenSolver<Eigen::Matrix3d> solver(matrix);
+    std::cout << "Eigenvalues:\n" << solver.eigenvalues() << "\n";
 
-//     std::cout << "Eigen3 test completed successfully.\n";
-// }
+    std::cout << "Eigen3 test completed successfully.\n";
+}
 
 int32_t main() {
   std::cout << "Starting tests for NPC project.\n\n";

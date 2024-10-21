@@ -1,6 +1,9 @@
 # Build
 build/**
 
+# Out
+out/**
+
 # Thirdparty
 thirdparty/install/**
 
@@ -9,6 +12,9 @@ thirdparty/install/**
 .cache/**
 .vscode/**
 .history/**
+
+# Visual Studio
+.vs/**
 
 # OS
 .DS_Store
