@@ -15,6 +15,10 @@ thirdparty/install/**
 
 # Visual Studio
 .vs/**
+.cache/**
 
 # OS
 .DS_Store
+
+# CMake
+CMakeSettings.json
