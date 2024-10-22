@@ -5,13 +5,15 @@ find_package(Torch REQUIRED)
 
 enable_language(CUDA)
 
-set(${PROJECT_NAME}_NPC_FILES
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
+
+set(${PROJECT_NAME}_EXAMPLE_FILES
     example.cpp
 )
-add_library(${PROJECT_NAME}_NPC_LIBRARIES STATIC
-  ${${PROJECT_NAME}_NPC_FILES}
+add_library(${PROJECT_NAME}_EXAMPLE_LIBRARIES STATIC
+  ${${PROJECT_NAME}_EXAMPLE_FILES}
 )
-target_include_directories(${PROJECT_NAME}_NPC_LIBRARIES PUBLIC
+target_include_directories(${PROJECT_NAME}_EXAMPLE_LIBRARIES PUBLIC
   ${${PROJECT_NAME}_INCLUDE_PATH}
   ${SDL2_INCLUDE_PATH}
   ${Eigen3_INCLUDE_PATH}
@@ -25,3 +27,28 @@ set(${PROJECT_NAME}_MAIN_FILES
 add_executable(${PROJECT_NAME}_MAIN
     ${${PROJECT_NAME}_MAIN_FILES}
 )
+target_include_directories(${PROJECT_NAME}_MAIN PRIVATE
+    ${${PROJECT_NAME}_INCLUDE_PATH}
+    ${SDL2_INCLUDE_PATH}
+    ${Eigen3_INCLUDE_PATH}
+    ${CUDAToolkit_INCLUDE_DIRS}
+    ${TORCH_INCLUDE_DIRS}
+)
+target_link_libraries(${PROJECT_NAME}_MAIN PRIVATE
+    ${SDL2_LIBRARIES}
+    ${Eigen3_LIBRARIES}
+    ${CUDAToolkit_LIBRARIES}
+    ${TORCH_LIBRARIES}
+)
+set_property(TARGET ${PROJECT_NAME}_MAIN PROPERTY CXX_STANDARD 17)
+target_compile_options(${PROJECT_NAME}_MAIN PRIVATE
+    ${CPP_COMFILE_FLAGS}
+)
+if (MSVC)
+  file(GLOB TORCH_DLLS "${Torch_INSTALL_PATH}/lib/*.dll")
+  add_custom_command(TARGET ${PROJECT_NAME}_MAIN
+                     POST_BUILD
+                     COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                     ${TORCH_DLLS}
+                     $<TARGET_FILE_DIR:${PROJECT_NAME}_MAIN>)
+endif (MSVC)

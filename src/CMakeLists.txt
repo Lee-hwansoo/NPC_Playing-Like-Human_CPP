@@ -23,7 +23,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${TORCH_INCLUDE_DIRS}
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    ${PROJECT_NAME}_NPC_LIBRARIES
+    ${PROJECT_NAME}_EXAMPLE_LIBRARIES
     ${SDL2_LIBRARIES}
     ${Eigen3_LIBRARIES}
     ${CUDAToolkit_LIBRARIES}
