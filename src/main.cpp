@@ -152,6 +152,11 @@ void testEigen3() {
 	std::cout << "Eigen3 test completed successfully.\n";
 }
 
+void testTorch() {
+	torch::Tensor tensor = torch::rand({ 2, 3 });
+	std::cout << tensor << std::endl;
+}
+
 int32_t main(int argc, char* argv[]) {
   std::cout << "Starting tests for NPC project.\n\n";
 
@@ -162,9 +167,7 @@ int32_t main(int argc, char* argv[]) {
   testClamp();
   testSDL2();
   testEigen3();
-
-  //torch::Tensor tensor = torch::rand({ 2, 3 });
-  //std::cout << tensor << std::endl;
+  testTorch();
 
   auto end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double, std::milli> elapsed = end - start;
