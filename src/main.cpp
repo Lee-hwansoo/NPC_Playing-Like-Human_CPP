@@ -1,7 +1,8 @@
-﻿#include <npc/example.hpp>
-#include <SDL.h>
-#include <Eigen/Dense>
-#include <torch/torch.h>
+﻿#include "npc/example.hpp"
+#include "SDL.h"
+#include "Eigen/Dense"
+#include "torch/torch.h"
+
 #include <cstdint>
 #include <iostream>
 #include <cassert>

@@ -1,4 +1,4 @@
-﻿#include <npc/example.hpp>
+﻿#include "npc/example.hpp"
 
 namespace example {
 
