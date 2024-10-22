@@ -1,6 +1,7 @@
 ﻿#include <npc/example.hpp>
 #include <SDL.h>
 #include <Eigen/Dense>
+#include <torch/torch.h>
 #include <cstdint>
 #include <iostream>
 #include <cassert>
@@ -161,6 +162,9 @@ int32_t main(int argc, char* argv[]) {
   testClamp();
   testSDL2();
   testEigen3();
+
+  //torch::Tensor tensor = torch::rand({ 2, 3 });
+  //std::cout << tensor << std::endl;
 
   auto end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double, std::milli> elapsed = end - start;
