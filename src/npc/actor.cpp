@@ -5,7 +5,7 @@ ActorImpl::ActorImpl(int64_t state_dim,
 	                const std::vector<float>& min_action,
 	                const std::vector<float>& max_action) {
 
-	initialize_network(state_dim, action_dim);
+	this->initialize_network(state_dim, action_dim);
 
 	min_action_ = torch::tensor(min_action);
 	max_action_ = torch::tensor(max_action);
@@ -100,77 +100,80 @@ std::string ActorImpl::get_log_directory() const {
 	std::filesystem::path script_dir = script_path.parent_path();
 	std::filesystem::path script_name = script_path.stem();
 	std::filesystem::path log_dir = script_dir / "../../logs" / script_name;
-
+	log_dir = std::filesystem::absolute(log_dir).lexically_normal();
 	std::filesystem::create_directories(log_dir);
 	return log_dir.string();
 }
-//
-//void ActorImpl::save_network_parameters(int64_t episode) {
-//	try {
-//		std::string timestamp = get_current_timestamp();
-//		std::string log_dir = get_log_directory();
-//
-//		std::ostringstream filename;
-//		filename << timestamp << "_actor_network_episode" << episode << ".pth";
-//		std::filesystem::path save_path = std::filesystem::path(log_dir) / filename.str();
-//
-//		torch::save(this->named_parameters(), save_path.string());
-//		std::cout << "Successfully saved network parameters to: " << save_path << std::endl;
-//	}
-//	catch (const std::exception& e) {
-//		std::cerr << "Error saving network parameters: " << e.what() << std::endl;
-//		throw;
-//	}
-//}
-//
-//void ActorImpl::load_network_parameters(const std::string& timestamp, int64_t episode) {
-//	try {
-//		std::string log_dir = get_log_directory();
-//
-//		std::ostringstream filename;
-//		filename << timestamp << "_actor_network_episode" << episode << ".pth";
-//		std::filesystem::path load_path = std::filesystem::path(log_dir) / filename.str();
-//
-//		if (!std::filesystem::exists(load_path)) {
-//			throw std::runtime_error("Network parameter file not found: " + load_path.string());
-//		}
-//
-//		torch::OrderedDict<std::string, torch::Tensor> parameters;
-//		torch::load(parameters, load_path.string());
-//
-//		auto current_params = this->named_parameters();
-//
-//		// Parameter 검증 및 로딩
-//		for (const auto& pair : parameters) {
-//			const auto& name = pair.key();
-//			const auto& loaded_tensor = pair.value();
-//
-//			if (current_params.contains(name)) {
-//				auto& current_tensor = current_params[name];
-//
-//				if (current_tensor.sizes() != loaded_tensor.sizes()) {
-//					throw std::runtime_error(
-//						"Size mismatch for parameter '" + name +
-//						"': expected " + std::to_string(current_tensor.numel()) +
-//						" elements, but got " + std::to_string(loaded_tensor.numel())
-//					);
-//				}
-//
-//				current_tensor.copy_(loaded_tensor.to(device_));
-//			}
-//			else {
-//				std::cerr << "Warning: Loaded parameter '" << name
-//					<< "' not found in current model" << std::endl;
-//			}
-//		}
-//
-//		start_episode_ = episode;
-//		std::cout << "Loaded network parameters from episode " << episode
-//			<< ". Training will continue from episode " << start_episode_ + 1
-//			<< std::endl;
-//	}
-//	catch (const std::exception& e) {
-//		std::cerr << "Error loading network parameters: " << e.what() << std::endl;
-//		throw;
-//	}
-//}
+
+void ActorImpl::save_network_parameters(int64_t episode) {
+	try {
+		std::string timestamp = this->get_current_timestamp();
+		std::string log_dir = this->get_log_directory();
+
+		std::ostringstream filename;
+		filename << timestamp << "_actor_network_episode" << episode << ".pt";
+		std::filesystem::path filepath = std::filesystem::path(log_dir) / filename.str();
+
+		torch::serialize::OutputArchive archive;
+		for (const auto& pair : this->named_parameters()) {
+			archive.write(pair.key(), pair.value());
+		}
+		for (const auto& pair : this->named_buffers()) {
+			archive.write(pair.key(), pair.value());
+		}
+		archive.save_to(filepath.string());
+
+		std::cout << "Successfully saved network parameters to: " << filepath << std::endl;
+	}
+	catch (const std::exception& e) {
+		std::cerr << "Error saving network parameters: " << e.what() << std::endl;
+		throw;
+	}
+}
+
+void ActorImpl::load_network_parameters(const std::string& timestamp, int64_t episode) {
+	try {
+		std::string log_dir = this->get_log_directory();
+
+		std::ostringstream filename;
+		filename << timestamp << "_actor_network_episode" << episode << ".pth";
+		std::filesystem::path filepath = std::filesystem::path(log_dir) / filename.str();
+
+		if (!std::filesystem::exists(filepath)) {
+			throw std::runtime_error("Network parameter file not found: " + filepath.string());
+		}
+
+		torch::serialize::InputArchive archive;
+		archive.load_from(filepath.string());
+
+		for (auto& parameter : this->parameters()) {
+			try {
+				torch::Tensor& tensor = parameter;
+				std::string name = parameter.name();
+				archive.read(name, tensor, false);
+			}
+			catch (const std::exception& e) {
+				std::cerr << "Warning: Failed to load parameter: " << e.what() << std::endl;
+			}
+		}
+
+		for (auto& buffer : this->buffers()) {
+			try {
+				torch::Tensor& tensor = buffer;
+				std::string name = buffer.name();
+				archive.read(name, tensor, true);
+			}
+			catch (const std::exception& e) {
+				std::cerr << "Warning: Failed to load buffer: " << e.what() << std::endl;
+			}
+		}
+
+		std::cout << "Loaded network parameters from episode " << episode
+			<< ". Training will continue from episode " << episode + 1
+			<< std::endl;
+	}
+	catch (const std::exception& e) {
+		std::cerr << "Error loading network parameters: " << e.what() << std::endl;
+		throw;
+	}
+}

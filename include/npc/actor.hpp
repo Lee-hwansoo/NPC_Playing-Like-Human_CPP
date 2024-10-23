@@ -1,12 +1,15 @@
 ﻿#pragma once
 
 #include "torch/torch.h"
+#include "torch/serialize.h"
 #include <vector>
 #include <cmath>
 #include <ctime>
-#include <iomanip>
-#include <sstream>
 #include <filesystem>
+#include <sstream>
+#include <string>
+#include <stdexcept>
+#include <exception>
 
 struct ActorImpl : torch::nn::Module {
 	ActorImpl(int64_t state_dim,
@@ -23,7 +26,7 @@ struct ActorImpl : torch::nn::Module {
 	void load_network_parameters(const std::string& timestamp, int64_t episode);
 
 	torch::Device device() const { return device_; }
-	int64_t get_start_episode() const { return start_episode_; }
+
 private:
 	torch::nn::Linear fc1{ nullptr }, fc2{ nullptr }, fc3{ nullptr };
 	torch::nn::Linear fc_mean{ nullptr }, fc_log_std{ nullptr };
@@ -32,7 +35,6 @@ private:
 	torch::Tensor min_action_;
 	torch::Tensor max_action_;
 	torch::Device device_{ torch::kCPU };
-	int64_t start_episode_{ 0 };
 
 	std::string get_log_directory() const;
 	std::string get_current_timestamp() const;
