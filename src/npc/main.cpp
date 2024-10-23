@@ -27,7 +27,7 @@ torch::Device get_device() {
     return device;
 }
 
-void test(){
+void test_actor(){
     try{
         std::cout << "Starting test..." << std::endl;
         torch::Device device = get_device();
@@ -44,7 +44,7 @@ void test(){
 
         std::cout << "Successfully created " << actor->network_name() << " network " << std::endl;
 
-        // actor->load_network_parameters("20241023_234905", 1730);
+        actor->load_network_parameters("20241024_002829", 1800);
 
         std::cout << "\nTesting single state..." << std::endl;
         auto state = torch::randn({1, state_dim});
@@ -74,6 +74,6 @@ int main(){
     output = dropout->forward(output);
     std::cout << output.sizes() << std::endl;
 
-    test();
+    test_actor();
     return 0;
 }
