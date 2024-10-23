@@ -9,7 +9,7 @@ torch::Device get_device() {
 #ifdef _WIN32
     if (torch::cuda::is_available()) {
         device = torch::Device(torch::kCUDA);
-        std::cout << "Using CUDA Device: " << torch::cuda::get_device_name() << std::endl;
+        std::cout << "Using CUDA Device" << std::endl;
     }
 #elif defined(__APPLE__)
     if (torch::mps::is_available()) {
