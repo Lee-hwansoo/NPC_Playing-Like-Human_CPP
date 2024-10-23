@@ -44,7 +44,7 @@ void test(){
         //actor->load_network_parameters("20241022_141730", 1600);
 
         std::cout << "\nTesting single state..." << std::endl;
-        auto state = torch::randn({1, state_dim}).to(device);
+        auto state = torch::randn({1, state_dim});
         std::cout << "Input state shape: " << state.sizes() << std::endl;
 
         auto [action, log_prob] = actor->sample(state);
