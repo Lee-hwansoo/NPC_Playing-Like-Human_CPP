@@ -32,7 +32,7 @@ void test(){
         torch::Device device = get_device();
         std::cout << "Device initialized" << std::endl;
 
-        const int64_t state_dim = 4;
+        const int64_t state_dim = 159;
         const int64_t action_dim = 2;
         std::vector<float> min_action = {0.6f, -1.0f};
         std::vector<float> max_action = {1.0f, 1.0f};
@@ -40,6 +40,8 @@ void test(){
         std::cout << "Creating Actor network..." << std::endl;
         Actor actor(state_dim, action_dim, min_action, max_action);
         actor->to(device);
+
+        //actor->load_network_parameters("20241022_141730", 1600);
 
         std::cout << "\nTesting single state..." << std::endl;
         auto state = torch::randn({1, state_dim}).to(device);
