@@ -136,7 +136,7 @@ void ActorImpl::load_network_parameters(const std::string& timestamp, int64_t ep
 		std::string log_dir = this->get_log_directory();
 
 		std::ostringstream filename;
-		filename << timestamp << "_actor_network_episode" << episode << ".pth";
+		filename << timestamp << "_actor_network_episode" << episode << ".pt";
 		std::filesystem::path filepath = std::filesystem::path(log_dir) / filename.str();
 
 		if (!std::filesystem::exists(filepath)) {
