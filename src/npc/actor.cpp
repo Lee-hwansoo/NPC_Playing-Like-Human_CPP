@@ -1,9 +1,12 @@
 ﻿#include "npc/actor.hpp"
+#include <iostream>
 
-ActorImpl::ActorImpl(int64_t state_dim,
+ActorImpl::ActorImpl(std::string network_name,
+					int64_t state_dim,
 	                int64_t action_dim,
 	                const std::vector<float>& min_action,
-	                const std::vector<float>& max_action) {
+	                const std::vector<float>& max_action)
+					: network_name_(network_name) {
 
 	this->initialize_network(state_dim, action_dim);
 
@@ -111,17 +114,20 @@ void ActorImpl::save_network_parameters(int64_t episode) {
 		std::string log_dir = this->get_log_directory();
 
 		std::ostringstream filename;
-		filename << timestamp << "_actor_network_episode" << episode << ".pt";
+		filename << timestamp << "_" << this->network_name() << "_network_episode" << episode << ".pt";
 		std::filesystem::path filepath = std::filesystem::path(log_dir) / filename.str();
 
-		torch::serialize::OutputArchive archive;
-		for (const auto& pair : this->named_parameters()) {
-			archive.write(pair.key(), pair.value());
-		}
-		for (const auto& pair : this->named_buffers()) {
-			archive.write(pair.key(), pair.value());
-		}
-		archive.save_to(filepath.string());
+		torch::jit::Module module(this->network_name());
+
+        for (const auto& pair : this->named_parameters()) {
+            module.register_parameter(pair.key(), pair.value(), false);  // false = not requiring gradient
+        }
+
+        for (const auto& pair : this->named_buffers()) {
+            module.register_buffer(pair.key(), pair.value());
+        }
+
+        module.save(filepath.string());
 
 		std::cout << "Successfully saved network parameters to: " << filepath << std::endl;
 	}
@@ -136,43 +142,70 @@ void ActorImpl::load_network_parameters(const std::string& timestamp, int64_t ep
 		std::string log_dir = this->get_log_directory();
 
 		std::ostringstream filename;
-		filename << timestamp << "_actor_network_episode" << episode << ".pt";
+		filename << timestamp << "_" << this->network_name() << "_network_episode" << episode << ".pt";
 		std::filesystem::path filepath = std::filesystem::path(log_dir) / filename.str();
+
+		std::cout << "Loading network parameters from: " << filepath << std::endl;
 
 		if (!std::filesystem::exists(filepath)) {
 			throw std::runtime_error("Network parameter file not found: " + filepath.string());
+		}else{
+			std::cout << "Found parameter file: " << filepath << std::endl;
+			auto fileSize = std::filesystem::file_size(filepath);
+        	std::cout << "Found parameter file (size: " << fileSize << " bytes)" << std::endl;
 		}
 
-		torch::serialize::InputArchive archive;
-		archive.load_from(filepath.string());
+        auto model_params = this->named_parameters(true);
+        auto model_buffers = this->named_buffers(true);
 
-		for (auto& parameter : this->parameters()) {
+        torch::jit::Module loaded_model;
+        try {
+            loaded_model = torch::jit::load(filepath.string());
+            std::cout << "Successfully loaded the model file." << std::endl;
+        }
+        catch (const c10::Error& e) {
+            std::cerr << "Error loading the model: " << e.what() << std::endl;
+            throw;
+        }
+
+		for (const auto& pair : loaded_model.named_parameters()) {
 			try {
-				torch::Tensor& tensor = parameter;
-				std::string name = parameter.name();
-				archive.read(name, tensor, false);
+				const std::string& name = pair.name;
+				const torch::Tensor& value = pair.value;
+				if (model_params.contains(name)) {
+					torch::NoGradGuard no_grad;
+					model_params[name].copy_(value);
+					std::cout << "Loaded parameter: " << name << " with size "
+						<< value.sizes() << std::endl;
+				}
 			}
 			catch (const std::exception& e) {
 				std::cerr << "Warning: Failed to load parameter: " << e.what() << std::endl;
+				throw;
 			}
 		}
 
-		for (auto& buffer : this->buffers()) {
+		for (const auto& pair : loaded_model.named_buffers()) {
 			try {
-				torch::Tensor& tensor = buffer;
-				std::string name = buffer.name();
-				archive.read(name, tensor, true);
+				const std::string& name = pair.name;
+				const torch::Tensor& value = pair.value;
+				if (model_buffers.contains(name)) {
+					torch::NoGradGuard no_grad;
+					model_buffers[name].copy_(value);
+					std::cout << "Loaded buffer: " << name << " with size "
+						<< value.sizes() << std::endl;
+				}
 			}
 			catch (const std::exception& e) {
 				std::cerr << "Warning: Failed to load buffer: " << e.what() << std::endl;
+				throw;
 			}
 		}
 
 		std::cout << "Loaded network parameters from episode " << episode
 			<< ". Training will continue from episode " << episode + 1
 			<< std::endl;
-	}
-	catch (const std::exception& e) {
+	} catch (const std::exception& e) {
 		std::cerr << "Error loading network parameters: " << e.what() << std::endl;
 		throw;
 	}

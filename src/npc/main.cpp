@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <vector>
+#include <chrono>
 
 torch::Device get_device() {
     torch::Device device(torch::kCPU);
@@ -38,19 +39,26 @@ void test(){
         std::vector<float> max_action = {1.0f, 1.0f};
 
         std::cout << "Creating Actor network..." << std::endl;
-        Actor actor(state_dim, action_dim, min_action, max_action);
+        Actor actor("actor", state_dim, action_dim, min_action, max_action);
         actor->to(device);
 
-        //actor->load_network_parameters("20241022_141730", 1600);
+        std::cout << "Successfully created " << actor->network_name() << " network " << std::endl;
+
+        // actor->load_network_parameters("20241023_234905", 1730);
 
         std::cout << "\nTesting single state..." << std::endl;
         auto state = torch::randn({1, state_dim});
         std::cout << "Input state shape: " << state.sizes() << std::endl;
 
+        auto start = std::chrono::high_resolution_clock::now();
         auto [action, log_prob] = actor->sample(state);
+        auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> elapsed = end - start;
+
         std::cout << "Output action shape: " << action.sizes() << std::endl;
         std::cout << "Action: " << action << std::endl;
         std::cout << "Log probability: " << log_prob << std::endl;
+        std::cout << "\nAll tests completed successfully! Execution time: " << elapsed.count() << " ms\n";
 
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
