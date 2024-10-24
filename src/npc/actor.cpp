@@ -1,25 +1,26 @@
 ﻿#include "npc/actor.hpp"
 #include <iostream>
 
-ActorImpl::ActorImpl(std::string network_name,
+ActorImpl::ActorImpl(const std::string& network_name,
 					int64_t state_dim,
 	                int64_t action_dim,
 	                const std::vector<float>& min_action,
 	                const std::vector<float>& max_action)
-					: network_name_(network_name) {
-
-	this->initialize_network(state_dim, action_dim);
+		: BaseNetwork(network_name),
+		  state_dim_(state_dim),
+		  action_dim_(action_dim) {
 
 	min_action_ = torch::tensor(min_action);
 	max_action_ = torch::tensor(max_action);
+	initialize_network();
 }
 
-void ActorImpl::initialize_network(int64_t state_dim, int64_t action_dim) {
-	fc1 = register_module("fc1", torch::nn::Linear(state_dim, 256));
+void ActorImpl::initialize_network() {
+	fc1 = register_module("fc1", torch::nn::Linear(state_dim_, 256));
 	fc2 = register_module("fc2", torch::nn::Linear(256, 256));
 	fc3 = register_module("fc3", torch::nn::Linear(256, 256));
-	fc_mean = register_module("fc_mean", torch::nn::Linear(256, action_dim));
-	fc_log_std = register_module("fc_log_std", torch::nn::Linear(256, action_dim));
+	fc_mean = register_module("fc_mean", torch::nn::Linear(256, action_dim_));
+	fc_log_std = register_module("fc_log_std", torch::nn::Linear(256, action_dim_));
 	dropout = register_module("dropout", torch::nn::Dropout(0.1));
 
 	int count = 0;
@@ -40,16 +41,15 @@ void ActorImpl::initialize_network(int64_t state_dim, int64_t action_dim) {
 }
 
 void ActorImpl::to(torch::Device device) {
-	if (device_ != device) {
-		device_ = device;
-		torch::nn::Module::to(device);
+	if (this->device() != device) {
+		BaseNetwork::to(device);
 		min_action_ = min_action_.to(device);
 		max_action_ = max_action_.to(device);
 	}
 }
 
 std::tuple<torch::Tensor, torch::Tensor> ActorImpl::forward(const torch::Tensor& state) {
-	auto x = state.device() == device_ ? state : state.to(device_);
+	auto x = state.device() == this->device() ? state : state.to(this->device());
 
 	x = torch::leaky_relu(fc1->forward(x));
 	x = dropout->forward(x);
@@ -64,7 +64,7 @@ std::tuple<torch::Tensor, torch::Tensor> ActorImpl::forward(const torch::Tensor&
 }
 
 std::tuple<torch::Tensor, torch::Tensor> ActorImpl::sample(const torch::Tensor& state) {
-	auto state_device = state.device() == device_ ? state : state.to(device_);
+	auto state_device = state.device() == this->device() ? state : state.to(this->device());
 
 	auto [mean, log_std] = forward(state_device);
 	auto std = torch::exp(log_std);
@@ -86,148 +86,4 @@ std::tuple<torch::Tensor, torch::Tensor> ActorImpl::sample(const torch::Tensor& 
 	log_prob = log_prob.sum(1, true);
 
 	return std::make_tuple(action, log_prob);
-}
-
-std::string ActorImpl::get_current_timestamp() const {
-	auto now = std::chrono::system_clock::now();
-	auto now_time = std::chrono::system_clock::to_time_t(now);
-	auto now_tm = *std::localtime(&now_time);
-
-	std::ostringstream oss;
-	oss << std::put_time(&now_tm, "%Y%m%d_%H%M%S");
-	return oss.str();
-}
-
-std::string ActorImpl::get_log_directory() const {
-	std::filesystem::path script_path(__FILE__);
-	std::filesystem::path script_dir = script_path.parent_path();
-	std::filesystem::path script_name = script_path.stem();
-	std::filesystem::path log_dir = script_dir / "../../logs" / script_name;
-	log_dir = std::filesystem::absolute(log_dir).lexically_normal();
-	std::filesystem::create_directories(log_dir);
-	return log_dir.string();
-}
-
-void ActorImpl::save_network_parameters(int64_t episode) {
-	try {
-		std::string timestamp = this->get_current_timestamp();
-		std::string log_dir = this->get_log_directory();
-
-		std::ostringstream filename;
-		filename << timestamp << "_" << this->network_name() << "_network_episode" << episode << ".pt";
-		std::filesystem::path filepath = std::filesystem::path(log_dir) / filename.str();
-
-        torch::serialize::OutputArchive archive;
-
-        std::cout << "\nSaving parameters:" << std::endl;
-        for (const auto& pair : this->named_parameters()) {
-            std::cout << "Saving parameter: " << pair.key()
-                     << " with size " << pair.value().sizes()
-                     << " requires_grad: " << pair.value().requires_grad() << std::endl;
-            archive.write(pair.key(), pair.value().cpu());
-        }
-
-        for (const auto& pair : this->named_buffers()) {
-            std::cout << "Saving buffer: " << pair.key()
-                     << " with size " << pair.value().sizes() << std::endl;
-            archive.write(pair.key(), pair.value().cpu());
-        }
-
-        archive.save_to(filepath.string());
-
-		std::cout << "Successfully saved network parameters to: " << filepath << std::endl;
-	}
-	catch (const std::exception& e) {
-		std::cerr << "Error saving network parameters: " << e.what() << std::endl;
-		throw;
-	}
-}
-
-void ActorImpl::load_network_parameters(const std::string& timestamp, int64_t episode) {
-	try {
-		std::string log_dir = this->get_log_directory();
-
-		std::ostringstream filename;
-		filename << timestamp << "_" << this->network_name() << "_network_episode" << episode << ".pt";
-		std::filesystem::path filepath = std::filesystem::path(log_dir) / filename.str();
-
-		std::cout << "Loading network parameters from: " << filepath << std::endl;
-
-		if (!std::filesystem::exists(filepath)) {
-			throw std::runtime_error("Network parameter file not found: " + filepath.string());
-		}else{
-			std::cout << "Found parameter file: " << filepath << std::endl;
-			auto fileSize = std::filesystem::file_size(filepath);
-        	std::cout << "Found parameter file (size: " << fileSize << " bytes)" << std::endl;
-		}
-
-        auto model_params = this->named_parameters(true);
-        auto model_buffers = this->named_buffers(true);
-
-        torch::jit::Module loaded_model;
-        try {
-            loaded_model = torch::jit::load(filepath.string(), this->device());
-            std::cout << "Successfully loaded the model file." << std::endl;
-
-            std::cout << "\nChecking loaded model parameters:" << std::endl;
-            for (const auto& p : loaded_model.named_parameters()) {
-                std::cout << "Found parameter in loaded model: " << p.name
-                         << " with size " << p.value.sizes() << std::endl;
-            }
-
-            std::cout << "\nChecking current model parameters:" << std::endl;
-            auto current_params = this->named_parameters(true);
-            for (const auto& p : current_params) {
-                std::cout << "Current model parameter: " << p.key()
-                         << " with size " << p.value().sizes() << std::endl;
-            }
-
-        }
-        catch (const c10::Error& e) {
-            std::cerr << "Error loading the model: " << e.what() << std::endl;
-            throw;
-        }
-
-		std::cout << "\nChecking Loaded model parameters:" << std::endl;
-		for (const auto& pair : loaded_model.named_parameters()) {
-			try {
-				const std::string& name = pair.name;
-				const torch::Tensor& value = pair.value;
-				if (model_params.contains(name)) {
-					torch::NoGradGuard no_grad;
-					model_params[name].copy_(value);
-					std::cout << "Loaded parameter: " << name << " with size "
-						<< value.sizes() << std::endl;
-				}
-			}
-			catch (const std::exception& e) {
-				std::cerr << "Warning: Failed to load parameter: " << e.what() << std::endl;
-				throw;
-			}
-		}
-
-		for (const auto& pair : loaded_model.named_buffers()) {
-			try {
-				const std::string& name = pair.name;
-				const torch::Tensor& value = pair.value;
-				if (model_buffers.contains(name)) {
-					torch::NoGradGuard no_grad;
-					model_buffers[name].copy_(value);
-					std::cout << "Loaded buffer: " << name << " with size "
-						<< value.sizes() << std::endl;
-				}
-			}
-			catch (const std::exception& e) {
-				std::cerr << "Warning: Failed to load buffer: " << e.what() << std::endl;
-				throw;
-			}
-		}
-
-		std::cout << "Loaded network parameters from episode " << episode
-			<< ". Training will continue from episode " << episode + 1
-			<< std::endl;
-	} catch (const std::exception& e) {
-		std::cerr << "Error loading network parameters: " << e.what() << std::endl;
-		throw;
-	}
 }

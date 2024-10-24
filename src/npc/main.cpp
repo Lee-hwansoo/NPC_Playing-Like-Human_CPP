@@ -45,6 +45,7 @@ void test_actor(){
         std::cout << "Successfully created " << actor->network_name() << " network " << std::endl;
 
         actor->load_network_parameters("20241024_002829", 1800);
+        actor->save_network_parameters(1801);
 
         std::cout << "\nTesting single state..." << std::endl;
         auto state = torch::randn({1, state_dim});

@@ -1,0 +1,174 @@
+﻿#pragma once
+
+#include "torch/torch.h"
+#include "torch/script.h"
+#include "torch/serialize.h"
+#include <ctime>
+#include <string>
+#include <filesystem>
+#include <chrono>
+#include <sstream>
+
+struct BaseNetwork : torch::nn::Module {
+public:
+    explicit BaseNetwork(const std::string& network_name)
+        : network_name_(network_name) {}
+
+    virtual ~BaseNetwork() = default;
+
+    BaseNetwork(const BaseNetwork&) = delete;
+    BaseNetwork& operator=(const BaseNetwork&) = delete;
+
+    virtual void initialize_network() = 0;
+
+    virtual void to(torch::Device device) {
+        if (device_ != device) {
+            device_ = device;
+            torch::nn::Module::to(device);
+        }
+    }
+
+    void save_network_parameters(int64_t episode) {
+        try {
+            std::string timestamp = get_current_timestamp();
+            std::string log_dir = get_log_directory();
+
+            std::ostringstream filename;
+            filename << timestamp << "_" << network_name_ << "_network_episode" << episode << ".pt";
+            std::filesystem::path filepath = std::filesystem::path(log_dir) / filename.str();
+
+            torch::serialize::OutputArchive archive;
+
+            std::cout << "\nSaving parameters:" << std::endl;
+            for (const auto& pair : this->named_parameters()) {
+                std::cout << "Saving parameter: " << pair.key()
+                         << " with size " << pair.value().sizes()
+                         << " requires_grad: " << pair.value().requires_grad() << std::endl;
+                archive.write(pair.key(), pair.value().cpu());
+            }
+
+            for (const auto& pair : this->named_buffers()) {
+                std::cout << "Saving buffer: " << pair.key()
+                         << " with size " << pair.value().sizes() << std::endl;
+                archive.write(pair.key(), pair.value().cpu());
+            }
+
+            archive.save_to(filepath.string());
+            std::cout << "Successfully saved network parameters to: " << filepath << std::endl;
+        }
+        catch (const std::exception& e) {
+            std::cerr << "Error saving network parameters: " << e.what() << std::endl;
+            throw;
+        }
+    }
+
+    void load_network_parameters(const std::string& timestamp, int64_t episode) {
+        try {
+            std::string log_dir = get_log_directory();
+
+            std::ostringstream filename;
+            filename << timestamp << "_" << network_name_ << "_network_episode" << episode << ".pt";
+            std::filesystem::path filepath = std::filesystem::path(log_dir) / filename.str();
+
+            if (!std::filesystem::exists(filepath)) {
+                throw std::runtime_error("Network parameter file not found: " + filepath.string());
+            }
+
+            auto model_params = this->named_parameters(true);
+            auto model_buffers = this->named_buffers(true);
+
+            torch::jit::Module loaded_model;
+            try {
+                loaded_model = torch::jit::load(filepath.string(), device_);
+                std::cout << "Successfully loaded the model file." << std::endl;
+
+                std::cout << "\nChecking loaded model parameters:" << std::endl;
+                for (const auto& p : loaded_model.named_parameters()) {
+                    std::cout << "Found parameter in loaded model: " << p.name
+                            << " with size " << p.value.sizes() << std::endl;
+                }
+
+                std::cout << "\nChecking current model parameters:" << std::endl;
+                auto current_params = this->named_parameters(true);
+                for (const auto& p : current_params) {
+                    std::cout << "Current model parameter: " << p.key()
+                            << " with size " << p.value().sizes() << std::endl;
+                }
+            }
+            catch (const c10::Error& e) {
+                std::cerr << "Error loading the model: " << e.what() << std::endl;
+                throw;
+            }
+
+            std::cout << "\nLoading parameters:" << std::endl;
+            for (const auto& pair : loaded_model.named_parameters()) {
+                try {
+                    const std::string& name = pair.name;
+                    const torch::Tensor& value = pair.value;
+                    if (model_params.contains(name)) {
+                        torch::NoGradGuard no_grad;
+                        model_params[name].copy_(value);
+                        std::cout << "Loaded parameter: " << name
+                                << " with size " << value.sizes() << std::endl;
+                    }
+                }
+                catch (const std::exception& e) {
+                    std::cerr << "Warning: Failed to load parameter: " << e.what() << std::endl;
+                    throw;
+                }
+            }
+
+            for (const auto& pair : loaded_model.named_buffers()) {
+                try {
+                    const std::string& name = pair.name;
+                    const torch::Tensor& value = pair.value;
+                    if (model_buffers.contains(name)) {
+                        torch::NoGradGuard no_grad;
+                        model_buffers[name].copy_(value);
+                        std::cout << "Loaded buffer: " << name
+                                << " with size " << value.sizes() << std::endl;
+                    }
+                }
+                catch (const std::exception& e) {
+                    std::cerr << "Warning: Failed to load buffer: " << e.what() << std::endl;
+                    throw;
+                }
+            }
+
+            std::cout << "Loaded network parameters from episode " << episode
+                     << ". Training will continue from episode " << episode + 1 << std::endl;
+        }
+        catch (const std::exception& e) {
+            std::cerr << "Error loading network parameters: " << e.what() << std::endl;
+            throw;
+        }
+    }
+
+    std::string network_name() const { return network_name_; }
+    torch::Device device() const { return device_; }
+
+private:
+    std::string get_current_timestamp() const {
+        auto now = std::chrono::system_clock::now();
+        auto now_time = std::chrono::system_clock::to_time_t(now);
+        std::tm now_tm;
+        localtime_s(&now_tm, &now_time);
+
+        std::ostringstream oss;
+        oss << std::put_time(&now_tm, "%Y%m%d_%H%M%S");
+        return oss.str();
+    }
+
+    std::string get_log_directory() const {
+        std::filesystem::path script_path(__FILE__);
+        std::filesystem::path script_dir = script_path.parent_path();
+        std::filesystem::path script_name = script_path.stem();
+        std::filesystem::path log_dir = script_dir / "../../logs" / script_name;
+        log_dir = std::filesystem::absolute(log_dir).lexically_normal();
+        std::filesystem::create_directories(log_dir);
+        return log_dir.string();
+    }
+
+    std::string network_name_;
+    torch::Device device_{ torch::kCPU };
+};
