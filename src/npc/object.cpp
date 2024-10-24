@@ -76,9 +76,7 @@ void CircleObstacle::draw(SDL_Renderer* renderer) {
             int dy = radius_ - h;
             if ((dx*dx + dy*dy) <= (radius_*radius_)) {
                 SDL_SetRenderDrawColor(renderer, color_.r, color_.g, color_.b, color_.a);
-                SDL_RenderDrawPoint(renderer,
-                                  position_[0].item<real_t>() + dx,
-                                  position_[1].item<real_t>() + dy);
+                SDL_RenderDrawPoint(renderer, position_[0].item<real_t>() + dx, position_[1].item<real_t>() + dy);
             }
         }
     }
@@ -121,8 +119,7 @@ void Goal::draw(SDL_Renderer* renderer) {
             int dx = radius_ - w;
             int dy = radius_ - h;
             int dist = dx*dx + dy*dy;
-            if (dist <= (radius_*radius_) &&
-                dist >= ((radius_- 3)*(radius_- 3))) {
+            if (dist <= (radius_*radius_) && dist >= ((radius_- 3)*(radius_- 3))) {
                 SDL_RenderDrawPoint(renderer, x + w, y + h);
             }
         }
