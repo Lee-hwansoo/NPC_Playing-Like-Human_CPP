@@ -55,6 +55,22 @@ public:
              const torch::Tensor& done) {
         memory_->add(state, action, reward, next_state, done);
     }
+
+    void eval() {
+        actor_->eval();
+        critic1_->eval();
+        critic2_->eval();
+        critic1_target_->eval();
+        critic2_target_->eval();
+    }
+    void train() {
+        actor_->train();
+        critic1_->train();
+        critic2_->train();
+        critic1_target_->train();
+        critic2_target_->train();
+    }
+
     torch::Tensor select_action(const torch::Tensor& state);
     void update();
     std::vector<float> train(int episodes, bool render = false);

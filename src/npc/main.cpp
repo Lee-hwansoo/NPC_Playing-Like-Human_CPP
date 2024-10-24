@@ -122,7 +122,7 @@ void test_sac(){
         const int max_steps = 100;
 
         std::cout << "\nStarting training loop...\n" << std::endl;
-
+        sac.train();
         for (int episode = 0; episode < episodes; ++episode) {
             auto state = get_random_state(state_dim, device);
             float total_reward = 0.0f;
@@ -160,18 +160,42 @@ void test_sac(){
         std::cout << "\nTraining completed!" << std::endl;
 
         std::cout << "\nTesting the trained model...\n" << std::endl;
-
+        sac.eval();
         auto test_state = get_random_state(state_dim, device);
         std::cout << "Test state: " << test_state << std::endl;
 
-        auto start = std::chrono::high_resolution_clock::now();
-        auto test_action = sac.select_action(test_state);
-        auto end = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double, std::milli> elapsed = end - start;
-        std::cout << "Selected action: " << test_action << ", Execution time: " << elapsed.count() << " ms"<< std::endl;
+        const int num_tests = 1000;
+        std::vector<double> execution_times;
+        execution_times.reserve(num_tests);
+        std::cout << "\nMeasuring select_action performance over " << num_tests << " runs...\n" << std::endl;
 
-        auto test_reward = get_reward(test_state, test_action);
-        std::cout << "Received reward: " << test_reward.item<float>() << std::endl;
+        double total_time = 0.0;
+        for (int i = 0; i < num_tests; ++i) {
+            auto start = std::chrono::high_resolution_clock::now();
+            auto test_action = sac.select_action(test_state);
+            auto end = std::chrono::high_resolution_clock::now();
+
+            auto test_reward = get_reward(test_state, test_action);
+            std::cout << "Received reward: " << test_reward.item<float>() << std::endl;
+
+            std::chrono::duration<double, std::milli> elapsed = end - start;
+            execution_times.push_back(elapsed.count());
+            total_time += elapsed.count();
+        }
+
+        double mean_time = total_time / num_tests;
+        double sq_sum = 0.0;
+        for (double time : execution_times) {
+            sq_sum += (time - mean_time) * (time - mean_time);
+        }
+        double std_dev = std::sqrt(sq_sum / num_tests);
+        auto [min_time, max_time] = std::minmax_element(execution_times.begin(), execution_times.end());
+
+        std::cout << "Select Action Performance Stats (" << num_tests << " runs):" << std::endl;
+        std::cout << "  Average time: " << mean_time << " ms" << std::endl;
+        std::cout << "  Std Dev: " << std_dev << " ms" << std::endl;
+        std::cout << "  Min time: " << *min_time << " ms" << std::endl;
+        std::cout << "  Max time: " << *max_time << " ms" << std::endl;
 
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
