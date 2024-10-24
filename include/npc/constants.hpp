@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "npc/numbers.hpp"
+#include <SDL.h>
 #include <random>
 
 namespace Constants
