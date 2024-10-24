@@ -1,8 +1,8 @@
 ﻿#include "npc/constants.hpp"
 #include "npc/actor.hpp"
 #include "npc/critic.hpp"
-#include "torch/torch.h"
 
+#include <torch/torch.h>
 #include <iostream>
 #include <vector>
 #include <chrono>
@@ -84,6 +84,7 @@ void test_critic(){
         std::cout << "Successfully created " << critic->network_name() << " network " << std::endl;
 
         critic->load_network_parameters("20241024_002829", 1800);
+        // critic->save_network_parameters(1801);
 
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;

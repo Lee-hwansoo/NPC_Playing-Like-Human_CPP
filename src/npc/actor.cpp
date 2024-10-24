@@ -1,4 +1,5 @@
 ﻿#include "npc/actor.hpp"
+
 #include <iostream>
 
 ActorImpl::ActorImpl(const std::string& network_name,

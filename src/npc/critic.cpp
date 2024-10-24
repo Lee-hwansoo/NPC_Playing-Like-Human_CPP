@@ -1,4 +1,5 @@
 ﻿#include "npc/critic.hpp"
+
 #include <iostream>
 
 CriticImpl::CriticImpl(const std::string& network_name,

@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "npc/base_network.hpp"
+
 #include <cstdint>
 #include <vector>
 

@@ -1,10 +1,11 @@
 ﻿#pragma once
 
-#include "torch/torch.h"
-#include "torch/script.h"
-#include "torch/serialize.h"
+#include <torch/torch.h>
+#include <torch/script.h>
+#include <torch/serialize.h>
 #include <ctime>
 #include <string>
+#include <iostream>
 #include <filesystem>
 #include <chrono>
 #include <sstream>
@@ -26,6 +27,45 @@ public:
             device_ = device;
             torch::nn::Module::to(device);
         }
+    }
+
+    torch::OrderedDict<std::string, torch::Tensor> state_dict() {
+        torch::OrderedDict<std::string, torch::Tensor> state_dict;
+
+        for (const auto& pair : this->named_parameters()) {
+            state_dict.insert(pair.key(), pair.value().clone());
+        }
+
+        for (const auto& pair : this->named_buffers()) {
+            state_dict.insert(pair.key(), pair.value().clone());
+        }
+
+        std::cout << "\nSuccessfully return network parameters dictionary" << std::endl;
+        return state_dict;
+    }
+
+    void load_state_dict(const torch::OrderedDict<std::string, torch::Tensor>& state_dict) {
+        auto model_params = this->named_parameters(true);
+        auto model_buffers = this->named_buffers(true);
+
+        for (const auto& pair : state_dict) {
+            const auto& name = pair.key();
+            const auto& tensor = pair.value();
+
+            if (model_params.contains(name)) {
+                torch::NoGradGuard no_grad;
+                model_params[name].copy_(tensor);
+            }
+            else if (model_buffers.contains(name)) {
+                torch::NoGradGuard no_grad;
+                model_buffers[name].copy_(tensor);
+            }
+            else {
+                std::cerr << "Warning: Key '" << name << "' in state dict was not found in the model" << std::endl;
+            }
+        }
+
+        std::cout << "\nSuccessfully Loaded network parameters" << std::endl;
     }
 
     void save_network_parameters(int64_t episode) {
