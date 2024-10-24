@@ -19,4 +19,13 @@ namespace types {
     template<typename T, size_type N>
     using fixed_array = std::array<T, N>;
     using color_rgb = fixed_array<uint8_t, 3>;
+
+    // tensor type utilities
+    constexpr auto get_tensor_dtype() {
+        if constexpr (std::is_same_v<real_t, float>) {
+            return torch::kFloat32;
+        } else if constexpr (std::is_same_v<real_t, double>) {
+            return torch::kFloat64;
+        }
+    }
 }
