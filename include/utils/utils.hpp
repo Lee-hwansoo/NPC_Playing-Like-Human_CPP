@@ -4,7 +4,7 @@
 #include <vector>
 #include <optional>
 
-namespace frenet {
+namespace utils {
 
 class FrenetCoordinate {
 public:

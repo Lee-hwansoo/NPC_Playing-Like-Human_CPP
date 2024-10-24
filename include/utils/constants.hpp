@@ -1,10 +1,10 @@
 ﻿#pragma once
 
-#include "utils/numbers.hpp"
+#include "utils/types.hpp"
 #include <SDL.h>
 #include <random>
 
-namespace Constants
+namespace constants
 {
     using namespace types;
 

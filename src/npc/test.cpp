@@ -221,7 +221,7 @@ void test_frenet(){
         torch::Tensor position = torch::tensor({1.0, 2.0}, torch::kFloat32).to(device);
         torch::Tensor path = torch::tensor({{0.0, 0.0}, {1.0, 1.0}, {2.0, 2.0}}, torch::kFloat32).to(device);
 
-        auto result = frenet::FrenetCoordinate::getFrenetD(position, path, device);
+        auto result = utils::FrenetCoordinate::getFrenetD(position, path, device);
 
         if (result.has_value()) {
             auto [closest_point, lateral_distance] = result.value();
