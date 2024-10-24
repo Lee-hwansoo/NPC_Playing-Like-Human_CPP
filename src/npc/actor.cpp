@@ -117,17 +117,23 @@ void ActorImpl::save_network_parameters(int64_t episode) {
 		filename << timestamp << "_" << this->network_name() << "_network_episode" << episode << ".pt";
 		std::filesystem::path filepath = std::filesystem::path(log_dir) / filename.str();
 
-		torch::jit::Module module(this->network_name());
+        torch::serialize::OutputArchive archive;
 
+        std::cout << "\nSaving parameters:" << std::endl;
         for (const auto& pair : this->named_parameters()) {
-            module.register_parameter(pair.key(), pair.value(), false);  // false = not requiring gradient
+            std::cout << "Saving parameter: " << pair.key()
+                     << " with size " << pair.value().sizes()
+                     << " requires_grad: " << pair.value().requires_grad() << std::endl;
+            archive.write(pair.key(), pair.value().cpu());
         }
 
         for (const auto& pair : this->named_buffers()) {
-            module.register_buffer(pair.key(), pair.value());
+            std::cout << "Saving buffer: " << pair.key()
+                     << " with size " << pair.value().sizes() << std::endl;
+            archive.write(pair.key(), pair.value().cpu());
         }
 
-        module.save(filepath.string());
+        archive.save_to(filepath.string());
 
 		std::cout << "Successfully saved network parameters to: " << filepath << std::endl;
 	}
@@ -160,14 +166,29 @@ void ActorImpl::load_network_parameters(const std::string& timestamp, int64_t ep
 
         torch::jit::Module loaded_model;
         try {
-            loaded_model = torch::jit::load(filepath.string());
+            loaded_model = torch::jit::load(filepath.string(), this->device());
             std::cout << "Successfully loaded the model file." << std::endl;
+
+            std::cout << "\nChecking loaded model parameters:" << std::endl;
+            for (const auto& p : loaded_model.named_parameters()) {
+                std::cout << "Found parameter in loaded model: " << p.name
+                         << " with size " << p.value.sizes() << std::endl;
+            }
+
+            std::cout << "\nChecking current model parameters:" << std::endl;
+            auto current_params = this->named_parameters(true);
+            for (const auto& p : current_params) {
+                std::cout << "Current model parameter: " << p.key()
+                         << " with size " << p.value().sizes() << std::endl;
+            }
+
         }
         catch (const c10::Error& e) {
             std::cerr << "Error loading the model: " << e.what() << std::endl;
             throw;
         }
 
+		std::cout << "\nChecking Loaded model parameters:" << std::endl;
 		for (const auto& pair : loaded_model.named_parameters()) {
 			try {
 				const std::string& name = pair.name;

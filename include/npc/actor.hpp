@@ -2,6 +2,7 @@
 
 #include "torch/torch.h"
 #include "torch/script.h"
+#include "torch/serialize.h"
 #include <vector>
 #include <cmath>
 #include <ctime>
