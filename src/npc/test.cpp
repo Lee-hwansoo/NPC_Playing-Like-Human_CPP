@@ -1,4 +1,5 @@
 ﻿#include "npc/constants.hpp"
+#include "npc/utils.hpp"
 #include "npc/actor.hpp"
 #include "npc/critic.hpp"
 #include "npc/sac.hpp"
@@ -209,10 +210,35 @@ void test_sac(){
     }
 }
 
+void test_frenet(){
+    try{
+        std::cout << "\nStarting test..." << std::endl;
+        torch::Device device = get_device();
+        std::cout << "Device initialized" << std::endl;
+
+        torch::Tensor position = torch::tensor({1.0, 2.0}, torch::kFloat32).to(device);
+        torch::Tensor path = torch::tensor({{0.0, 0.0}, {1.0, 1.0}, {2.0, 2.0}}, torch::kFloat32).to(device);
+
+        auto result = frenet::FrenetCoordinate::getFrenetD(position, path, device);
+
+        if (result.has_value()) {
+            auto [closest_point, lateral_distance] = result.value();
+            std::cout << "Closest point: \n" << closest_point << std::endl;
+            std::cout << "Lateral distance: " << lateral_distance << std::endl;
+        } else {
+            std::cout << "Path has less than 2 waypoints" << std::endl;
+        }
+
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+        throw;
+    }
+}
+
 int main(){
     // test_actor();
     // test_critic();
-
-    test_sac();
+    // test_sac();
+    test_frenet();
     return 0;
 }
