@@ -50,6 +50,11 @@ public:
     SAC(const SAC&) = delete;
     SAC& operator=(const SAC&) = delete;
 
+    void add(const torch::Tensor& state, const torch::Tensor& action,
+             const torch::Tensor& reward, const torch::Tensor& next_state,
+             const torch::Tensor& done) {
+        memory_->add(state, action, reward, next_state, done);
+    }
     torch::Tensor select_action(const torch::Tensor& state);
     void update();
     std::vector<float> train(int episodes, bool render = false);

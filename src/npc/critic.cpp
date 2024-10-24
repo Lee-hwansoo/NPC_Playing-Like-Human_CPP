@@ -19,6 +19,7 @@ void CriticImpl::initialize_network() {
     fc4 = register_module("fc4", torch::nn::Linear(256, 1));
 	dropout = register_module("dropout", torch::nn::Dropout(0.1));
 
+	std::cout << "\nInitializing "<< this->network_name() << " network" << std::endl;
 	int count = 0;
 	for (const auto& pair : named_children()) {
 		const auto& name = pair.key();

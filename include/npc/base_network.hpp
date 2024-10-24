@@ -40,7 +40,7 @@ public:
             state_dict.insert(pair.key(), pair.value().clone());
         }
 
-        std::cout << "\nSuccessfully return network parameters dictionary" << std::endl;
+        std::cout << "\nSuccessfully return " << network_name_ << " network parameters dictionary" << std::endl;
         return state_dict;
     }
 
@@ -65,7 +65,7 @@ public:
             }
         }
 
-        std::cout << "\nSuccessfully Loaded network parameters" << std::endl;
+        std::cout << "\nSuccessfully Loaded " << network_name_ << " network parameters" << std::endl;
     }
 
     void save_network_parameters(int64_t episode) {
@@ -94,7 +94,7 @@ public:
             }
 
             archive.save_to(filepath.string());
-            std::cout << "Successfully saved network parameters to: " << filepath << std::endl;
+            std::cout << "\nSuccessfully saved " << network_name_ << " network parameters to: " << filepath << std::endl;
         }
         catch (const std::exception& e) {
             std::cerr << "Error saving network parameters: " << e.what() << std::endl;
@@ -120,9 +120,9 @@ public:
             torch::jit::Module loaded_model;
             try {
                 loaded_model = torch::jit::load(filepath.string(), device_);
-                std::cout << "Successfully loaded the model file." << std::endl;
+                std::cout << "\nSuccessfully loaded the model file." << std::endl;
 
-                std::cout << "\nChecking loaded model parameters:" << std::endl;
+                std::cout << "\nChecking loaded " << network_name_ << "network parameters:" << std::endl;
                 for (const auto& p : loaded_model.named_parameters()) {
                     std::cout << "Found parameter in loaded model: " << p.name
                             << " with size " << p.value.sizes() << std::endl;

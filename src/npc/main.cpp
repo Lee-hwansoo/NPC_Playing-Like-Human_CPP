@@ -1,6 +1,7 @@
 ﻿#include "npc/constants.hpp"
 #include "npc/actor.hpp"
 #include "npc/critic.hpp"
+#include "npc/sac.hpp"
 
 #include <torch/torch.h>
 #include <iostream>
@@ -92,16 +93,96 @@ void test_critic(){
     }
 }
 
+torch::Tensor get_random_state(int64_t state_dim, torch::Device device) {
+    return torch::randn({1, state_dim}).to(device);
+}
+
+torch::Tensor get_reward(const torch::Tensor& state, const torch::Tensor& action) {
+    return torch::exp(-torch::norm(state) - torch::norm(action));
+}
+
+bool is_done(const torch::Tensor& state) {
+    return torch::norm(state).item<float>() > 5.0f;
+}
+
+void test_sac(){
+    try{
+        std::cout << "\nStarting test..." << std::endl;
+        torch::Device device = get_device();
+        std::cout << "Device initialized" << std::endl;
+
+        const int64_t state_dim = 159;
+        const int64_t action_dim = 2;
+        const std::vector<float> min_action = {0.6f, -1.0f};
+        const std::vector<float> max_action = {1.0f, 1.0f};
+
+        SAC sac(state_dim, action_dim, min_action, max_action, device);
+
+        const int episodes = 100;
+        const int max_steps = 100;
+
+        std::cout << "\nStarting training loop...\n" << std::endl;
+
+        for (int episode = 0; episode < episodes; ++episode) {
+            auto state = get_random_state(state_dim, device);
+            float total_reward = 0.0f;
+
+            for (int step = 0; step < max_steps; ++step) {
+                auto action = sac.select_action(state);
+
+                auto next_state = get_random_state(state_dim, device);
+                auto reward = get_reward(state, action);
+                auto done = is_done(next_state);
+
+                sac.add(
+                    state,
+                    action,
+                    reward.view({1, 1}),
+                    next_state,
+                    torch::tensor(done ? 1.0f : 0.0f).view({1, 1}).to(device)
+                );
+
+                sac.update();
+
+                total_reward += reward.item<float>();
+                state = next_state;
+
+                if (done) {
+                    break;
+                }
+            }
+
+            std::cout << "Episode " << episode + 1
+                    << ", Total Reward: " << total_reward
+                    << std::endl;
+        }
+
+        std::cout << "\nTraining completed!" << std::endl;
+
+        std::cout << "\nTesting the trained model...\n" << std::endl;
+
+        auto test_state = get_random_state(state_dim, device);
+        std::cout << "Test state: " << test_state << std::endl;
+
+        auto start = std::chrono::high_resolution_clock::now();
+        auto test_action = sac.select_action(test_state);
+        auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> elapsed = end - start;
+        std::cout << "Selected action: " << test_action << ", Execution time: " << elapsed.count() << " ms"<< std::endl;
+
+        auto test_reward = get_reward(test_state, test_action);
+        std::cout << "Received reward: " << test_reward.item<float>() << std::endl;
+
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+        throw;
+    }
+}
+
 int main(){
-    auto m = torch::nn::Linear(20, 30);
-    auto dropout = torch::nn::Dropout(0.1);
-    auto input = torch::randn({128, 20});
-    auto output = m->forward(input);
-    output = dropout->forward(output);
-    std::cout << output.sizes() << std::endl;
+    // test_actor();
+    // test_critic();
 
-    test_actor();
-
-    test_critic();
+    test_sac();
     return 0;
 }

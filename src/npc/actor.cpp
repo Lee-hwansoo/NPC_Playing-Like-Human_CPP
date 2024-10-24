@@ -24,6 +24,7 @@ void ActorImpl::initialize_network() {
 	fc_log_std = register_module("fc_log_std", torch::nn::Linear(256, action_dim_));
 	dropout = register_module("dropout", torch::nn::Dropout(0.1));
 
+	std::cout << "\nInitializing "<< this->network_name() << " network" << std::endl;
 	int count = 0;
 	for (const auto& pair : named_children()) {
 		const auto& name = pair.key();
