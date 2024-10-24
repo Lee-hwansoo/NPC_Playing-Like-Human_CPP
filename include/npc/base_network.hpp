@@ -184,6 +184,10 @@ public:
         }
     }
 
+    void print_model_info(){
+        print_model_size();
+    }
+
     std::string network_name() const { return network_name_; }
     torch::Device device() const { return device_; }
 
@@ -207,6 +211,28 @@ private:
         log_dir = std::filesystem::absolute(log_dir).lexically_normal();
         std::filesystem::create_directories(log_dir);
         return log_dir.string();
+    }
+
+    void print_model_size(){
+        size_t total_params = 0;
+        size_t total_memory = 0;
+
+        std::cout << "\n" << network_name_ << " Network Memory Analysis:" << std::endl;
+        for (const auto& pair : this->named_parameters(true)) {
+            const auto& param = pair.value();
+            size_t numel = param.numel();  // 파라미터 개수
+            size_t bytes = numel * sizeof(float);  // 메모리 크기 (float 기준)
+
+            total_params += numel;
+            total_memory += bytes;
+
+            std::cout << pair.key() << ": "
+                    << "Parameters: " << numel << ", "
+                    << "Memory: " << bytes / 1024.0 << " KB" << std::endl;
+        }
+
+        std::cout << "Total Parameters: " << total_params << std::endl;
+        std::cout << "Total Memory: " << total_memory / (1024.0 * 1024.0) << " MB" << std::endl;
     }
 
     std::string network_name_;

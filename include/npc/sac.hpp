@@ -78,6 +78,12 @@ public:
     void save_network_parameters(int64_t episode);
     void load_network_parameters(const std::string& timestamp, int64_t episode);
 
+    void print_model_info(){
+        actor_->print_model_info();
+        critic1_->print_model_info();
+        critic2_->print_model_info();
+    }
+
     int64_t state_dim() const { return state_dim_; }
 	int64_t action_dim() const { return action_dim_; }
     torch::Device device() const { return device_; }

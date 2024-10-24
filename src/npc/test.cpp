@@ -197,6 +197,10 @@ void test_sac(){
         std::cout << "  Min time: " << *min_time << " ms" << std::endl;
         std::cout << "  Max time: " << *max_time << " ms" << std::endl;
 
+        std::cout << "\nAll tests completed successfully!" << std::endl;
+
+        sac.print_model_info();
+
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
         throw;
