@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include "npc/numbers.hpp"
+#include "utils/numbers.hpp"
 #include <SDL.h>
 #include <random>
 

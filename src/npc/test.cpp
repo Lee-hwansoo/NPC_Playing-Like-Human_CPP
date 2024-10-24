@@ -1,5 +1,5 @@
-﻿#include "npc/constants.hpp"
-#include "npc/utils.hpp"
+﻿#include "utils/constants.hpp"
+#include "utils/utils.hpp"
 #include "npc/actor.hpp"
 #include "npc/critic.hpp"
 #include "npc/sac.hpp"
