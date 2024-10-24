@@ -17,9 +17,9 @@ namespace constants
     //--------------------------------------------------------------------------------
     namespace Display
     {
-        constexpr index_type WIDTH = 1000;    // 100m in simulation
-        constexpr index_type HEIGHT = 1000;   // 100m in simulation
-        constexpr index_type FPS = 30;
+        constexpr count_type WIDTH = 1000;    // 100m in simulation
+        constexpr count_type HEIGHT = 1000;   // 100m in simulation
+        constexpr count_type FPS = 30;
 
         // Color definitions (RGB format for SDL2)
         const color_rgb BLACK   = {0, 0, 0};
@@ -83,7 +83,7 @@ namespace constants
         {
             constexpr real_t ANGLE = 103.0f * DEG_TO_RAD;  // 103 degrees
             constexpr real_t RANGE = 500.0f;  // 50m in simulation
-            constexpr index_type RAY_COUNT = 150;
+            constexpr count_type RAY_COUNT = 150;
         }
     }
 
@@ -92,7 +92,7 @@ namespace constants
     //--------------------------------------------------------------------------------
     namespace Obstacle
     {
-        constexpr index_type COUNT = 50;
+        constexpr count_type COUNT = 50;
         constexpr real_t RADIUS = 10.0f;
 
         // Movement boundaries

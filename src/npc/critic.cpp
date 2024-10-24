@@ -3,8 +3,8 @@
 #include <iostream>
 
 CriticImpl::CriticImpl(const std::string& network_name,
-					int64_t state_dim,
-	                int64_t action_dim)
+					dim_type state_dim,
+	                dim_type action_dim)
 		: BaseNetwork(network_name),
 		  state_dim_(state_dim),
 		  action_dim_(action_dim) {
@@ -20,7 +20,7 @@ void CriticImpl::initialize_network() {
 	dropout = register_module("dropout", torch::nn::Dropout(0.1));
 
 	std::cout << "\nInitializing "<< this->network_name() << " network" << std::endl;
-	int count = 0;
+	count_type count = 0;
 	for (const auto& pair : named_children()) {
 		const auto& name = pair.key();
 		const auto& child = pair.value();
@@ -43,7 +43,7 @@ void CriticImpl::to(torch::Device device) {
 	}
 }
 
-torch::Tensor CriticImpl::forward(const torch::Tensor& state, const torch::Tensor& action) {
+tensor_t CriticImpl::forward(const tensor_t& state, const tensor_t& action) {
 	auto x = torch::cat({state, action}, 1);
     x = x.to(this->device());
 

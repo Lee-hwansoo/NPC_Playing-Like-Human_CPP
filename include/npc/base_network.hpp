@@ -1,5 +1,7 @@
 ﻿#pragma once
 
+#include "utils/types.hpp"
+#include "utils/constants.hpp"
 #include <torch/torch.h>
 #include <torch/script.h>
 #include <torch/serialize.h>
@@ -9,6 +11,9 @@
 #include <filesystem>
 #include <chrono>
 #include <sstream>
+
+using namespace types;
+using namespace constants;
 
 struct BaseNetwork : torch::nn::Module {
 public:
@@ -29,8 +34,8 @@ public:
         }
     }
 
-    torch::OrderedDict<std::string, torch::Tensor> state_dict() {
-        torch::OrderedDict<std::string, torch::Tensor> state_dict;
+    torch::OrderedDict<std::string, tensor_t> state_dict() {
+        torch::OrderedDict<std::string, tensor_t> state_dict;
 
         for (const auto& pair : this->named_parameters()) {
             state_dict.insert(pair.key(), pair.value().clone());
@@ -44,7 +49,7 @@ public:
         return state_dict;
     }
 
-    void load_state_dict(const torch::OrderedDict<std::string, torch::Tensor>& state_dict) {
+    void load_state_dict(const torch::OrderedDict<std::string, tensor_t>& state_dict) {
         auto model_params = this->named_parameters(true);
         auto model_buffers = this->named_buffers(true);
 
@@ -68,7 +73,7 @@ public:
         std::cout << "\nSuccessfully Loaded " << network_name_ << " network parameters" << std::endl;
     }
 
-    void save_network_parameters(int64_t episode) {
+    void save_network_parameters(dim_type episode) {
         try {
             std::string timestamp = get_current_timestamp();
             std::string log_dir = get_log_directory();
@@ -102,7 +107,7 @@ public:
         }
     }
 
-    void load_network_parameters(const std::string& timestamp, int64_t episode) {
+    void load_network_parameters(const std::string& timestamp, dim_type episode) {
         try {
             std::string log_dir = get_log_directory();
 
@@ -144,7 +149,7 @@ public:
             for (const auto& pair : loaded_model.named_parameters()) {
                 try {
                     const std::string& name = pair.name;
-                    const torch::Tensor& value = pair.value;
+                    const tensor_t& value = pair.value;
                     if (model_params.contains(name)) {
                         torch::NoGradGuard no_grad;
                         model_params[name].copy_(value);
@@ -161,7 +166,7 @@ public:
             for (const auto& pair : loaded_model.named_buffers()) {
                 try {
                     const std::string& name = pair.name;
-                    const torch::Tensor& value = pair.value;
+                    const tensor_t& value = pair.value;
                     if (model_buffers.contains(name)) {
                         torch::NoGradGuard no_grad;
                         model_buffers[name].copy_(value);
@@ -219,14 +224,14 @@ private:
     }
 
     void print_model_size(){
-        size_t total_params = 0;
-        size_t total_memory = 0;
+        size_type total_params = 0;
+        size_type total_memory = 0;
 
         std::cout << "\n" << network_name_ << " Network Memory Analysis:" << std::endl;
         for (const auto& pair : this->named_parameters(true)) {
             const auto& param = pair.value();
-            size_t numel = param.numel();  // 파라미터 개수
-            size_t bytes = numel * sizeof(float);  // 메모리 크기 (float 기준)
+            size_type numel = param.numel();  // 파라미터 개수
+            size_type bytes = numel * sizeof(real_t);  // 메모리 크기 (float 기준)
 
             total_params += numel;
             total_memory += bytes;

@@ -1,4 +1,5 @@
 ﻿#include "utils/constants.hpp"
+#include "utils/types.hpp"
 #include "utils/utils.hpp"
 #include "npc/actor.hpp"
 #include "npc/critic.hpp"
@@ -38,10 +39,10 @@ void test_actor(){
         torch::Device device = get_device();
         std::cout << "Device initialized" << std::endl;
 
-        const int64_t state_dim = 159;
-        const int64_t action_dim = 2;
-        std::vector<float> min_action = {0.6f, -1.0f};
-        std::vector<float> max_action = {1.0f, 1.0f};
+        const dim_type state_dim = 159;
+        const dim_type action_dim = 2;
+        std::vector<real_t> min_action = {0.6f, -1.0f};
+        std::vector<real_t> max_action = {1.0f, 1.0f};
 
         std::cout << "Creating Actor network..." << std::endl;
         Actor actor("actor", state_dim, action_dim, min_action, max_action);
@@ -59,7 +60,7 @@ void test_actor(){
         auto start = std::chrono::high_resolution_clock::now();
         auto [action, log_prob] = actor->sample(state);
         auto end = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double, std::milli> elapsed = end - start;
+        std::chrono::duration<real_real_t, std::milli> elapsed = end - start;
 
         std::cout << "Output action shape: " << action.sizes() << std::endl;
         std::cout << "Action: " << action << std::endl;
@@ -78,8 +79,8 @@ void test_critic(){
         torch::Device device = get_device();
         std::cout << "Device initialized" << std::endl;
 
-        const int64_t state_dim = 159;
-        const int64_t action_dim = 2;
+        const dim_type state_dim = 159;
+        const dim_type action_dim = 2;
 
         std::cout << "Creating Critic network..." << std::endl;
         Critic critic("critic1", state_dim, action_dim);
@@ -96,16 +97,16 @@ void test_critic(){
     }
 }
 
-torch::Tensor get_random_state(int64_t state_dim, torch::Device device) {
+tensor_t get_random_state(dim_type state_dim, torch::Device device) {
     return torch::randn({1, state_dim}).to(device);
 }
 
-torch::Tensor get_reward(const torch::Tensor& state, const torch::Tensor& action) {
+tensor_t get_reward(const tensor_t& state, const tensor_t& action) {
     return torch::exp(-torch::norm(state) - torch::norm(action));
 }
 
-bool is_done(const torch::Tensor& state) {
-    return torch::norm(state).item<float>() > 5.0f;
+bool is_done(const tensor_t& state) {
+    return torch::norm(state).item<real_t>() > 5.0f;
 }
 
 void test_sac(){
@@ -114,10 +115,10 @@ void test_sac(){
         torch::Device device = get_device();
         std::cout << "Device initialized" << std::endl;
 
-        const int64_t state_dim = 159;
-        const int64_t action_dim = 2;
-        const std::vector<float> min_action = {0.6f, -1.0f};
-        const std::vector<float> max_action = {1.0f, 1.0f};
+        const dim_type state_dim = 159;
+        const dim_type action_dim = 2;
+        const std::vector<real_t> min_action = {0.6f, -1.0f};
+        const std::vector<real_t> max_action = {1.0f, 1.0f};
 
         SAC sac(state_dim, action_dim, min_action, max_action, device);
 
@@ -130,7 +131,7 @@ void test_sac(){
         sac.train();
         for (int episode = 0; episode < episodes; ++episode) {
             auto state = get_random_state(state_dim, device);
-            float total_reward = 0.0f;
+            real_t total_reward = 0.0f;
 
             for (int step = 0; step < max_steps; ++step) {
                 auto action = sac.select_action(state);
@@ -149,7 +150,7 @@ void test_sac(){
 
                 sac.update();
 
-                total_reward += reward.item<float>();
+                total_reward += reward.item<real_t>();
                 state = next_state;
 
                 if (done) {
@@ -170,30 +171,30 @@ void test_sac(){
         std::cout << "Test state: " << test_state << std::endl;
 
         const int num_tests = 1000;
-        std::vector<double> execution_times;
+        std::vector<real_real_t> execution_times;
         execution_times.reserve(num_tests);
         std::cout << "\nMeasuring select_action performance over " << num_tests << " runs...\n" << std::endl;
 
-        double total_time = 0.0;
+        real_real_t total_time = 0.0;
         for (int i = 0; i < num_tests; ++i) {
             auto start = std::chrono::high_resolution_clock::now();
             auto test_action = sac.select_action(test_state);
             auto end = std::chrono::high_resolution_clock::now();
 
             auto test_reward = get_reward(test_state, test_action);
-            std::cout << "Received reward: " << test_reward.item<float>() << std::endl;
+            std::cout << "Received reward: " << test_reward.item<real_t>() << std::endl;
 
-            std::chrono::duration<double, std::milli> elapsed = end - start;
+            std::chrono::duration<real_real_t, std::milli> elapsed = end - start;
             execution_times.push_back(elapsed.count());
             total_time += elapsed.count();
         }
 
-        double mean_time = total_time / num_tests;
-        double sq_sum = 0.0;
-        for (double time : execution_times) {
+        real_real_t mean_time = total_time / num_tests;
+        real_real_t sq_sum = 0.0;
+        for (real_real_t time : execution_times) {
             sq_sum += (time - mean_time) * (time - mean_time);
         }
-        double std_dev = std::sqrt(sq_sum / num_tests);
+        real_real_t std_dev = std::sqrt(sq_sum / num_tests);
         auto [min_time, max_time] = std::minmax_element(execution_times.begin(), execution_times.end());
 
         std::cout << "\nSelect Action Performance Stats (" << num_tests << " runs):" << std::endl;
@@ -218,8 +219,8 @@ void test_frenet(){
         torch::Device device = get_device();
         std::cout << "Device initialized" << std::endl;
 
-        torch::Tensor position = torch::tensor({1.0, 2.0}, torch::kFloat32).to(device);
-        torch::Tensor path = torch::tensor({{0.0, 0.0}, {1.0, 1.0}, {2.0, 2.0}}, torch::kFloat32).to(device);
+        tensor_t position = torch::tensor({1.0, 2.0}, get_tensor_dtype()).to(device);
+        tensor_t path = torch::tensor({{0.0, 0.0}, {1.0, 1.0}, {2.0, 2.0}}, get_tensor_dtype()).to(device);
 
         auto result = utils::FrenetCoordinate::getFrenetD(position, path, device);
 
@@ -240,7 +241,7 @@ void test_frenet(){
 constexpr int WINDOW_WIDTH = 800;
 constexpr int WINDOW_HEIGHT = 600;
 constexpr int FPS = 60;
-constexpr float dt = 1.0f / FPS;
+constexpr real_t dt = 1.0f / FPS;
 
 class SDLApp {
 public:
@@ -274,8 +275,8 @@ public:
 
     void run() {
         // 게임 영역 설정
-        object::Boundary game_area{0.f, static_cast<float>(WINDOW_WIDTH),
-                                 0.f, static_cast<float>(WINDOW_HEIGHT)};
+        types::Bounds2D game_area{0.f, static_cast<real_t>(WINDOW_WIDTH),
+                                 0.f, static_cast<real_t>(WINDOW_HEIGHT)};
 
         // 동적 장애물 생성
         std::vector<std::unique_ptr<object::Object>> objects;
@@ -299,8 +300,8 @@ public:
 
         bool quit = false;
         SDL_Event e;
-        Uint32 frame_start;
-        int frame_time;
+        count_type frame_start;
+        index_type frame_time;
 
         // 게임 루프
         while (!quit) {

@@ -2,8 +2,6 @@
 
 #include "npc/actor.hpp"
 #include "npc/critic.hpp"
-#include "npc/base_network.hpp"
-
 #include <torch/torch.h>
 #include <deque>
 #include <random>
@@ -13,36 +11,36 @@
 
 class ReplayBuffer {
 public:
-    explicit ReplayBuffer(size_t buffer_size, size_t batch_size);
+    explicit ReplayBuffer(size_type buffer_size, size_type batch_size);
 
     virtual ~ReplayBuffer() = default;
 
     ReplayBuffer(const ReplayBuffer&) = delete;
     ReplayBuffer& operator=(const ReplayBuffer&) = delete;
 
-    void add(const torch::Tensor& state, const torch::Tensor& action,
-             const torch::Tensor& reward, const torch::Tensor& next_state,
-             const torch::Tensor& done);
+    void add(const tensor_t& state, const tensor_t& action,
+             const tensor_t& reward, const tensor_t& next_state,
+             const tensor_t& done);
 
-    std::tuple<torch::Tensor, torch::Tensor, torch::Tensor,
-               torch::Tensor, torch::Tensor> sample();
+    std::tuple<tensor_t, tensor_t, tensor_t,
+               tensor_t, tensor_t> sample();
 
-    size_t size() const { return buffer_.size(); }
-    size_t batch_size() const { return batch_size_; }
+    size_type size() const { return buffer_.size(); }
+    size_type batch_size() const { return batch_size_; }
 
 private:
-    std::deque<std::tuple<torch::Tensor, torch::Tensor, torch::Tensor,
-                         torch::Tensor, torch::Tensor>> buffer_;
-    size_t buffer_size_;
-    size_t batch_size_;
+    std::deque<std::tuple<tensor_t, tensor_t, tensor_t,
+                         tensor_t, tensor_t>> buffer_;
+    size_type buffer_size_;
+    size_type batch_size_;
     std::mt19937 generator_;
 };
 
 class SAC {
 public:
-    explicit SAC(int64_t state_dim, int64_t action_dim,
-                const std::vector<float>& min_action,
-                const std::vector<float>& max_action,
+    explicit SAC(dim_type state_dim, dim_type action_dim,
+                const std::vector<real_t>& min_action,
+                const std::vector<real_t>& max_action,
                 torch::Device device);
 
     virtual ~SAC() = default;
@@ -50,9 +48,9 @@ public:
     SAC(const SAC&) = delete;
     SAC& operator=(const SAC&) = delete;
 
-    void add(const torch::Tensor& state, const torch::Tensor& action,
-             const torch::Tensor& reward, const torch::Tensor& next_state,
-             const torch::Tensor& done) {
+    void add(const tensor_t& state, const tensor_t& action,
+             const tensor_t& reward, const tensor_t& next_state,
+             const tensor_t& done) {
         memory_->add(state, action, reward, next_state, done);
     }
 
@@ -71,12 +69,12 @@ public:
         critic2_target_->eval();
     }
 
-    torch::Tensor select_action(const torch::Tensor& state);
+    tensor_t select_action(const tensor_t& state);
     void update();
-    std::vector<float> train(int episodes, bool render = false);
-    std::vector<float> test(int episodes, bool render = true);
-    void save_network_parameters(int64_t episode);
-    void load_network_parameters(const std::string& timestamp, int64_t episode){
+    std::vector<real_t> train(int episodes, bool render = false);
+    std::vector<real_t> test(int episodes, bool render = true);
+    void save_network_parameters(dim_type episode);
+    void load_network_parameters(const std::string& timestamp, dim_type episode){
         actor_->load_network_parameters(timestamp, episode);
         critic1_->load_network_parameters(timestamp, episode);
         critic2_->load_network_parameters(timestamp, episode);
@@ -90,8 +88,8 @@ public:
         critic2_->print_model_info();
     }
 
-    int64_t state_dim() const { return state_dim_; }
-	int64_t action_dim() const { return action_dim_; }
+    dim_type state_dim() const { return state_dim_; }
+	dim_type action_dim() const { return action_dim_; }
     torch::Device device() const { return device_; }
 
 private:
@@ -102,12 +100,12 @@ private:
     torch::optim::Adam actor_optimizer_, critic1_optimizer_, critic2_optimizer_;
     std::unique_ptr<ReplayBuffer> memory_;
 
-    int64_t state_dim_, action_dim_;
-    const std::vector<float>& min_action_, max_action_;
+    dim_type state_dim_, action_dim_;
+    const std::vector<real_t>& min_action_, max_action_;
     torch::Device device_;
 
-    double gamma_;
-    double tau_;
-    double alpha_;
-    int64_t start_episode_;
+    real_t gamma_;
+    real_t tau_;
+    real_t alpha_;
+    dim_type start_episode_;
 };

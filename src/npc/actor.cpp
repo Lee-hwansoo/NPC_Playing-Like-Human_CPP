@@ -3,10 +3,10 @@
 #include <iostream>
 
 ActorImpl::ActorImpl(const std::string& network_name,
-					int64_t state_dim,
-	                int64_t action_dim,
-	                const std::vector<float>& min_action,
-	                const std::vector<float>& max_action)
+					dim_type state_dim,
+	                dim_type action_dim,
+	                const std::vector<real_t>& min_action,
+	                const std::vector<real_t>& max_action)
 		: BaseNetwork(network_name),
 		  state_dim_(state_dim),
 		  action_dim_(action_dim) {
@@ -25,7 +25,7 @@ void ActorImpl::initialize_network() {
 	dropout = register_module("dropout", torch::nn::Dropout(0.1));
 
 	std::cout << "\nInitializing "<< this->network_name() << " network" << std::endl;
-	int count = 0;
+	count_type count = 0;
 	for (const auto& pair : named_children()) {
 		const auto& name = pair.key();
 		const auto& child = pair.value();
@@ -50,7 +50,7 @@ void ActorImpl::to(torch::Device device) {
 	}
 }
 
-std::tuple<torch::Tensor, torch::Tensor> ActorImpl::forward(const torch::Tensor& state) {
+std::tuple<tensor_t, tensor_t> ActorImpl::forward(const tensor_t& state) {
 	auto x = state.device() == this->device() ? state : state.to(this->device());
 
 	x = torch::leaky_relu(fc1->forward(x));
@@ -65,7 +65,7 @@ std::tuple<torch::Tensor, torch::Tensor> ActorImpl::forward(const torch::Tensor&
 	return std::make_tuple(mean, log_std);
 }
 
-std::tuple<torch::Tensor, torch::Tensor> ActorImpl::sample(const torch::Tensor& state) {
+std::tuple<tensor_t, tensor_t> ActorImpl::sample(const tensor_t& state) {
 	auto state_device = state.device() == this->device() ? state : state.to(this->device());
 
 	auto [mean, log_std] = forward(state_device);

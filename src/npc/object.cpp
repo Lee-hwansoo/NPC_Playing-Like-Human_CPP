@@ -2,8 +2,8 @@
 
 namespace object {
 
-CircleObstacle::CircleObstacle(std::optional<float> x, std::optional<float> y,
-                             float radius, const Boundary& limit,
+CircleObstacle::CircleObstacle(std::optional<real_t> x, std::optional<real_t> y,
+                             real_t radius, const Bounds2D& limit,
                              const SDL_Color& color, bool type)
     : Object(x.value_or(0.0f), y.value_or(0.0f), limit, color, type)
     , radius_(radius)
@@ -14,20 +14,20 @@ CircleObstacle::CircleObstacle(std::optional<float> x, std::optional<float> y,
     reset(x, y);
 }
 
-void CircleObstacle::reset(std::optional<float> x, std::optional<float> y) {
+void CircleObstacle::reset(std::optional<real_t> x, std::optional<real_t> y) {
     static std::random_device rd;
     static std::mt19937 gen(rd());
 
     if (x.has_value() && y.has_value()) {
-        position_ = torch::tensor({x.value(), y.value()}, torch::kFloat32);
+        position_ = torch::tensor({x.value(), y.value()}, get_tensor_dtype());
     } else {
-        position_ = torch::tensor({limit_.random_x(gen), limit_.random_y(gen)}, torch::kFloat32);
+        position_ = torch::tensor({limit_.random_x(gen), limit_.random_y(gen)}, get_tensor_dtype());
     }
 
     if (type_) {
-        std::uniform_real_distribution<float> dist_vel(0.0f, 100.0f);
-        std::uniform_real_distribution<float> dist_yaw(-M_PI, M_PI);
-        std::uniform_real_distribution<float> dist_yaw_rate(-M_PI/6, M_PI/6);
+        std::uniform_real_distribution<real_t> dist_vel(constants::Obstacle::VELOCITY_LIMITS.a, constants::Obstacle::VELOCITY_LIMITS.b);
+        std::uniform_real_distribution<real_t> dist_yaw(-constants::PI, constants::PI);
+        std::uniform_real_distribution<real_t> dist_yaw_rate(-constants::PI/6, constants::PI/6);
 
         velocity_ = dist_vel(gen);
         yaw_ = dist_yaw(gen);
@@ -39,33 +39,33 @@ void CircleObstacle::reset(std::optional<float> x, std::optional<float> y) {
     }
 }
 
-void CircleObstacle::update(float dt) {
+void CircleObstacle::update(real_t dt) {
     if (!type_) return;
 
     yaw_ += yaw_rate_ * dt;
-    yaw_ = std::fmod(yaw_ + M_PI, 2 * M_PI) - M_PI;
+    yaw_ = std::fmod(yaw_ + constants::PI, 2 * constants::PI) - constants::PI;
 
-    auto movement = torch::tensor({std::cos(yaw_), std::sin(yaw_)}, torch::kFloat32);
+    auto movement = torch::tensor({std::cos(yaw_), std::sin(yaw_)}, get_tensor_dtype());
     auto new_position = position_ + velocity_ * movement * dt;
 
     if (check_collision(new_position)) {
-        yaw_ = std::fmod(yaw_ + M_PI, 2 * M_PI);
+        yaw_ = std::fmod(yaw_ + constants::PI, 2 * constants::PI);
         add_random_movement();
-        movement = torch::tensor({std::cos(yaw_), std::sin(yaw_)}, torch::kFloat32);
+        movement = torch::tensor({std::cos(yaw_), std::sin(yaw_)}, get_tensor_dtype());
         new_position = position_ + velocity_ * movement * dt;
     }
 
     position_ = new_position;
 }
 
-bool CircleObstacle::check_collision(const torch::Tensor& new_position) {
-    return limit_.is_outside(new_position[0].item<float>(), new_position[1].item<float>());
+bool CircleObstacle::check_collision(const tensor_t& new_position) {
+    return limit_.is_outside(new_position[0].item<real_t>(), new_position[1].item<real_t>());
 }
 
 void CircleObstacle::add_random_movement() {
     static std::random_device rd;
     static std::mt19937 gen(rd());
-    std::uniform_real_distribution<float> dist(-M_PI/6, M_PI/6);
+    std::uniform_real_distribution<real_t> dist(-constants::PI/6, constants::PI/6);
     yaw_rate_ = dist(gen);
 }
 
@@ -77,20 +77,20 @@ void CircleObstacle::draw(SDL_Renderer* renderer) {
             if ((dx*dx + dy*dy) <= (radius_*radius_)) {
                 SDL_SetRenderDrawColor(renderer, color_.r, color_.g, color_.b, color_.a);
                 SDL_RenderDrawPoint(renderer,
-                                  position_[0].item<float>() + dx,
-                                  position_[1].item<float>() + dy);
+                                  position_[0].item<real_t>() + dx,
+                                  position_[1].item<real_t>() + dy);
             }
         }
     }
 }
 
-torch::Tensor CircleObstacle::get_state() const {
-    auto state = torch::cat({position_, torch::tensor({radius_}, torch::kFloat32)});
+tensor_t CircleObstacle::get_state() const {
+    auto state = torch::cat({position_, torch::tensor({radius_}, get_tensor_dtype())});
     return state;
 }
 
-Goal::Goal(std::optional<float> x, std::optional<float> y,
-         float radius, const Boundary& limit,
+Goal::Goal(std::optional<real_t> x, std::optional<real_t> y,
+         real_t radius, const Bounds2D& limit,
          const SDL_Color& color, bool type)
     : Object(x.value_or(0.0f), y.value_or(0.0f), limit, color, type)
     , radius_(radius) {
@@ -98,21 +98,21 @@ Goal::Goal(std::optional<float> x, std::optional<float> y,
     reset(x, y);
 }
 
-void Goal::reset(std::optional<float> x, std::optional<float> y) {
+void Goal::reset(std::optional<real_t> x, std::optional<real_t> y) {
     static std::random_device rd;
     static std::mt19937 gen(rd());
 
     if (x.has_value() && y.has_value()) {
-        position_ = torch::tensor({x.value(), y.value()}, torch::kFloat32);
+        position_ = torch::tensor({x.value(), y.value()}, get_tensor_dtype());
     } else {
-        position_ = torch::tensor({limit_.random_x(gen), limit_.random_y(gen)}, torch::kFloat32);
+        position_ = torch::tensor({limit_.random_x(gen), limit_.random_y(gen)}, get_tensor_dtype());
     }
 }
 
 void Goal::draw(SDL_Renderer* renderer) {
-    const int32_t diameter = (radius_ * 2);
-    const int32_t x = position_[0].item<float>() - radius_;
-    const int32_t y = position_[1].item<float>() - radius_;
+    const index_type diameter = (radius_ * 2);
+    const index_type x = position_[0].item<real_t>() - radius_;
+    const index_type y = position_[1].item<real_t>() - radius_;
 
     SDL_SetRenderDrawColor(renderer, color_.r, color_.g, color_.b, color_.a);
 
@@ -129,8 +129,8 @@ void Goal::draw(SDL_Renderer* renderer) {
     }
 }
 
-torch::Tensor Goal::get_state() const {
-    auto state = torch::cat({position_, torch::tensor({radius_}, torch::kFloat32)});
+tensor_t Goal::get_state() const {
+    auto state = torch::cat({position_, torch::tensor({radius_}, get_tensor_dtype())});
     return state;
 }
 

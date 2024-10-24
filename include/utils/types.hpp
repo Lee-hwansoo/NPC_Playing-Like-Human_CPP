@@ -8,6 +8,7 @@
 namespace types {
     // real numbers
     using real_t = float;
+    using real_real_t = double;
     using tensor_t = torch::Tensor;
 
     // integer numbers

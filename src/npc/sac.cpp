@@ -1,37 +1,31 @@
 ﻿#include "npc/sac.hpp"
 
-#include <random>
-#include <algorithm>
-#include <chrono>
-#include <filesystem>
-#include <iostream>
-
-ReplayBuffer::ReplayBuffer(size_t buffer_size, size_t batch_size)
+ReplayBuffer::ReplayBuffer(size_type buffer_size, size_type batch_size)
     : buffer_size_(buffer_size)
     , batch_size_(batch_size)
     , generator_(std::random_device{}()) {}
 
-void ReplayBuffer::add(const torch::Tensor& state, const torch::Tensor& action,
-                      const torch::Tensor& reward, const torch::Tensor& next_state,
-                      const torch::Tensor& done) {
+void ReplayBuffer::add(const tensor_t& state, const tensor_t& action,
+                      const tensor_t& reward, const tensor_t& next_state,
+                      const tensor_t& done) {
     if (buffer_.size() >= buffer_size_) {
         buffer_.pop_front();
     }
     buffer_.emplace_back(state, action, reward, next_state, done);
 }
 
-std::tuple<torch::Tensor, torch::Tensor, torch::Tensor,
-           torch::Tensor, torch::Tensor> ReplayBuffer::sample() {
-    std::vector<size_t> indices(batch_size_);
-    std::vector<torch::Tensor> states, actions, rewards, next_states, dones;
+std::tuple<tensor_t, tensor_t, tensor_t,
+           tensor_t, tensor_t> ReplayBuffer::sample() {
+    std::vector<size_type> indices(batch_size_);
+    std::vector<tensor_t> states, actions, rewards, next_states, dones;
     states.reserve(batch_size_);
     actions.reserve(batch_size_);
     rewards.reserve(batch_size_);
     next_states.reserve(batch_size_);
     dones.reserve(batch_size_);
 
-    for (size_t i = 0; i < batch_size_; ++i) {
-        std::uniform_int_distribution<size_t> dist(0, buffer_.size() - 1);
+    for (size_type i = 0; i < batch_size_; ++i) {
+        std::uniform_int_distribution<size_type> dist(0, buffer_.size() - 1);
         indices[i] = dist(generator_);
 
         const auto& [s, a, r, ns, d] = buffer_[indices[i]];
@@ -51,9 +45,9 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor,
     };
 }
 
-SAC::SAC(int64_t state_dim, int64_t action_dim,
-        const std::vector<float>& min_action,
-        const std::vector<float>& max_action,
+SAC::SAC(dim_type state_dim, dim_type action_dim,
+        const std::vector<real_t>& min_action,
+        const std::vector<real_t>& max_action,
         torch::Device device)
     : actor_("actor", state_dim, action_dim, min_action, max_action)
     , critic1_("critic1", state_dim, action_dim)
@@ -84,7 +78,7 @@ SAC::SAC(int64_t state_dim, int64_t action_dim,
     critic2_target_->to(device_);
 }
 
-torch::Tensor SAC::select_action(const torch::Tensor& state) {
+tensor_t SAC::select_action(const tensor_t& state) {
     torch::NoGradGuard no_grad;
     auto state_device = state.to(device_);
     auto [action, _] = actor_->sample(state_device);
@@ -98,7 +92,7 @@ void SAC::update() {
 
     auto [states, actions, rewards, next_states, dones] = memory_->sample();
 
-    torch::Tensor target_q;
+    tensor_t target_q;
     {
         torch::NoGradGuard no_grad;
         auto [next_actions, next_log_pi] = actor_->sample(next_states);

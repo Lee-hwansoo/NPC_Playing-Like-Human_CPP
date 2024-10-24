@@ -1,33 +1,34 @@
 ﻿#pragma once
 
 #include "npc/base_network.hpp"
-
-#include <cstdint>
 #include <vector>
+
+using namespace types;
+using namespace constants;
 
 struct ActorImpl : public BaseNetwork {
 	ActorImpl(const std::string& network_name,
-			int64_t state_dim,
-			int64_t action_dim,
-			const std::vector<float>& min_action,
-			const std::vector<float>& max_action);
+			dim_type state_dim,
+			dim_type action_dim,
+			const std::vector<real_t>& min_action,
+			const std::vector<real_t>& max_action);
 
 	void initialize_network() override;
 	void to(torch::Device device) override;
 
-	std::tuple<torch::Tensor, torch::Tensor> forward(const torch::Tensor& state);
-	std::tuple<torch::Tensor, torch::Tensor> sample(const torch::Tensor& state);
+	std::tuple<tensor_t, tensor_t> forward(const tensor_t& state);
+	std::tuple<tensor_t, tensor_t> sample(const tensor_t& state);
 
-	int64_t state_dim() const { return state_dim_; }
-	int64_t action_dim() const { return action_dim_; }
+	dim_type state_dim() const { return state_dim_; }
+	dim_type action_dim() const { return action_dim_; }
 
 private:
 	torch::nn::Linear fc1{ nullptr }, fc2{ nullptr }, fc3{ nullptr };
 	torch::nn::Linear fc_mean{ nullptr }, fc_log_std{ nullptr };
 	torch::nn::Dropout dropout{ nullptr };
 
-	int64_t state_dim_, action_dim_;
-	torch::Tensor min_action_, max_action_;
+	dim_type state_dim_, action_dim_;
+	tensor_t min_action_, max_action_;
 };
 
 TORCH_MODULE(Actor);

@@ -15,7 +15,7 @@ public:
         real_t lateral_distance;
     };
 
-    static int64_t getClosestWaypoint(const tensor_t& position,
+    static index_type getClosestWaypoint(const tensor_t& position,
                                     const tensor_t& path,
                                     const torch::Device& device) {
 
