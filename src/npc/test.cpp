@@ -3,7 +3,9 @@
 #include "npc/actor.hpp"
 #include "npc/critic.hpp"
 #include "npc/sac.hpp"
+#include "npc/object.hpp"
 
+#include <SDL.h>
 #include <torch/torch.h>
 #include <iostream>
 #include <vector>
@@ -235,10 +237,138 @@ void test_frenet(){
     }
 }
 
-int main(){
+constexpr int WINDOW_WIDTH = 800;
+constexpr int WINDOW_HEIGHT = 600;
+constexpr int FPS = 60;
+constexpr float dt = 1.0f / FPS;
+
+class SDLApp {
+public:
+    SDLApp() : window_(nullptr), renderer_(nullptr) {
+        if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+            throw std::runtime_error("SDL could not initialize! SDL_Error: " + std::string(SDL_GetError()));
+        }
+
+        window_ = SDL_CreateWindow("Object Visualization Test",
+                                 SDL_WINDOWPOS_UNDEFINED,
+                                 SDL_WINDOWPOS_UNDEFINED,
+                                 WINDOW_WIDTH,
+                                 WINDOW_HEIGHT,
+                                 SDL_WINDOW_SHOWN);
+
+        if (!window_) {
+            throw std::runtime_error("Window could not be created! SDL_Error: " + std::string(SDL_GetError()));
+        }
+
+        renderer_ = SDL_CreateRenderer(window_, -1, SDL_RENDERER_ACCELERATED);
+        if (!renderer_) {
+            throw std::runtime_error("Renderer could not be created! SDL_Error: " + std::string(SDL_GetError()));
+        }
+    }
+
+    ~SDLApp() {
+        if (renderer_) SDL_DestroyRenderer(renderer_);
+        if (window_) SDL_DestroyWindow(window_);
+        SDL_Quit();
+    }
+
+    void run() {
+        // 게임 영역 설정
+        object::Boundary game_area{0.f, static_cast<float>(WINDOW_WIDTH),
+                                 0.f, static_cast<float>(WINDOW_HEIGHT)};
+
+        // 동적 장애물 생성
+        std::vector<std::unique_ptr<object::Object>> objects;
+
+        // 여러 개의 동적 장애물 추가
+        for (int i = 0; i < 5; ++i) {
+            objects.push_back(std::make_unique<object::CircleObstacle>(
+                std::nullopt, std::nullopt, 15.0f, game_area,
+                SDL_Color{0, 0, 0, 255}, true));
+        }
+
+        // 정적 장애물 추가
+        objects.push_back(std::make_unique<object::CircleObstacle>(
+            200.0f, 300.0f, 30.0f, game_area,
+            SDL_Color{128, 128, 128, 255}, false));
+
+        // 목표점 추가
+        objects.push_back(std::make_unique<object::Goal>(
+            700.0f, 500.0f, 20.0f, game_area,
+            SDL_Color{0, 255, 0, 255}, false));
+
+        bool quit = false;
+        SDL_Event e;
+        Uint32 frame_start;
+        int frame_time;
+
+        // 게임 루프
+        while (!quit) {
+            frame_start = SDL_GetTicks();
+
+            // 이벤트 처리
+            while (SDL_PollEvent(&e) != 0) {
+                if (e.type == SDL_QUIT) {
+                    quit = true;
+                }
+                else if (e.type == SDL_KEYDOWN) {
+                    switch (e.key.keysym.sym) {
+                        case SDLK_r:  // R키: 모든 객체 리셋
+                            for (auto& obj : objects) {
+                                obj->reset();
+                            }
+                            break;
+                        case SDLK_ESCAPE:  // ESC: 종료
+                            quit = true;
+                            break;
+                    }
+                }
+            }
+
+            // 업데이트
+            for (auto& obj : objects) {
+                obj->update(dt);
+            }
+
+            // 렌더링
+            SDL_SetRenderDrawColor(renderer_, 255, 255, 255, 255);  // 흰색 배경
+            SDL_RenderClear(renderer_);
+
+            for (const auto& obj : objects) {
+                obj->draw(renderer_);
+            }
+
+            SDL_RenderPresent(renderer_);
+
+            // FPS 제어
+            frame_time = SDL_GetTicks() - frame_start;
+            if (frame_time < 1000/FPS) {
+                SDL_Delay(1000/FPS - frame_time);
+            }
+        }
+    }
+
+private:
+    SDL_Window* window_;
+    SDL_Renderer* renderer_;
+};
+
+void test_sdl(){
+    try {
+        SDLApp app;
+        app.run();
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+        throw;
+    }
+}
+
+int main(int argc, char* argv[]){
     // test_actor();
     // test_critic();
     // test_sac();
-    test_frenet();
+    // test_frenet();
+    test_sdl();
     return 0;
 }

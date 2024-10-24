@@ -44,6 +44,7 @@ set(${PROJECT_NAME}_MAIN_FILES
     actor.cpp
     critic.cpp
     sac.cpp
+    object.cpp
 )
 add_executable(${PROJECT_NAME}_MAIN
     ${${PROJECT_NAME}_MAIN_FILES}
