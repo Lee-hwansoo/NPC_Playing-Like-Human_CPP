@@ -122,7 +122,7 @@ public:
                 loaded_model = torch::jit::load(filepath.string(), device_);
                 std::cout << "\nSuccessfully loaded the model file." << std::endl;
 
-                std::cout << "\nChecking loaded " << network_name_ << "network parameters:" << std::endl;
+                std::cout << "\nChecking loaded " << network_name_ << " network parameters:" << std::endl;
                 for (const auto& p : loaded_model.named_parameters()) {
                     std::cout << "Found parameter in loaded model: " << p.name
                             << " with size " << p.value.sizes() << std::endl;

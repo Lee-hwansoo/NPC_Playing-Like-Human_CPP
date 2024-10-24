@@ -56,13 +56,6 @@ public:
         memory_->add(state, action, reward, next_state, done);
     }
 
-    void eval() {
-        actor_->eval();
-        critic1_->eval();
-        critic2_->eval();
-        critic1_target_->eval();
-        critic2_target_->eval();
-    }
     void train() {
         actor_->train();
         critic1_->train();
@@ -70,13 +63,26 @@ public:
         critic1_target_->train();
         critic2_target_->train();
     }
+    void eval() {
+        actor_->eval();
+        critic1_->eval();
+        critic2_->eval();
+        critic1_target_->eval();
+        critic2_target_->eval();
+    }
 
     torch::Tensor select_action(const torch::Tensor& state);
     void update();
     std::vector<float> train(int episodes, bool render = false);
     std::vector<float> test(int episodes, bool render = true);
     void save_network_parameters(int64_t episode);
-    void load_network_parameters(const std::string& timestamp, int64_t episode);
+    void load_network_parameters(const std::string& timestamp, int64_t episode){
+        actor_->load_network_parameters(timestamp, episode);
+        critic1_->load_network_parameters(timestamp, episode);
+        critic2_->load_network_parameters(timestamp, episode);
+        critic1_target_->load_state_dict(critic1_->state_dict());
+        critic2_target_->load_state_dict(critic2_->state_dict());
+    };
 
     void print_model_info(){
         actor_->print_model_info();

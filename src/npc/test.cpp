@@ -118,6 +118,8 @@ void test_sac(){
 
         SAC sac(state_dim, action_dim, min_action, max_action, device);
 
+        sac.load_network_parameters("20241024_002829", 1800);
+
         const int episodes = 100;
         const int max_steps = 100;
 
@@ -191,7 +193,7 @@ void test_sac(){
         double std_dev = std::sqrt(sq_sum / num_tests);
         auto [min_time, max_time] = std::minmax_element(execution_times.begin(), execution_times.end());
 
-        std::cout << "Select Action Performance Stats (" << num_tests << " runs):" << std::endl;
+        std::cout << "\nSelect Action Performance Stats (" << num_tests << " runs):" << std::endl;
         std::cout << "  Average time: " << mean_time << " ms" << std::endl;
         std::cout << "  Std Dev: " << std_dev << " ms" << std::endl;
         std::cout << "  Min time: " << *min_time << " ms" << std::endl;
