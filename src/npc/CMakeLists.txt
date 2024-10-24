@@ -29,18 +29,18 @@ if(WIN32)
     list(APPEND COMMON_LIBRARIES ${CUDAToolkit_LIBRARIES})
 endif()
 
-set(${PROJECT_NAME}_EXAMPLE_FILES
-    example.cpp
-)
-add_library(${PROJECT_NAME}_EXAMPLE_LIBRARIES STATIC
-  ${${PROJECT_NAME}_EXAMPLE_FILES}
-)
-target_include_directories(${PROJECT_NAME}_EXAMPLE_LIBRARIES PUBLIC
-  ${COMMON_INCLUDE_DIRS}
-)
+# set(${PROJECT_NAME}_EXAMPLE_FILES
+#     example.cpp
+# )
+# add_library(${PROJECT_NAME}_EXAMPLE_LIBRARIES STATIC
+#   ${${PROJECT_NAME}_EXAMPLE_FILES}
+# )
+# target_include_directories(${PROJECT_NAME}_EXAMPLE_LIBRARIES PUBLIC
+#   ${COMMON_INCLUDE_DIRS}
+# )
 
 set(${PROJECT_NAME}_MAIN_FILES
-    main.cpp
+    test.cpp
     actor.cpp
     critic.cpp
     sac.cpp
