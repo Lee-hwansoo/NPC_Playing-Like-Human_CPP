@@ -2,7 +2,6 @@
 
 #include "utils/types.hpp"
 #include <SDL.h>
-#include <random>
 
 namespace constants
 {
@@ -12,38 +11,6 @@ namespace constants
     constexpr real_t DEG_TO_RAD = PI / 180.0f;
     constexpr real_t RAD_TO_DEG = 180.0f / PI;
     constexpr real_t EPSILON = 1e-6f;
-
-    struct Vector2 {
-        real_t a;
-        real_t b;
-
-        constexpr Vector2(real_t a_ = 0.0f, real_t b_ = 0.0f)
-             : a(a_), b(b_) {}
-    };
-
-    struct Bounds2D {
-        real_t min_x;
-        real_t max_x;
-        real_t min_y;
-        real_t max_y;
-
-        constexpr Bounds2D(real_t min_x_, real_t max_x_, real_t min_y_, real_t max_y_)
-            : min_x(min_x_), max_x(max_x_), min_y(min_y_), max_y(max_y_) {}
-
-        bool is_outside(real_t x, real_t y) const {
-            return x < min_x || x > max_x || y < min_y || y > max_y;
-        }
-
-        real_t random_x(std::mt19937& gen) const {
-            std::uniform_real_distribution<real_t> dist(min_x, max_x);
-            return dist(gen);
-        }
-
-        real_t random_y(std::mt19937& gen) const {
-            std::uniform_real_distribution<real_t> dist(min_y, max_y);
-            return dist(gen);
-        }
-    };
 
     //--------------------------------------------------------------------------------
     // Display Settings

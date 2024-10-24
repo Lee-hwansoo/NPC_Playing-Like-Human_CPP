@@ -1,20 +1,22 @@
 ﻿#pragma once
 
+#include "utils/types.hpp"
 #include <torch/torch.h>
-#include <vector>
 #include <optional>
 
 namespace utils {
 
+using namespace types;
+
 class FrenetCoordinate {
 public:
     struct Result {
-        torch::Tensor closest_point;
-        double lateral_distance;
+        tensor_t closest_point;
+        real_t lateral_distance;
     };
 
-    static int64_t getClosestWaypoint(const torch::Tensor& position,
-                                    const torch::Tensor& path,
+    static int64_t getClosestWaypoint(const tensor_t& position,
+                                    const tensor_t& path,
                                     const torch::Device& device) {
 
         auto position_dev = position.to(device);
@@ -24,11 +26,11 @@ public:
 
         auto distances = torch::norm(path_dev - expanded_position, 2, 1);
 
-        return torch::argmin(distances).cpu().item<int64_t>();
+        return torch::argmin(distances).cpu().item<dim_type>();
     }
 
-    static std::optional<Result> getFrenetD(const torch::Tensor& position,
-                                          const torch::Tensor& path,
+    static std::optional<Result> getFrenetD(const tensor_t& position,
+                                          const tensor_t& path,
                                           const torch::Device& device) {
 
         if (path.size(0) < 2) {
@@ -47,13 +49,13 @@ public:
         auto proj_norm = torch::dot(x_vec, n_vec) / torch::dot(n_vec, n_vec);
         auto proj_vec = proj_norm * n_vec;
 
-        auto frenet_d = torch::norm(x_vec - proj_vec).cpu().item<double>();
+        auto frenet_d = torch::norm(x_vec - proj_vec).cpu().item<real_t>();
 
         auto x_vec_3d = torch::cat({x_vec, torch::zeros({1}, device)});
         auto n_vec_3d = torch::cat({n_vec, torch::zeros({1}, device)});
         auto d_cross = torch::cross(x_vec_3d, n_vec_3d, 0);
 
-        if (d_cross[2].cpu().item<double>() > 0) {
+        if (d_cross[2].cpu().item<real_t>() > 0) {
             frenet_d = -frenet_d;
         }
 

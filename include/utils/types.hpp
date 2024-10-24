@@ -3,6 +3,7 @@
 #include <torch/torch.h>
 #include <cstdint>
 #include <array>
+#include <random>
 
 namespace types {
     // real numbers
@@ -28,4 +29,37 @@ namespace types {
             return torch::kFloat64;
         }
     }
+
+    struct Vector2 {
+        real_t a;
+        real_t b;
+
+        constexpr Vector2(real_t a_ = 0.0f, real_t b_ = 0.0f)
+             : a(a_), b(b_) {}
+    };
+
+    struct Bounds2D {
+        real_t min_x;
+        real_t max_x;
+        real_t min_y;
+        real_t max_y;
+
+        constexpr Bounds2D(real_t min_x_, real_t max_x_, real_t min_y_, real_t max_y_)
+            : min_x(min_x_), max_x(max_x_), min_y(min_y_), max_y(max_y_) {}
+
+        bool is_outside(real_t x, real_t y) const {
+            return x < min_x || x > max_x || y < min_y || y > max_y;
+        }
+
+        real_t random_x(std::mt19937& gen) const {
+            std::uniform_real_distribution<real_t> dist(min_x, max_x);
+            return dist(gen);
+        }
+
+        real_t random_y(std::mt19937& gen) const {
+            std::uniform_real_distribution<real_t> dist(min_y, max_y);
+            return dist(gen);
+        }
+    };
+
 }
