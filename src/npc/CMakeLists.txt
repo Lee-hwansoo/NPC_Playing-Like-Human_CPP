@@ -42,6 +42,7 @@ target_include_directories(${PROJECT_NAME}_EXAMPLE_LIBRARIES PUBLIC
 set(${PROJECT_NAME}_MAIN_FILES
     main.cpp
     actor.cpp
+    critic.cpp
 )
 add_executable(${PROJECT_NAME}_MAIN
     ${${PROJECT_NAME}_MAIN_FILES}

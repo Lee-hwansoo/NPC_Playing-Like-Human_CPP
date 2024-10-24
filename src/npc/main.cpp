@@ -1,5 +1,6 @@
 ﻿#include "npc/constants.hpp"
 #include "npc/actor.hpp"
+#include "npc/critic.hpp"
 #include "torch/torch.h"
 
 #include <iostream>
@@ -29,7 +30,7 @@ torch::Device get_device() {
 
 void test_actor(){
     try{
-        std::cout << "Starting test..." << std::endl;
+        std::cout << "\nStarting test..." << std::endl;
         torch::Device device = get_device();
         std::cout << "Device initialized" << std::endl;
 
@@ -45,7 +46,7 @@ void test_actor(){
         std::cout << "Successfully created " << actor->network_name() << " network " << std::endl;
 
         actor->load_network_parameters("20241024_002829", 1800);
-        actor->save_network_parameters(1801);
+        // actor->save_network_parameters(1801);
 
         std::cout << "\nTesting single state..." << std::endl;
         auto state = torch::randn({1, state_dim});
@@ -67,6 +68,29 @@ void test_actor(){
     }
 }
 
+void test_critic(){
+    try{
+        std::cout << "\nStarting test..." << std::endl;
+        torch::Device device = get_device();
+        std::cout << "Device initialized" << std::endl;
+
+        const int64_t state_dim = 159;
+        const int64_t action_dim = 2;
+
+        std::cout << "Creating Critic network..." << std::endl;
+        Critic critic("critic1", state_dim, action_dim);
+        critic->to(device);
+
+        std::cout << "Successfully created " << critic->network_name() << " network " << std::endl;
+
+        critic->load_network_parameters("20241024_002829", 1800);
+
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+        throw;
+    }
+}
+
 int main(){
     auto m = torch::nn::Linear(20, 30);
     auto dropout = torch::nn::Dropout(0.1);
@@ -76,5 +100,7 @@ int main(){
     std::cout << output.sizes() << std::endl;
 
     test_actor();
+
+    test_critic();
     return 0;
 }
