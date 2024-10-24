@@ -5,8 +5,6 @@
 #include <SDL.h>
 #include <torch/torch.h>
 #include <optional>
-#include <random>
-#include <cmath>
 
 namespace object {
 

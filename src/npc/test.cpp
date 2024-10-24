@@ -5,7 +5,6 @@
 #include "npc/critic.hpp"
 #include "npc/sac.hpp"
 #include "npc/object.hpp"
-
 #include <SDL.h>
 #include <torch/torch.h>
 #include <iostream>

@@ -1,5 +1,4 @@
 ﻿#include "npc/actor.hpp"
-
 #include <iostream>
 
 ActorImpl::ActorImpl(const std::string& network_name,
@@ -81,7 +80,7 @@ std::tuple<tensor_t, tensor_t> ActorImpl::sample(const tensor_t& state) {
 	auto log_prob = -0.5 * (
 		((x_t - mean) / std).pow(2) +
 		2.0 * log_std +
-		std::log(2.0 * M_PI)
+		std::log(2.0 * constants::PI)
 		);
 
 	log_prob = log_prob - torch::log(1.0 - action.pow(2) + 1e-6);
