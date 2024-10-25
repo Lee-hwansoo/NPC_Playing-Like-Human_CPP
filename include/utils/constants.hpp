@@ -67,6 +67,9 @@ namespace constants
         constexpr real_t  RADIUS = 10.0f;
         constexpr count_type BUFFER_SIZE = 1000000;
         constexpr count_type BATCH_SIZE = 256;
+        constexpr real_t  GAMMA = 0.99f;
+        constexpr real_t  TAU = 0.005f;
+        constexpr real_t  ALPHA = 0.2f;
 
         // Movement boundaries
         const Bounds2D BOUNDS(

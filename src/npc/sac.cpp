@@ -63,9 +63,9 @@ SAC::SAC(dim_type state_dim, dim_type action_dim,
     , action_dim_(action_dim)
     , min_action_(min_action)
     , max_action_(max_action)
-    , gamma_(0.99)
-    , tau_(0.005)
-    , alpha_(0.2)
+    , gamma_(constants::Agent::GAMMA)
+    , tau_(constants::Agent::TAU)
+    , alpha_(constants::Agent::ALPHA)
     , start_episode_(0) {
 
     critic1_target_->load_state_dict(critic1_->state_dict());
