@@ -65,6 +65,8 @@ namespace constants
     namespace Agent
     {
         constexpr real_t  RADIUS = 10.0f;
+        constexpr count_type BUFFER_SIZE = 1000000;
+        constexpr count_type BATCH_SIZE = 256;
 
         // Movement boundaries
         const Bounds2D BOUNDS(
@@ -81,9 +83,9 @@ namespace constants
         // Field of View (FOV) properties
         namespace FOV
         {
-            constexpr real_t ANGLE = 103.0f * DEG_TO_RAD;  // 103 degrees
-            constexpr real_t RANGE = 500.0f;  // 50m in simulation
-            constexpr count_type RAY_COUNT = 150;
+            constexpr real_t ANGLE = 280.0f * DEG_TO_RAD;  // 103 degrees
+            constexpr real_t RANGE = 150.0f;  // 50m in simulation
+            constexpr count_type RAY_COUNT = 28;
         }
     }
 

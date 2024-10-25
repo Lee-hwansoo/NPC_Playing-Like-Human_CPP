@@ -57,7 +57,7 @@ SAC::SAC(dim_type state_dim, dim_type action_dim,
     , actor_optimizer_(actor_->parameters(), 3e-4)
     , critic1_optimizer_(critic1_->parameters(), 3e-4)
     , critic2_optimizer_(critic2_->parameters(), 3e-4)
-    , memory_(std::make_unique<ReplayBuffer>(1000000, 256))
+    , memory_(std::make_unique<ReplayBuffer>(constants::Agent::BUFFER_SIZE, constants::Agent::BATCH_SIZE))
     , device_(device)
     , state_dim_(state_dim)
     , action_dim_(action_dim)
