@@ -265,24 +265,28 @@ public:
 class RenderWindow {
 public:
     RenderWindow() {
-        // OpenGL 지원과 함께 윈도우 생성
+        // 드라이버 힌트 설정
+        SDL_SetHint(SDL_HINT_RENDER_DRIVER, "direct3d11");  // Windows에서 Direct3D 우선 사용
+        SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE, "0");
+        SDL_SetHint(SDL_HINT_RENDER_BATCHING, "1");       // 배치 렌더링 활성화
+
         window_ = SDL_CreateWindow(
             "GPU Accelerated Object Test",
             SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
             Display::WIDTH, Display::HEIGHT,
-            SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL
+            SDL_WINDOW_SHOWN
         );
 
         if (!window_) {
             throw std::runtime_error(std::string("Window creation failed: ") + SDL_GetError());
         }
 
-        // GPU 가속 렌더러 생성
+        SDL_SetHint(SDL_HINT_RENDER_VSYNC, "0");
+
+        // GPU 렌더러 생성
         renderer_ = SDL_CreateRenderer(
             window_, -1,
-            SDL_RENDERER_ACCELERATED |    // GPU 가속 활성화
-            SDL_RENDERER_PRESENTVSYNC |   // 수직동기화 활성화
-            SDL_RENDERER_TARGETTEXTURE    // 렌더 타겟 텍스처 지원
+            SDL_RENDERER_ACCELERATED    // GPU 가속 활성화
         );
 
         if (!renderer_) {
@@ -295,6 +299,7 @@ public:
         if (SDL_GetRendererInfo(renderer_, &info) == 0) {
             std::cout << "Renderer information:" << std::endl;
             std::cout << "Name: " << info.name << std::endl;
+            std::cout << "Max texture size: " << info.max_texture_width << "x" << info.max_texture_height << std::endl;
             std::cout << "Flags:" << std::endl;
             if (info.flags & SDL_RENDERER_SOFTWARE) std::cout << "- Software rendering" << std::endl;
             if (info.flags & SDL_RENDERER_ACCELERATED) std::cout << "- Hardware accelerated" << std::endl;
@@ -302,11 +307,24 @@ public:
             if (info.flags & SDL_RENDERER_TARGETTEXTURE) std::cout << "- Target texture supported" << std::endl;
         }
 
-        // 렌더러 품질 설정
-        SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");  // 선형 필터링
+        SDL_DisplayMode current;
+        if (SDL_GetCurrentDisplayMode(0, &current) == 0) {
+            std::cout << "Current Display Mode:\n";
+            std::cout << "Width: " << current.w << "\n";
+            std::cout << "Height: " << current.h << "\n";
+            std::cout << "Refresh Rate: " << current.refresh_rate << "Hz\n";
+            std::cout << "========================\n\n";
+        }
 
-        // 블렌딩 모드 설정
+        // 렌더러 성능 최적화 설정
+        SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");  // Nearest pixel sampling
         SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_BLEND);
+
+        // Windows에서 추가 성능 최적화
+#ifdef _WIN32
+        // DPI 인식 비활성화로 스케일링 오버헤드 감소
+        SDL_SetHint(SDL_HINT_WINDOWS_DPI_AWARENESS, "0");
+#endif
     }
 
     ~RenderWindow() {
@@ -360,8 +378,13 @@ void testIntegratedObjects(SDL_Renderer* renderer) {
 
     const tensor_t forward_action = torch::tensor({0.8f, 0.0f});
 
+
+    Uint32 frameCount = 0;
+    Uint32 lastTime = SDL_GetTicks();
+    Uint32 currentTime;
+
     while (!quit) {
-        // 이벤트 처리
+
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT ||
                 (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
@@ -403,6 +426,14 @@ void testIntegratedObjects(SDL_Renderer* renderer) {
         agent->draw(renderer);
 
         SDL_RenderPresent(renderer);
+
+        frameCount++;
+        currentTime = SDL_GetTicks();
+        if (currentTime > lastTime + 1000) {
+            std::cout << "FPS: " << frameCount << std::endl;
+            frameCount = 0;
+            lastTime = currentTime;
+        }
     }
 
     std::cout << "Display test completed.\n";
