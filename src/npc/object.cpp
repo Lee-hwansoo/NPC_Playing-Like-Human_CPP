@@ -206,7 +206,7 @@ std::tuple<tensor_t, tensor_t, real_t, real_t, bool> Agent::calculate_fov(const 
     border_distances = torch::where(border_distances <= 0, torch::full_like(border_distances, std::numeric_limits<real_t>::infinity()), border_distances);
     auto closest_distances = torch::min(std::get<0>(torch::min(border_distances, 0)), torch::full({constants::Agent::FOV::RAY_COUNT}, constants::Agent::FOV::RANGE, get_tensor_dtype()));
 
-    if (!obstacles_state.numel() == 0 && obstacles_state.size(0) > 0 && obstacles_state.size(1) >= 3) {
+    if (obstacles_state.size(0) > 0 && obstacles_state.size(1) >= 3) {
         auto obstacles_pos = obstacles_state.slice(1, 0, 2);
         auto diff = agent_pos.unsqueeze(0) - obstacles_pos;
         auto oc = diff.unsqueeze(1).expand({-1, constants::Agent::FOV::RAY_COUNT, 2});

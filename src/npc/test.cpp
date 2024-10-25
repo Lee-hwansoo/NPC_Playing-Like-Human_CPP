@@ -458,6 +458,6 @@ int main(int argc, char* argv[]){
     // test_critic();
     // test_sac();
     // test_frenet();
-    // test_sdl_object();
+    test_sdl_object();
     return 0;
 }
