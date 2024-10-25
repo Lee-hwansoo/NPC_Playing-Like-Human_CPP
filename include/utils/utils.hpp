@@ -26,7 +26,7 @@ public:
 
         auto distances = torch::norm(path_dev - expanded_position, 2, 1);
 
-        return torch::argmin(distances).cpu().item<dim_type>();
+        return torch::argmin(distances).cpu().item<index_type>();
     }
 
     static std::optional<Result> getFrenetD(const tensor_t& position,

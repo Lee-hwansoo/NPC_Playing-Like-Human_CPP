@@ -3,6 +3,7 @@
 #include "utils/types.hpp"
 #include "utils/constants.hpp"
 #include <SDL.h>
+#include <cstddef>
 #include <torch/torch.h>
 #include <optional>
 
@@ -24,9 +25,9 @@ public:
 
     virtual ~Object() = default;
 
-    virtual void reset(std::optional<real_t> x = std::nullopt, std::optional<real_t> y = std::nullopt) = 0;
+    virtual void reset(std::optional<real_t> x = std::nullopt, std::optional<real_t> y = std::nullopt) {}
     virtual void update(real_t dt) {}
-    virtual bool check_collision(const tensor_t& new_position) {return false;}
+    virtual bool check_collision(const tensor_t& new_position) {return limit_.is_outside(new_position[0].item<real_t>(), new_position[1].item<real_t>());}
     virtual void draw(SDL_Renderer* renderer) = 0;
 
     virtual tensor_t get_state() const { return position_; }
@@ -50,17 +51,16 @@ public:
 
     void reset(std::optional<real_t> x = std::nullopt, std::optional<real_t> y = std::nullopt) override;
     void update(real_t dt) override;
-    bool check_collision(const tensor_t& new_position) override;
-    void draw(SDL_Renderer* renderer) override;
     tensor_t get_state() const override;
+    void draw(SDL_Renderer* renderer) override;
 
 private:
-    void add_random_movement();
-
     real_t radius_;
-    real_t velocity_;
+    real_t force_;
     real_t yaw_;
     real_t yaw_rate_;
+
+    void add_random_movement();
 };
 
 class Goal : public Object {
@@ -73,11 +73,54 @@ public:
          bool type = false);
 
     void reset(std::optional<real_t> x = std::nullopt, std::optional<real_t> y = std::nullopt) override;
-    void draw(SDL_Renderer* renderer) override;
     tensor_t get_state() const override;
+    void draw(SDL_Renderer* renderer) override;
 
 private:
     real_t radius_;
+};
+
+class Agent : public Object {
+public:
+    Agent(std::optional<real_t> x = std::nullopt,
+          std::optional<real_t> y = std::nullopt,
+          real_t radius = constants::Agent::RADIUS,
+          const Bounds2D& limit = constants::Agent::BOUNDS,
+          const SDL_Color& color = Display::to_sdl_color(Display::BLUE),
+          bool type = true,
+          const tensor_t& obstacles_state = torch::tensor({}),
+          const tensor_t& goal_state = torch::tensor({}));
+
+    tensor_t reset(std::optional<real_t> x = std::nullopt, std::optional<real_t> y = std::nullopt, const tensor_t& obstacles_state = torch::tensor({}), const tensor_t& goal_state = torch::tensor({}));
+    tensor_t update(const real_t dt, const tensor_t& scaled_action, const tensor_t& obstacles_state, const tensor_t& goal_state);
+    tensor_t get_state() const override;
+    void draw(SDL_Renderer* renderer) override;
+
+private:
+    real_t radius_;
+    tensor_t velocity_;
+    real_t yaw_;
+    const tensor_t& obstacles_state_;
+    const tensor_t& goal_state_;
+
+    tensor_t trajectory_;
+
+    tensor_t initial_path_;
+    Vector2 frenet_point_;
+    real_t frenet_d_;
+
+    tensor_t fov_points_;
+    tensor_t fov_distances_;
+    real_t goal_distance_;
+    real_t angle_to_goal_;
+    bool is_goal_in_fov_;
+
+    std::tuple<tensor_t, tensor_t, real_t, real_t, bool> calculate_fov(
+        const tensor_t& agent_pos,
+        const real_t& agent_angle,
+        const tensor_t& obstacles_state,
+        const tensor_t& goal_state
+    );
 };
 
 } // namespace object

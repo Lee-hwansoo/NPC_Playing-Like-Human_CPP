@@ -1,5 +1,5 @@
-﻿#include "utils/constants.hpp"
-#include "utils/types.hpp"
+﻿#include "utils/types.hpp"
+#include "utils/constants.hpp"
 #include "utils/utils.hpp"
 #include "npc/actor.hpp"
 #include "npc/critic.hpp"
@@ -10,6 +10,10 @@
 #include <iostream>
 #include <vector>
 #include <chrono>
+
+using namespace object;
+using namespace constants;
+using namespace types;
 
 torch::Device get_device() {
     torch::Device device(torch::kCPU);
@@ -237,130 +241,184 @@ void test_frenet(){
     }
 }
 
-constexpr int WINDOW_WIDTH = 800;
-constexpr int WINDOW_HEIGHT = 600;
-constexpr int FPS = 60;
-constexpr real_t dt = 1.0f / FPS;
-
-class SDLApp {
+class SDLWrapper {
 public:
-    SDLApp() : window_(nullptr), renderer_(nullptr) {
-        if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-            throw std::runtime_error("SDL could not initialize! SDL_Error: " + std::string(SDL_GetError()));
+    SDLWrapper() {
+        // GPU 가속을 위한 SDL 초기화
+        if (SDL_InitSubSystem(SDL_INIT_VIDEO) < 0) {
+            throw std::runtime_error(std::string("SDL initialization failed: ") + SDL_GetError());
         }
 
-        window_ = SDL_CreateWindow("Object Visualization Test",
-                                 SDL_WINDOWPOS_UNDEFINED,
-                                 SDL_WINDOWPOS_UNDEFINED,
-                                 WINDOW_WIDTH,
-                                 WINDOW_HEIGHT,
-                                 SDL_WINDOW_SHOWN);
-
-        if (!window_) {
-            throw std::runtime_error("Window could not be created! SDL_Error: " + std::string(SDL_GetError()));
-        }
-
-        renderer_ = SDL_CreateRenderer(window_, -1, SDL_RENDERER_ACCELERATED);
-        if (!renderer_) {
-            throw std::runtime_error("Renderer could not be created! SDL_Error: " + std::string(SDL_GetError()));
-        }
+        // OpenGL 설정
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+        SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+        SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     }
 
-    ~SDLApp() {
-        if (renderer_) SDL_DestroyRenderer(renderer_);
-        if (window_) SDL_DestroyWindow(window_);
+    ~SDLWrapper() {
         SDL_Quit();
     }
-
-    void run() {
-        // 게임 영역 설정
-        types::Bounds2D game_area{0.f, static_cast<real_t>(WINDOW_WIDTH),
-                                 0.f, static_cast<real_t>(WINDOW_HEIGHT)};
-
-        // 동적 장애물 생성
-        std::vector<std::unique_ptr<object::Object>> objects;
-
-        // 여러 개의 동적 장애물 추가
-        for (int i = 0; i < 5; ++i) {
-            objects.push_back(std::make_unique<object::CircleObstacle>(
-                std::nullopt, std::nullopt, 15.0f, game_area,
-                SDL_Color{0, 0, 0, 255}, true));
-        }
-
-        // 정적 장애물 추가
-        objects.push_back(std::make_unique<object::CircleObstacle>(
-            200.0f, 300.0f, 30.0f, game_area,
-            SDL_Color{128, 128, 128, 255}, false));
-
-        // 목표점 추가
-        objects.push_back(std::make_unique<object::Goal>(
-            700.0f, 500.0f, 20.0f, game_area,
-            SDL_Color{0, 255, 0, 255}, false));
-
-        bool quit = false;
-        SDL_Event e;
-        count_type frame_start;
-        index_type frame_time;
-
-        // 게임 루프
-        while (!quit) {
-            frame_start = SDL_GetTicks();
-
-            // 이벤트 처리
-            while (SDL_PollEvent(&e) != 0) {
-                if (e.type == SDL_QUIT) {
-                    quit = true;
-                }
-                else if (e.type == SDL_KEYDOWN) {
-                    switch (e.key.keysym.sym) {
-                        case SDLK_r:  // R키: 모든 객체 리셋
-                            for (auto& obj : objects) {
-                                obj->reset();
-                            }
-                            break;
-                        case SDLK_ESCAPE:  // ESC: 종료
-                            quit = true;
-                            break;
-                    }
-                }
-            }
-
-            // 업데이트
-            for (auto& obj : objects) {
-                obj->update(dt);
-            }
-
-            // 렌더링
-            SDL_SetRenderDrawColor(renderer_, 255, 255, 255, 255);  // 흰색 배경
-            SDL_RenderClear(renderer_);
-
-            for (const auto& obj : objects) {
-                obj->draw(renderer_);
-            }
-
-            SDL_RenderPresent(renderer_);
-
-            // FPS 제어
-            frame_time = SDL_GetTicks() - frame_start;
-            if (frame_time < 1000/FPS) {
-                SDL_Delay(1000/FPS - frame_time);
-            }
-        }
-    }
-
-private:
-    SDL_Window* window_;
-    SDL_Renderer* renderer_;
 };
 
-void test_sdl(){
-    try {
-        SDLApp app;
-        app.run();
+class RenderWindow {
+public:
+    RenderWindow() {
+        // OpenGL 지원과 함께 윈도우 생성
+        window_ = SDL_CreateWindow(
+            "GPU Accelerated Object Test",
+            SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+            Display::WIDTH, Display::HEIGHT,
+            SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL
+        );
+
+        if (!window_) {
+            throw std::runtime_error(std::string("Window creation failed: ") + SDL_GetError());
+        }
+
+        // GPU 가속 렌더러 생성
+        renderer_ = SDL_CreateRenderer(
+            window_, -1,
+            SDL_RENDERER_ACCELERATED |    // GPU 가속 활성화
+            SDL_RENDERER_PRESENTVSYNC |   // 수직동기화 활성화
+            SDL_RENDERER_TARGETTEXTURE    // 렌더 타겟 텍스처 지원
+        );
+
+        if (!renderer_) {
+            SDL_DestroyWindow(window_);
+            throw std::runtime_error(std::string("Renderer creation failed: ") + SDL_GetError());
+        }
+
+        // 렌더러 정보 출력
+        SDL_RendererInfo info;
+        if (SDL_GetRendererInfo(renderer_, &info) == 0) {
+            std::cout << "Renderer information:" << std::endl;
+            std::cout << "Name: " << info.name << std::endl;
+            std::cout << "Flags:" << std::endl;
+            if (info.flags & SDL_RENDERER_SOFTWARE) std::cout << "- Software rendering" << std::endl;
+            if (info.flags & SDL_RENDERER_ACCELERATED) std::cout << "- Hardware accelerated" << std::endl;
+            if (info.flags & SDL_RENDERER_PRESENTVSYNC) std::cout << "- VSync enabled" << std::endl;
+            if (info.flags & SDL_RENDERER_TARGETTEXTURE) std::cout << "- Target texture supported" << std::endl;
+        }
+
+        // 렌더러 품질 설정
+        SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");  // 선형 필터링
+
+        // 블렌딩 모드 설정
+        SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_BLEND);
     }
-    catch (const std::exception& e) {
+
+    ~RenderWindow() {
+        if (renderer_) SDL_DestroyRenderer(renderer_);
+        if (window_) SDL_DestroyWindow(window_);
+    }
+
+    SDL_Renderer* getRenderer() { return renderer_; }
+    SDL_Window* getWindow() { return window_; }
+
+private:
+    SDL_Window* window_ = nullptr;
+    SDL_Renderer* renderer_ = nullptr;
+};
+
+void testIntegratedObjects(SDL_Renderer* renderer) {
+    std::cout << "Starting simple object display test...\n";
+
+    // 장애물 생성
+    std::vector<std::unique_ptr<object::CircleObstacle>> obstacles;
+    obstacles.reserve(Obstacle::COUNT);
+    for (size_t i = 0; i < Obstacle::COUNT; i++) {
+        auto obs = std::make_unique<object::CircleObstacle>();
+        obs->reset();  // 초기 위치 설정
+        obstacles.push_back(std::move(obs));
+    }
+
+    tensor_t obstacles_state = torch::zeros({Obstacle::COUNT, 3}, get_tensor_dtype());
+
+    auto updateObstaclesState = [&obstacles, &obstacles_state]() {
+        for (size_t i = 0; i < obstacles.size(); ++i) {
+            obstacles_state[i] = obstacles[i]->get_state();
+        }
+        return obstacles_state;
+    };
+
+    obstacles_state = updateObstaclesState();
+
+    // 목표 생성 및 초기화
+    auto goal = std::make_unique<object::Goal>();
+    goal->reset();
+
+    // 에이전트 생성 및 초기화
+    auto agent = std::make_unique<object::Agent>(500.0f, 900.0f, 10.0f, constants::Agent::BOUNDS, Display::to_sdl_color(Display::BLUE), true, obstacles_state, goal->get_state());
+
+    bool quit = false;
+    SDL_Event event;
+
+    // 시뮬레이션 시간 간격은 고정
+    const real_t dt = 1.0f / Display::FPS;  // 물리 시뮬레이션용 고정 시간 간격
+
+    const tensor_t forward_action = torch::tensor({0.8f, 0.0f});
+
+    while (!quit) {
+        // 이벤트 처리
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT ||
+                (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
+                quit = true;
+            }
+            else if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_r) {
+                for (auto& obs : obstacles) {
+                    obs->reset();
+                }
+                goal->reset();
+                updateObstaclesState();
+                agent->reset(500.0f, 900.0f, obstacles_state, goal->get_state());
+            }
+        }
+
+        // 장애물 업데이트 - 고정된 dt로 시뮬레이션
+        for (auto& obs : obstacles) {
+            obs->update(dt);
+        }
+
+        updateObstaclesState();
+        agent->update(dt, forward_action, obstacles_state, goal->get_state());
+
+        // 화면 클리어 및 렌더링 - 가능한 빠르게 처리
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        SDL_RenderClear(renderer);
+
+        auto color = Display::to_sdl_color(Display::GREEN);
+        SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+        SDL_RenderDrawLine(renderer, 0, Section::GOAL_LINE, Display::WIDTH, Section::GOAL_LINE);
+        SDL_RenderDrawLine(renderer, 0, Section::START_LINE, Display::WIDTH, Section::START_LINE);
+
+        for (const auto& obs : obstacles) {
+            obs->draw(renderer);
+        }
+
+        goal->draw(renderer);
+
+        agent->draw(renderer);
+
+        SDL_RenderPresent(renderer);
+    }
+
+    std::cout << "Display test completed.\n";
+}
+
+int test_sdl_object(){
+    try {
+        SDLWrapper sdl;
+        RenderWindow window;
+
+        testIntegratedObjects(window.getRenderer());
+        return 0;
+
+    } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
-        throw;
+        return 1;
     }
 }
 
@@ -369,6 +427,6 @@ int main(int argc, char* argv[]){
     // test_critic();
     // test_sac();
     // test_frenet();
-    test_sdl();
+    // test_sdl_object();
     return 0;
 }

@@ -7,7 +7,7 @@ CircleObstacle::CircleObstacle(std::optional<real_t> x, std::optional<real_t> y,
                              const SDL_Color& color, bool type)
     : Object(x.value_or(0.0f), y.value_or(0.0f), limit, color, type)
     , radius_(radius)
-    , velocity_(0.0f)
+    , force_(0.0f)
     , yaw_(0.0f)
     , yaw_rate_(0.0f) {
 
@@ -25,15 +25,15 @@ void CircleObstacle::reset(std::optional<real_t> x, std::optional<real_t> y) {
     }
 
     if (type_) {
-        std::uniform_real_distribution<real_t> dist_vel(constants::Obstacle::VELOCITY_LIMITS.a, constants::Obstacle::VELOCITY_LIMITS.b);
+        std::uniform_real_distribution<real_t> dist_force(constants::Obstacle::VELOCITY_LIMITS.a, constants::Obstacle::VELOCITY_LIMITS.b);
         std::uniform_real_distribution<real_t> dist_yaw(-constants::PI, constants::PI);
         std::uniform_real_distribution<real_t> dist_yaw_rate(-constants::PI/6, constants::PI/6);
 
-        velocity_ = dist_vel(gen);
+        force_ = dist_force(gen);
         yaw_ = dist_yaw(gen);
         yaw_rate_ = dist_yaw_rate(gen);
     } else {
-        velocity_ = 0.0f;
+        force_ = 0.0f;
         yaw_ = 0.0f;
         yaw_rate_ = 0.0f;
     }
@@ -46,20 +46,16 @@ void CircleObstacle::update(real_t dt) {
     yaw_ = std::fmod(yaw_ + constants::PI, 2 * constants::PI) - constants::PI;
 
     auto movement = torch::tensor({std::cos(yaw_), std::sin(yaw_)}, get_tensor_dtype());
-    auto new_position = position_ + velocity_ * movement * dt;
+    auto new_position = position_ + force_ * movement * dt;
 
-    if (check_collision(new_position)) {
+    if (this->check_collision(new_position)) {
         yaw_ = std::fmod(yaw_ + constants::PI, 2 * constants::PI);
         add_random_movement();
         movement = torch::tensor({std::cos(yaw_), std::sin(yaw_)}, get_tensor_dtype());
-        new_position = position_ + velocity_ * movement * dt;
+        new_position = position_ + force_ * movement * dt;
     }
 
     position_ = new_position;
-}
-
-bool CircleObstacle::check_collision(const tensor_t& new_position) {
-    return limit_.is_outside(new_position[0].item<real_t>(), new_position[1].item<real_t>());
 }
 
 void CircleObstacle::add_random_movement() {
@@ -69,22 +65,43 @@ void CircleObstacle::add_random_movement() {
     yaw_rate_ = dist(gen);
 }
 
-void CircleObstacle::draw(SDL_Renderer* renderer) {
-    for (int w = 0; w < radius_ * 2; w++) {
-        for (int h = 0; h < radius_ * 2; h++) {
-            int dx = radius_ - w;
-            int dy = radius_ - h;
-            if ((dx*dx + dy*dy) <= (radius_*radius_)) {
-                SDL_SetRenderDrawColor(renderer, color_.r, color_.g, color_.b, color_.a);
-                SDL_RenderDrawPoint(renderer, position_[0].item<real_t>() + dx, position_[1].item<real_t>() + dy);
-            }
-        }
-    }
-}
-
 tensor_t CircleObstacle::get_state() const {
     auto state = torch::cat({position_, torch::tensor({radius_}, get_tensor_dtype())});
     return state;
+}
+
+void CircleObstacle::draw(SDL_Renderer* renderer) {
+    int x = static_cast<int>(position_[0].item<real_t>());
+    int y = static_cast<int>(position_[1].item<real_t>());
+    int r = static_cast<int>(radius_);
+
+    SDL_SetRenderDrawColor(renderer, color_.r, color_.g, color_.b, color_.a);
+
+    // Bresenham's circle algorithm with filling
+    int offsetx = 0;
+    int offsety = r;
+    int d = r - 1;
+
+    while (offsety >= offsetx) {
+        SDL_RenderDrawLine(renderer, x - offsety, y + offsetx, x + offsety, y + offsetx);
+        SDL_RenderDrawLine(renderer, x - offsety, y - offsetx, x + offsety, y - offsetx);
+        SDL_RenderDrawLine(renderer, x - offsetx, y + offsety, x + offsetx, y + offsety);
+        SDL_RenderDrawLine(renderer, x - offsetx, y - offsety, x + offsetx, y - offsety);
+
+        if (d >= 2*offsetx) {
+            d -= 2*offsetx + 1;
+            offsetx += 1;
+        }
+        else if (d < 2*(r-offsety)) {
+            d += 2*offsety - 1;
+            offsety -= 1;
+        }
+        else {
+            d += 2*(offsety - offsetx - 1);
+            offsety -= 1;
+            offsetx += 1;
+        }
+    }
 }
 
 Goal::Goal(std::optional<real_t> x, std::optional<real_t> y,
@@ -107,28 +124,233 @@ void Goal::reset(std::optional<real_t> x, std::optional<real_t> y) {
     }
 }
 
+tensor_t Goal::get_state() const {
+    auto state = torch::cat({position_, torch::tensor({radius_}, get_tensor_dtype())});
+    return state;
+}
+
 void Goal::draw(SDL_Renderer* renderer) {
-    const index_type diameter = (radius_ * 2);
-    const index_type x = position_[0].item<real_t>() - radius_;
-    const index_type y = position_[1].item<real_t>() - radius_;
+    int x = static_cast<int>(position_[0].item<real_t>());
+    int y = static_cast<int>(position_[1].item<real_t>());
+    int r = static_cast<int>(radius_);
+    int w = static_cast<int>(constants::Goal::WIDTH);
 
     SDL_SetRenderDrawColor(renderer, color_.r, color_.g, color_.b, color_.a);
 
-    for (int w = 0; w < diameter; w++) {
-        for (int h = 0; h < diameter; h++) {
-            int dx = radius_ - w;
-            int dy = radius_ - h;
-            int dist = dx*dx + dy*dy;
-            if (dist <= (radius_*radius_) && dist >= ((radius_- 3)*(radius_- 3))) {
-                SDL_RenderDrawPoint(renderer, x + w, y + h);
+    // Bresenham's circle drawing algorithm
+    for (int curr_r = r; curr_r > r - w; curr_r--) {
+        int offsetx = 0;
+        int offsety = curr_r;
+        int d = curr_r - 1;
+
+        while (offsety >= offsetx) {
+            const SDL_Point points[] = {
+                {x + offsetx, y + offsety}, {x + offsetx, y - offsety},
+                {x - offsetx, y + offsety}, {x - offsetx, y - offsety},
+                {x + offsety, y + offsetx}, {x + offsety, y - offsetx},
+                {x - offsety, y + offsetx}, {x - offsety, y - offsetx}
+            };
+            SDL_RenderDrawPoints(renderer, points, 8);
+
+            if (d >= 2*offsetx) {
+                d -= 2*offsetx + 1;
+                offsetx += 1;
+            }
+            else if (d < 2*(curr_r-offsety)) {
+                d += 2*offsety - 1;
+                offsety -= 1;
+            }
+            else {
+                d += 2*(offsety - offsetx - 1);
+                offsety -= 1;
+                offsetx += 1;
             }
         }
     }
 }
 
-tensor_t Goal::get_state() const {
-    auto state = torch::cat({position_, torch::tensor({radius_}, get_tensor_dtype())});
+Agent::Agent(std::optional<real_t> x, std::optional<real_t> y,
+             real_t radius, const Bounds2D& limit,
+             const SDL_Color& color, bool type,
+             const tensor_t& obstacles_state, const tensor_t& goal_state)
+    : Object(x.value_or(0.0f), y.value_or(0.0f), limit, color, type)
+    , radius_(radius)
+    , velocity_(torch::tensor({0.0f, 0.0f}, get_tensor_dtype()))
+    , yaw_(0.0f)
+    , obstacles_state_(obstacles_state)
+    , goal_state_(goal_state) {
+
+    reset(x, y, obstacles_state, goal_state);
+}
+
+std::tuple<tensor_t, tensor_t, real_t, real_t, bool> Agent::calculate_fov(const tensor_t& agent_pos, const real_t& agent_angle, const tensor_t& obstacles_state, const tensor_t& goal_state) {
+    auto ray_angles = torch::linspace(agent_angle - constants::Agent::FOV::ANGLE / 2, agent_angle + constants::Agent::FOV::ANGLE / 2, constants::Agent::FOV::RAY_COUNT, get_tensor_dtype());
+    auto ray_cos = torch::cos(ray_angles);
+    auto ray_sin = torch::sin(ray_angles);
+    auto ray_directions = torch::stack({ray_cos, ray_sin}, 1);
+
+    auto goal_vector = goal_state.slice(0, 0, 2) - agent_pos;
+    auto goal_distance = torch::norm(goal_vector).item<real_t>();
+    auto goal_angle = torch::atan2(goal_vector[1], goal_vector[0]).item<real_t>();
+    auto angle_diff = std::fmod(goal_angle - agent_angle + constants::PI, 2 * constants::PI) - constants::PI;
+    auto abs_angle_diff = std::abs(angle_diff);
+
+    auto x_dirs = ray_directions.select(1, 0);
+    auto y_dirs = ray_directions.select(1, 1);
+    auto border_distances = torch::stack({
+        (-agent_pos[0].item<real_t>()) / x_dirs,
+        (constants::Display::WIDTH - agent_pos[0].item<real_t>()) / x_dirs,
+        (-agent_pos[1].item<real_t>()) / y_dirs,
+        (constants::Display::HEIGHT - agent_pos[1].item<real_t>()) / y_dirs
+    });
+    border_distances = torch::where(border_distances <= 0, torch::full_like(border_distances, std::numeric_limits<real_t>::infinity()), border_distances);
+    auto closest_distances = torch::min(std::get<0>(torch::min(border_distances, 0)), torch::full({constants::Agent::FOV::RAY_COUNT}, constants::Agent::FOV::RANGE, get_tensor_dtype()));
+
+    if (!obstacles_state.numel() == 0 && obstacles_state.size(0) > 0 && obstacles_state.size(1) >= 3) {
+        auto obstacles_pos = obstacles_state.slice(1, 0, 2);
+        auto diff = agent_pos.unsqueeze(0) - obstacles_pos;
+        auto oc = diff.unsqueeze(1).expand({-1, constants::Agent::FOV::RAY_COUNT, 2});
+
+        auto a = torch::sum(ray_directions * ray_directions, 1);
+        auto b = 2 * torch::sum(oc * ray_directions.unsqueeze(0), 2);
+        auto c = torch::sum(oc * oc, 2) - obstacles_state.select(1, 2).unsqueeze(1).pow(2);
+
+        auto discriminant = b.pow(2) - 4 * a * c;
+        auto valid_intersections = discriminant >= 0;
+
+        if (torch::any(valid_intersections).item<bool>()) {
+            auto safe_discriminant = torch::where(valid_intersections, discriminant, torch::zeros_like(discriminant));
+
+            auto t = torch::where(valid_intersections, (-b - torch::sqrt(safe_discriminant)) / (2 * a), torch::full_like(b, std::numeric_limits<real_t>::infinity()));
+            t = torch::where(t < 0, torch::full_like(t, std::numeric_limits<real_t>::infinity()), t);
+
+            auto [obstacles_distances, _]  = torch::min(t, 0);
+            closest_distances = torch::min(closest_distances, obstacles_distances);
+        }
+    }
+
+    bool goal_in_fov = false;
+    if (goal_distance <= constants::Agent::FOV::RANGE && abs_angle_diff <= constants::Agent::FOV::ANGLE / 2) {
+        index_type goal_ray_index = static_cast<index_type>((abs_angle_diff + constants::Agent::FOV::ANGLE / 2) / constants::Agent::FOV::ANGLE * (constants::Agent::FOV::RAY_COUNT - 1));
+        goal_in_fov = (goal_distance - goal_state[2].item<real_t>() <= closest_distances[goal_ray_index].item<real_t>());
+    }
+
+    auto points = agent_pos.unsqueeze(0) + ray_directions * closest_distances.unsqueeze(1);
+    auto fov_points = torch::cat({agent_pos.unsqueeze(0), points});
+
+    return std::make_tuple(fov_points, closest_distances, goal_distance, angle_diff, goal_in_fov);
+}
+
+tensor_t Agent::reset(std::optional<real_t> x, std::optional<real_t> y, const tensor_t& obstacles_state, const tensor_t& goal_state) {
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+
+    if (x.has_value() && y.has_value()) {
+        position_ = torch::tensor({x.value(), y.value()}, get_tensor_dtype());
+    } else {
+        position_ = torch::tensor({limit_.random_x(gen), limit_.random_y(gen)}, get_tensor_dtype());
+    }
+
+    velocity_ = torch::tensor({0.0f, 0.0f}, get_tensor_dtype());
+    yaw_ = -0.5f * constants::PI;
+    trajectory_ = torch::stack({position_});
+
+    std::tie(fov_points_, fov_distances_, goal_distance_, angle_to_goal_, is_goal_in_fov_) = calculate_fov(position_, yaw_, obstacles_state, goal_state);
+    return get_state();
+}
+
+tensor_t Agent::update(const real_t dt, const tensor_t& scaled_action, const tensor_t& obstacles_state, const tensor_t& goal_state){
+    real_t force = scaled_action[0].item<real_t>() * constants::Agent::VELOCITY_LIMITS.b;
+    real_t yaw_change = scaled_action[1].item<real_t>() * constants::Agent::YAW_CHANGE_LIMIT;
+
+    yaw_ += std::clamp(yaw_change, -constants::Agent::YAW_CHANGE_LIMIT, constants::Agent::YAW_CHANGE_LIMIT) * dt;
+    yaw_ = std::fmod(yaw_ + constants::PI, 2 * constants::PI) - constants::PI;
+
+    force = std::clamp(force, 1.0f, 50.0f);
+    velocity_ = force * torch::tensor({std::cos(yaw_), std::sin(yaw_)}, get_tensor_dtype()) * dt;
+
+    position_ = position_ + velocity_;
+    yaw_ = std::atan2(velocity_[1].item<real_t>(), velocity_[0].item<real_t>());
+    trajectory_ = torch::cat({trajectory_, position_.unsqueeze(0)});
+
+    std::tie(fov_points_, fov_distances_, goal_distance_, angle_to_goal_, is_goal_in_fov_) = calculate_fov(position_, yaw_, obstacles_state, goal_state);
+
+    return get_state();
+}
+
+tensor_t Agent::get_state() const {
+    auto normalized_position = position_ / torch::tensor({static_cast<real_t>(constants::Display::WIDTH), static_cast<real_t>(constants::Display::HEIGHT)}, get_tensor_dtype());
+    auto normalized_yaw = torch::tensor({yaw_ / constants::PI}, get_tensor_dtype());
+    auto normalized_velocity = velocity_ / constants::Agent::VELOCITY_LIMITS.b;
+    auto normalized_fov_dist = fov_distances_.flatten() / constants::Agent::FOV::RANGE;
+    auto normalized_goal_dist = torch::tensor({goal_distance_ / std::sqrt(constants::Display::WIDTH * constants::Display::WIDTH + constants::Display::HEIGHT * constants::Display::HEIGHT)}, get_tensor_dtype());
+    auto normalized_angle_diff = torch::tensor({angle_to_goal_ / constants::PI}, get_tensor_dtype());
+    auto goal_in_fov_tensor = torch::tensor({static_cast<real_t>(is_goal_in_fov_)}, get_tensor_dtype());
+
+    auto state = torch::cat({
+        normalized_position,
+        normalized_yaw,
+        normalized_velocity,
+        normalized_fov_dist,
+        normalized_goal_dist,
+        normalized_angle_diff,
+        goal_in_fov_tensor
+    });
+
     return state;
+};
+
+void Agent::draw(SDL_Renderer* renderer) {
+    SDL_Color color = constants::Display::to_sdl_color(constants::Display::WHITE);
+    if (fov_points_.size(0) > 1) {
+        std::vector<SDL_Point> points(fov_points_.size(0));
+        for (index_type i = 0; i < fov_points_.size(0); i++) {
+            points[i] = {
+                static_cast<int>(fov_points_[i][0].item<real_t>()),
+                static_cast<int>(fov_points_[i][1].item<real_t>())
+            };
+        }
+
+        SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+        SDL_RenderDrawLines(renderer, points.data(), points.size());
+        SDL_RenderDrawLine(renderer, points.back().x, points.back().y, points[0].x, points[0].y);
+    }
+
+    int x = static_cast<int>(position_[0].item<real_t>());
+    int y = static_cast<int>(position_[1].item<real_t>());
+    int r = static_cast<int>(radius_);
+
+    SDL_SetRenderDrawColor(renderer, color_.r, color_.g, color_.b, color_.a);
+
+    int direction_x = x + static_cast<int>(r * 1.5f * std::cos(yaw_));
+    int direction_y = y + static_cast<int>(r * 1.5f * std::sin(yaw_));
+    SDL_RenderDrawLine(renderer, x, y, direction_x, direction_y);
+
+    // Bresenham's circle algorithm with filling
+    int offsetx = 0;
+    int offsety = r;
+    int d = r - 1;
+
+    while (offsety >= offsetx) {
+        SDL_RenderDrawLine(renderer, x - offsety, y + offsetx, x + offsety, y + offsetx);
+        SDL_RenderDrawLine(renderer, x - offsety, y - offsetx, x + offsety, y - offsetx);
+        SDL_RenderDrawLine(renderer, x - offsetx, y + offsety, x + offsetx, y + offsety);
+        SDL_RenderDrawLine(renderer, x - offsetx, y - offsety, x + offsetx, y - offsety);
+
+        if (d >= 2*offsetx) {
+            d -= 2*offsetx + 1;
+            offsetx += 1;
+        }
+        else if (d < 2*(r-offsety)) {
+            d += 2*offsety - 1;
+            offsety -= 1;
+        }
+        else {
+            d += 2*(offsety - offsetx - 1);
+            offsety -= 1;
+            offsetx += 1;
+        }
+    }
 }
 
 } // namespace object
