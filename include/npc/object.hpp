@@ -4,7 +4,6 @@
 #include "utils/constants.hpp"
 #include "npc/path_planning.hpp"
 #include <SDL.h>
-#include <cstddef>
 #include <memory>
 #include <torch/torch.h>
 #include <optional>

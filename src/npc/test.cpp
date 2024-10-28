@@ -596,9 +596,9 @@ void test_rrt_visualization() {
 int main(int argc, char* argv[]){
     // test_actor();
     // test_critic();
-     test_sac();
+    // test_sac();
     // test_frenet();
-    //test_sdl_object();
+    test_sdl_object();
     // test_rrt_visualization();
     return 0;
 }

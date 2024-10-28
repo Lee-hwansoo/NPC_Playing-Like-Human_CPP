@@ -388,6 +388,15 @@ void Agent::draw(SDL_Renderer* renderer) {
 	color = constants::Display::to_sdl_color(constants::Display::RED);
 	SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
 	SDL_RenderDrawPoint(renderer, static_cast<index_type>(frenet_point_.a), static_cast<index_type>(frenet_point_.b));
+	for (index_type i = 0; i < trajectory_.size(0) - 1; i++) {
+		SDL_RenderDrawLine(renderer,
+			static_cast<index_type>(trajectory_[i][0].item<real_t>()),
+			static_cast<index_type>(trajectory_[i][1].item<real_t>()),
+			static_cast<index_type>(trajectory_[i + 1][0].item<real_t>()),
+			static_cast<index_type>(trajectory_[i + 1][1].item<real_t>())
+		);
+	}
+
 
     color = constants::Display::to_sdl_color(constants::Display::WHITE);
     if (fov_points_.size(0) > 1) {
