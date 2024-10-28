@@ -29,7 +29,7 @@ public:
 
     virtual void to(torch::Device device) {
         if (device_ != device) {
-            device_ = device;
+            device_ = std::move(device);
             torch::nn::Module::to(device);
         }
     }
@@ -37,11 +37,14 @@ public:
     torch::OrderedDict<std::string, tensor_t> state_dict() {
         torch::OrderedDict<std::string, tensor_t> state_dict;
 
-        for (const auto& pair : this->named_parameters()) {
+		const auto& params = this->named_parameters();
+		const auto& buffers = this->named_buffers();
+
+        for (const auto& pair : params) {
             state_dict.insert(pair.key(), pair.value().clone());
         }
 
-        for (const auto& pair : this->named_buffers()) {
+        for (const auto& pair : buffers) {
             state_dict.insert(pair.key(), pair.value().clone());
         }
 
@@ -53,16 +56,16 @@ public:
         auto model_params = this->named_parameters(true);
         auto model_buffers = this->named_buffers(true);
 
+        torch::NoGradGuard no_grad;
+
         for (const auto& pair : state_dict) {
             const auto& name = pair.key();
             const auto& tensor = pair.value();
 
             if (model_params.contains(name)) {
-                torch::NoGradGuard no_grad;
                 model_params[name].copy_(tensor);
             }
             else if (model_buffers.contains(name)) {
-                torch::NoGradGuard no_grad;
                 model_buffers[name].copy_(tensor);
             }
             else {
@@ -122,6 +125,8 @@ public:
             auto model_params = this->named_parameters(true);
             auto model_buffers = this->named_buffers(true);
 
+            torch::NoGradGuard no_grad;
+
             torch::jit::Module loaded_model;
             try {
                 loaded_model = torch::jit::load(filepath.string(), device_);
@@ -151,7 +156,6 @@ public:
                     const std::string& name = pair.name;
                     const tensor_t& value = pair.value;
                     if (model_params.contains(name)) {
-                        torch::NoGradGuard no_grad;
                         model_params[name].copy_(value);
                         std::cout << "Loaded parameter: " << name
                                 << " with size " << value.sizes() << std::endl;
@@ -168,7 +172,6 @@ public:
                     const std::string& name = pair.name;
                     const tensor_t& value = pair.value;
                     if (model_buffers.contains(name)) {
-                        torch::NoGradGuard no_grad;
                         model_buffers[name].copy_(value);
                         std::cout << "Loaded buffer: " << name
                                 << " with size " << value.sizes() << std::endl;

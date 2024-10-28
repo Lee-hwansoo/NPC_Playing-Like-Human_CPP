@@ -10,8 +10,8 @@ struct ActorImpl : public BaseNetwork {
 	ActorImpl(const std::string& network_name,
 			dim_type state_dim,
 			dim_type action_dim,
-			const std::vector<real_t>& min_action,
-			const std::vector<real_t>& max_action);
+			std::vector<real_t> min_action,
+			std::vector<real_t> max_action);
 
 	void initialize_network() override;
 	void to(torch::Device device) override;

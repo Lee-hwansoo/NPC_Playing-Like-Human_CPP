@@ -39,8 +39,8 @@ private:
 class SAC {
 public:
     explicit SAC(dim_type state_dim, dim_type action_dim,
-                const std::vector<real_t>& min_action,
-                const std::vector<real_t>& max_action,
+                std::vector<real_t> min_action,
+                std::vector<real_t> max_action,
                 torch::Device device);
 
     virtual ~SAC() = default;
@@ -101,7 +101,7 @@ private:
     std::unique_ptr<ReplayBuffer> memory_;
 
     dim_type state_dim_, action_dim_;
-    const std::vector<real_t>& min_action_, max_action_;
+    std::vector<real_t> min_action_, max_action_;
     torch::Device device_;
 
     real_t gamma_;

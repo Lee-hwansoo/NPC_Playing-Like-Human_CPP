@@ -122,8 +122,8 @@ void test_sac(){
 
         const dim_type state_dim = 159;
         const dim_type action_dim = 2;
-        const std::vector<real_t> min_action = {0.6f, -1.0f};
-        const std::vector<real_t> max_action = {1.0f, 1.0f};
+        std::vector<real_t> min_action = {0.6f, -1.0f};
+        std::vector<real_t> max_action = {1.0f, 1.0f};
 
         SAC sac(state_dim, action_dim, min_action, max_action, device);
 
@@ -596,9 +596,9 @@ void test_rrt_visualization() {
 int main(int argc, char* argv[]){
     // test_actor();
     // test_critic();
-    // test_sac();
+     test_sac();
     // test_frenet();
-    test_sdl_object();
+    //test_sdl_object();
     // test_rrt_visualization();
     return 0;
 }

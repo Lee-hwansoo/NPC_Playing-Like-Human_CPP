@@ -46,8 +46,8 @@ std::tuple<tensor_t, tensor_t, tensor_t,
 }
 
 SAC::SAC(dim_type state_dim, dim_type action_dim,
-        const std::vector<real_t>& min_action,
-        const std::vector<real_t>& max_action,
+        std::vector<real_t> min_action,
+        std::vector<real_t> max_action,
         torch::Device device)
     : actor_("actor", state_dim, action_dim, min_action, max_action)
     , critic1_("critic1", state_dim, action_dim)

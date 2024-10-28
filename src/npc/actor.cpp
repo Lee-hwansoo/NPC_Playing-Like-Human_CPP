@@ -4,8 +4,8 @@
 ActorImpl::ActorImpl(const std::string& network_name,
 					dim_type state_dim,
 	                dim_type action_dim,
-	                const std::vector<real_t>& min_action,
-	                const std::vector<real_t>& max_action)
+	                std::vector<real_t> min_action,
+	                std::vector<real_t> max_action)
 		: BaseNetwork(network_name),
 		  state_dim_(state_dim),
 		  action_dim_(action_dim) {
