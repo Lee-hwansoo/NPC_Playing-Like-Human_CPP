@@ -1,6 +1,7 @@
 ﻿#include "npc/path_planning.hpp"
 #include "utils/constants.hpp"
 #include <cmath>
+#include <iostream>
 
 namespace path_planning {
 
@@ -11,13 +12,13 @@ void Node::set_parent(const std::shared_ptr<Node>& parent) {
 }
 
 RRT::RRT(const tensor_t& start,
-         const tensor_t& goal_state,
          const types::Bounds2D& space,
          const tensor_t& obstacles_state,
+         const tensor_t& goal_state,
          real_t success_dist_threshold,
          const torch::Device device)
     : space_(space)
-    , obstacles_state_(obstacles_state)
+    , obstacles_state_(obstacles_state.to(device))
     , device_(device)
     , max_iter_(constants::RRT::MAX_ITER)
     , goal_sample_rate_(constants::RRT::GOAL_SAMPLE_RATE)
@@ -31,33 +32,67 @@ RRT::RRT(const tensor_t& start,
 {
     start_node_ = std::make_shared<Node>(start[0].item<real_t>(), start[1].item<real_t>());
     goal_node_ = std::make_shared<Node>(goal_state[0].item<real_t>(), goal_state[1].item<real_t>());
+
+    node_list_.reserve(max_iter_);
+}
+
+void RRT::update(const tensor_t& start, const tensor_t& obstacles_state, const tensor_t& goal_state) {
+    start_node_ = std::make_shared<Node>(start[0].item<real_t>(), start[1].item<real_t>());
+    goal_node_ = std::make_shared<Node>(goal_state[0].item<real_t>(), goal_state[1].item<real_t>());
+    obstacles_state_ = obstacles_state.to(device_);
 }
 
 tensor_t RRT::plan() {
-    node_list_.clear();
-    node_list_.push_back(start_node_);
+    std::cout << "Start planning" << std::endl;
 
-    for (count_type i = 0; i < max_iter_; ++i) {
-        auto rand_node = get_random_node();
-        auto nearest_node = find_nearest_node(node_list_, rand_node);
-        real_t u = step_size_ * get_random_input(min_u_, max_u_);
-        auto new_node = create_child_node(nearest_node, rand_node, u);
+    count_type attempt = 0;
+    while (attempt < constants::RRT::MAX_ATTEMPTS) {
+        bool path_found = false;
+        node_list_.clear();
+        node_list_.push_back(start_node_);
 
-        if (is_collide(new_node)) {
-            continue;
+        for (count_type i = 0; i < max_iter_; ++i) {
+            std::cout << "Iteration " << i + 1 << std::endl;
+            auto rand_node = get_random_node();
+            auto nearest_node = find_nearest_node(node_list_, rand_node);
+            real_t u = step_size_ * get_random_input(min_u_, max_u_);
+            auto new_node = create_child_node(nearest_node, rand_node, u);
+
+            if (is_collide(new_node)) {
+                continue;
+            }
+            if (is_path_collide(nearest_node, new_node)) {
+                continue;
+            }
+
+            new_node->set_parent(nearest_node);
+            node_list_.push_back(new_node);
+
+            if (check_goal(new_node)) {
+                std::cout << "Finished planning" << std::endl;
+                path_found = true;
+                return backtrace_path(new_node);
+            }
         }
-        if (is_path_collide(nearest_node, new_node)) {
-            continue;
-        }
 
-        new_node->set_parent(nearest_node);
-        node_list_.push_back(new_node);
+        if (!path_found) {
+            std::cout << "Attempt " << attempt + 1 << " failed to find path" << std::endl;
+            attempt++;
 
-        if (check_goal(new_node)) {
-            return backtrace_path(new_node);
+            step_size_ *= 1.5f;
+            success_dist_threshold_ *= 1.2f;
         }
     }
-    return torch::tensor({});
+
+    std::cout << "Failed to find path after " << constants::RRT::MAX_ATTEMPTS << " attempts" << std::endl;
+
+    std::vector<real_t> fallback_path;
+    fallback_path.push_back(start_node_->x());
+    fallback_path.push_back(start_node_->y());
+    fallback_path.push_back(goal_node_->x());
+    fallback_path.push_back(goal_node_->y());
+
+    return torch::from_blob(fallback_path.data(), {2, 2}, torch::TensorOptions().dtype(get_tensor_dtype()).device(device_)).clone();
 }
 
 std::shared_ptr<Node> RRT::get_random_node() {
@@ -123,16 +158,9 @@ bool RRT::is_same_node(
 bool RRT::is_collide(const std::shared_ptr<Node>& node) const {
     auto position = torch::tensor({node->x(), node->y()}, torch::TensorOptions().dtype(get_tensor_dtype()).device(device_));
 
-    auto position_expanded = position.unsqueeze(0).expand({obstacles_state_.size(0), -1});
+    auto distances = torch::norm(obstacles_state_.slice(1, 0, 2) - position.unsqueeze(0), 2, 1);
 
-    auto obstacles_positions = obstacles_state_.slice(1, 0, 2);
-    auto obstacles_radius = obstacles_state_.select(1, 2);
-
-    auto distances = torch::norm(obstacles_positions - position_expanded, 2, 1);
-
-    auto collisions = distances < obstacles_radius;
-
-    return collisions.any().item<bool>();
+    return torch::any(distances < obstacles_state_.select(1, 2)).item<bool>();
 }
 
 bool RRT::is_path_collide(

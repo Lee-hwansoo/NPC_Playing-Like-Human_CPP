@@ -1,4 +1,5 @@
 ﻿#include "npc/object.hpp"
+#include <memory>
 
 namespace object {
 
@@ -178,7 +179,8 @@ Agent::Agent(std::optional<real_t> x, std::optional<real_t> y,
     , velocity_(torch::tensor({0.0f, 0.0f}, get_tensor_dtype()))
     , yaw_(0.0f)
     , obstacles_state_(obstacles_state)
-    , goal_state_(goal_state) {
+    , goal_state_(goal_state)
+    , path_planner_(std::make_unique<path_planning::RRT>(position_, Bounds2D(0, constants::Display::WIDTH, 0, constants::Display::HEIGHT), obstacles_state, goal_state)) {
 
     reset(x, y, obstacles_state, goal_state);
 }
@@ -241,6 +243,53 @@ std::tuple<tensor_t, tensor_t, real_t, real_t, bool> Agent::calculate_fov(const 
     return std::make_tuple(fov_points, closest_distances, goal_distance, angle_diff, goal_in_fov);
 }
 
+index_type Agent::get_closest_waypoint() {
+	tensor_t expanded_position = position_.unsqueeze(0).expand_as(initial_path_);
+    tensor_t distances = torch::norm(initial_path_ - expanded_position, 2, 1);
+
+	torch::Tensor min_idx;
+	std::tie(std::ignore, min_idx) = torch::min(distances, 0);
+
+	return min_idx.item<index_type>();
+}
+
+std::tuple<Vector2, real_t> Agent::get_frenet_d() {
+    if (initial_path_.size(0) > 0) {
+        index_type closest_waypoint = get_closest_waypoint();
+        index_type next_waypoint = (closest_waypoint + 1) % initial_path_.size(0);
+
+        tensor_t n_vec = initial_path_[next_waypoint] - initial_path_[closest_waypoint];
+        tensor_t x_vec = position_ - initial_path_[next_waypoint];
+
+        tensor_t dot_product = torch::dot(x_vec, n_vec);
+        tensor_t n_vec_norm_squared = torch::dot(n_vec, n_vec);
+        tensor_t proj_norm = dot_product / n_vec_norm_squared;
+        tensor_t proj_vec = proj_norm * n_vec;
+
+		tensor_t diff_vec = x_vec - proj_vec;
+		real_t frenet_d = torch::norm(diff_vec).item<real_t>();
+
+        tensor_t x_vec_3d = torch::zeros({ 3 }, get_tensor_dtype());
+        tensor_t n_vec_3d = torch::zeros({ 3 }, get_tensor_dtype());
+
+		x_vec_3d.index_put_({ torch::indexing::Slice(0, 2) }, x_vec);
+		n_vec_3d.index_put_({ torch::indexing::Slice(0, 2) }, n_vec);
+
+        tensor_t cross_product = torch::cross(x_vec_3d, n_vec_3d);
+
+		if (cross_product[2].item<double>() > 0) {
+			frenet_d = -frenet_d;
+		}
+
+        real_t x = initial_path_[closest_waypoint][0].item<real_t>();
+        real_t y = initial_path_[closest_waypoint][1].item<real_t>();
+        return std::make_tuple(Vector2(x, y), frenet_d);
+    }
+    else {
+        return std::make_tuple(Vector2(), 0.0f);
+    }
+}
+
 tensor_t Agent::reset(std::optional<real_t> x, std::optional<real_t> y, const tensor_t& obstacles_state, const tensor_t& goal_state) {
     static std::random_device rd;
     static std::mt19937 gen(rd());
@@ -256,6 +305,11 @@ tensor_t Agent::reset(std::optional<real_t> x, std::optional<real_t> y, const te
     trajectory_ = torch::stack({position_});
 
     std::tie(fov_points_, fov_distances_, goal_distance_, angle_to_goal_, is_goal_in_fov_) = calculate_fov(position_, yaw_, obstacles_state, goal_state);
+
+	path_planner_->update(position_, obstacles_state, goal_state);
+	initial_path_ = path_planner_->plan();
+	std::tie(frenet_point_, frenet_d_) = get_frenet_d();
+
     return get_state();
 }
 
@@ -275,6 +329,7 @@ tensor_t Agent::update(const real_t dt, const tensor_t& scaled_action, const ten
 
     std::tie(fov_points_, fov_distances_, goal_distance_, angle_to_goal_, is_goal_in_fov_) = calculate_fov(position_, yaw_, obstacles_state, goal_state);
 
+    std::tie(frenet_point_, frenet_d_) = get_frenet_d();
     return get_state();
 }
 
@@ -286,6 +341,7 @@ tensor_t Agent::get_state() const {
     auto normalized_goal_dist = torch::tensor({goal_distance_ / std::sqrt(constants::Display::WIDTH * constants::Display::WIDTH + constants::Display::HEIGHT * constants::Display::HEIGHT)}, get_tensor_dtype());
     auto normalized_angle_diff = torch::tensor({angle_to_goal_ / constants::PI}, get_tensor_dtype());
     auto goal_in_fov_tensor = torch::tensor({static_cast<real_t>(is_goal_in_fov_)}, get_tensor_dtype());
+    auto normalized_frenet_d = torch::tensor({frenet_d_ / (constants::Display::WIDTH > constants::Display::HEIGHT ? constants::Display::WIDTH : constants::Display::HEIGHT)}, get_tensor_dtype());
 
     auto state = torch::cat({
         normalized_position,
@@ -294,20 +350,52 @@ tensor_t Agent::get_state() const {
         normalized_fov_dist,
         normalized_goal_dist,
         normalized_angle_diff,
-        goal_in_fov_tensor
+        goal_in_fov_tensor,
+        normalized_frenet_d
     });
 
     return state;
 };
 
 void Agent::draw(SDL_Renderer* renderer) {
-    SDL_Color color = constants::Display::to_sdl_color(constants::Display::WHITE);
+    SDL_Color color = constants::Display::to_sdl_color(constants::Display::GRAY);
+    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, 80);
+    const auto& node_list = path_planner_->get_node_list();
+    for (const auto& node : node_list) {
+        if (node->parent()) {
+            SDL_RenderDrawLine(renderer,
+                static_cast<index_type>(node->x()),
+                static_cast<index_type>(node->y()),
+                static_cast<index_type>(node->parent()->x()),
+                static_cast<index_type>(node->parent()->y())
+            );
+        }
+    }
+
+   color = constants::Display::to_sdl_color(constants::Display::GREEN);
+	if (initial_path_.size(0) > 1) {
+		SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+		for (index_type i = 0; i < initial_path_.size(0) - 1; i++) {
+            SDL_RenderDrawLine(renderer,
+                static_cast<index_type>(initial_path_[i][0].item<real_t>()),
+                static_cast<index_type>(initial_path_[i][1].item<real_t>()),
+                static_cast<index_type>(initial_path_[i + 1][0].item<real_t>()),
+                static_cast<index_type>(initial_path_[i + 1][1].item<real_t>())
+            );
+		}
+	}
+
+	color = constants::Display::to_sdl_color(constants::Display::RED);
+	SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+	SDL_RenderDrawPoint(renderer, static_cast<index_type>(frenet_point_.a), static_cast<index_type>(frenet_point_.b));
+
+    color = constants::Display::to_sdl_color(constants::Display::WHITE);
     if (fov_points_.size(0) > 1) {
         std::vector<SDL_Point> points(fov_points_.size(0));
         for (index_type i = 0; i < fov_points_.size(0); i++) {
             points[i] = {
-                static_cast<int>(fov_points_[i][0].item<real_t>()),
-                static_cast<int>(fov_points_[i][1].item<real_t>())
+                static_cast<index_type>(fov_points_[i][0].item<real_t>()),
+                static_cast<index_type>(fov_points_[i][1].item<real_t>())
             };
         }
 

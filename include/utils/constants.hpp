@@ -23,6 +23,7 @@ namespace constants
 
         // Color definitions (RGB format for SDL2)
         const color_rgb BLACK   = {0, 0, 0};
+        const color_rgb GRAY    = {100, 100, 100};
         const color_rgb WHITE   = {255, 255, 255};
         const color_rgb RED     = {255, 0, 0};
         const color_rgb GREEN   = {0, 255, 0};
@@ -87,7 +88,7 @@ namespace constants
         namespace FOV
         {
             constexpr real_t ANGLE = 280.0f * DEG_TO_RAD;  // 103 degrees
-            constexpr real_t RANGE = 150.0f;  // 50m in simulation
+            constexpr real_t RANGE = 250.0f;  // 25m in simulation
             constexpr count_type RAY_COUNT = 28;
         }
     }
@@ -117,7 +118,8 @@ namespace constants
     //--------------------------------------------------------------------------------
     namespace RRT
     {
-        constexpr count_type MAX_ITER = 5000;
+        constexpr count_type MAX_ATTEMPTS = 2;
+        constexpr count_type MAX_ITER = 1000;
         constexpr real_t GOAL_SAMPLE_RATE = 0.1f;
         constexpr real_t MIN_U = 10.0f;
         constexpr real_t MAX_U = 200.0f;

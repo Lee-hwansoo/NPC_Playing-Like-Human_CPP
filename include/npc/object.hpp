@@ -2,10 +2,13 @@
 
 #include "utils/types.hpp"
 #include "utils/constants.hpp"
+#include "npc/path_planning.hpp"
 #include <SDL.h>
 #include <cstddef>
+#include <memory>
 #include <torch/torch.h>
 #include <optional>
+#include <random>
 
 namespace object {
 
@@ -105,6 +108,7 @@ private:
 
     tensor_t trajectory_;
 
+    std::unique_ptr<path_planning::RRT> path_planner_;
     tensor_t initial_path_;
     Vector2 frenet_point_;
     real_t frenet_d_;
@@ -121,6 +125,10 @@ private:
         const tensor_t& obstacles_state,
         const tensor_t& goal_state
     );
+
+    index_type get_closest_waypoint();
+    std::tuple<Vector2, real_t> get_frenet_d();
+
 };
 
 } // namespace object

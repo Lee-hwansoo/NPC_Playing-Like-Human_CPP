@@ -29,13 +29,17 @@ private:
 class RRT {
 public:
     RRT(const tensor_t& start,
-        const tensor_t& goal_state,
         const Bounds2D& space,
         const tensor_t& obstacles_state,
+        const tensor_t& goal_state,
         real_t success_dist_threshold = 1.0f,
         const torch::Device device = torch::kCPU);
 
+    void update(const tensor_t& start, const tensor_t& obstacles_state, const tensor_t& goal_state);
     tensor_t plan();
+    const std::vector<std::shared_ptr<Node>>& get_node_list() const {
+        return node_list_;
+    }
 
 private:
     std::shared_ptr<Node> get_random_node();

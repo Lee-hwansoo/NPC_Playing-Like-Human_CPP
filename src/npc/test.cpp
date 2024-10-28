@@ -7,6 +7,7 @@
 #include "npc/object.hpp"
 #include "npc/path_planning.hpp"
 #include <SDL.h>
+#include <memory>
 #include <torch/torch.h>
 #include <iostream>
 #include <vector>
@@ -344,7 +345,9 @@ private:
 void testIntegratedObjects(SDL_Renderer* renderer) {
     std::cout << "Starting simple object display test...\n";
 
-    // 장애물 생성
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_RenderClear(renderer);
+
     std::vector<std::unique_ptr<object::CircleObstacle>> obstacles;
     obstacles.reserve(Obstacle::COUNT);
     for (size_t i = 0; i < Obstacle::COUNT; i++) {
@@ -374,18 +377,14 @@ void testIntegratedObjects(SDL_Renderer* renderer) {
     bool quit = false;
     SDL_Event event;
 
-    // 시뮬레이션 시간 간격은 고정
-    const real_t dt = 1.0f / Display::FPS;  // 물리 시뮬레이션용 고정 시간 간격
+    const real_t dt = 1.0f / Display::FPS;
 
-    const tensor_t forward_action = torch::tensor({0.8f, 0.0f});
-
+    const tensor_t forward_action = torch::tensor({0.6f, 0.0f});
 
     Uint32 frameCount = 0;
     Uint32 lastTime = SDL_GetTicks();
     Uint32 currentTime;
-
     while (!quit) {
-
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT ||
                 (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
@@ -409,7 +408,6 @@ void testIntegratedObjects(SDL_Renderer* renderer) {
         updateObstaclesState();
         agent->update(dt, forward_action, obstacles_state, goal->get_state());
 
-        // 화면 클리어 및 렌더링 - 가능한 빠르게 처리
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
 
@@ -454,33 +452,144 @@ int test_sdl_object(){
     }
 }
 
-void test_rrt(){
-    // 시작점 설정
-    auto start = torch::tensor({0.0f, 0.0f});
+void visualize_rrt_path(SDL_Renderer* renderer, const tensor_t& path,
+                       const tensor_t& start, const tensor_t& goal_state,
+                       const tensor_t& obstacles_state,
+                       std::shared_ptr<path_planning::RRT> planner) {
+    // 배경을 검은색으로 지우기
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_RenderClear(renderer);
 
-    // 목표점 설정 (x, y, radius)
-    auto goal_state = torch::tensor({800.0f, 800.0f, 5.0f});
+    // 시작점 그리기 (녹색)
+    SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+    SDL_Rect start_rect = {
+        static_cast<int>(start[0].item<float>()) - 5,
+        static_cast<int>(start[1].item<float>()) - 5,
+        10, 10
+    };
+    SDL_RenderFillRect(renderer, &start_rect);
 
-    // 공간 경계 설정
-    Bounds2D space(0.0f, 1000.0f, 0.0f, 1000.0f);
+    // 목표점 그리기 (빨간색)
+    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+    int goal_x = static_cast<int>(goal_state[0].item<float>());
+    int goal_y = static_cast<int>(goal_state[1].item<float>());
+    int goal_radius = static_cast<int>(goal_state[2].item<float>());
 
-    // 장애물 상태 설정 (Nx3 텐서: x, y, radius)
-    auto obstacles_state = torch::tensor({
-        {50.0f, 50.0f, 10.0f},
-        {70.0f, 30.0f, 15.0f}
-    });
-
-    // RRT 플래너 생성 및 실행
-    path_planning::RRT planner(start, goal_state, space, obstacles_state);
-    tensor_t path = planner.plan();
-
-    if (path.size(0) > 0) {
-        // path->size(0): 경로점의 수
-        // path->size(1): 2 (x, y 좌표)
-        std::cout << "Found path with " << path.size(0) << " points\n";
-        if (path.size(0) > 0) {
-            std::cout << path << std::endl;
+    // 원형 목표 영역 그리기
+    for (int w = 0; w < goal_radius * 2; w++) {
+        for (int h = 0; h < goal_radius * 2; h++) {
+            int dx = w - goal_radius;
+            int dy = h - goal_radius;
+            if (dx*dx + dy*dy <= goal_radius*goal_radius) {
+                SDL_RenderDrawPoint(renderer, goal_x + dx, goal_y + dy);
+            }
         }
+    }
+
+    // 장애물 그리기 (회색)
+    SDL_SetRenderDrawColor(renderer, 128, 128, 128, 255);
+    for (int i = 0; i < obstacles_state.size(0); i++) {
+        int obs_x = static_cast<int>(obstacles_state[i][0].item<float>());
+        int obs_y = static_cast<int>(obstacles_state[i][1].item<float>());
+        int obs_radius = static_cast<int>(obstacles_state[i][2].item<float>());
+
+        for (int w = 0; w < obs_radius * 2; w++) {
+            for (int h = 0; h < obs_radius * 2; h++) {
+                int dx = w - obs_radius;
+                int dy = h - obs_radius;
+                if (dx*dx + dy*dy <= obs_radius*obs_radius) {
+                    SDL_RenderDrawPoint(renderer, obs_x + dx, obs_y + dy);
+                }
+            }
+        }
+    }
+
+    SDL_SetRenderDrawColor(renderer, 100, 100, 100, 80);
+    const auto& node_list = planner->get_node_list();
+    for (const auto& node : node_list) {
+        if (node->parent()) {
+            SDL_RenderDrawLine(renderer,
+                static_cast<index_type>(node->x()),
+                static_cast<index_type>(node->y()),
+                static_cast<index_type>(node->parent()->x()),
+                static_cast<index_type>(node->parent()->y())
+            );
+        }
+    }
+
+    // RRT 경로 그리기 (하얀색)
+    if (path.size(0) > 1) {
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+        for (int i = 0; i < path.size(0) - 1; i++) {
+            SDL_RenderDrawLine(renderer,
+                static_cast<int>(path[i][0].item<float>()),
+                static_cast<int>(path[i][1].item<float>()),
+                static_cast<int>(path[i + 1][0].item<float>()),
+                static_cast<int>(path[i + 1][1].item<float>())
+            );
+        }
+    }
+
+    SDL_RenderPresent(renderer);
+}
+
+void test_rrt_visualization() {
+    try {
+        SDLWrapper sdl;
+        RenderWindow window;
+
+        // 시작점 설정
+        auto start = torch::tensor({50.0f, 950.0f});
+
+        // 목표점 설정 (x, y, radius)
+        auto goal_state = torch::tensor({800.0f, 50.0f, 20.0f});
+
+        // 공간 경계 설정
+        Bounds2D space(0.0f, 1000.0f, 0.0f, 1000.0f);
+
+        // 장애물 상태 설정
+        auto obstacles_state = torch::tensor({
+            {200.0f, 200.0f, 10.0f},
+            {400.0f, 600.0f, 10.0f},
+            {600.0f, 400.0f, 10.0f},
+            {800.0f, 800.0f, 10.0f}
+        });
+
+        // RRT 플래너 생성 및 실행
+        std::shared_ptr<path_planning::RRT> planner = std::make_shared<path_planning::RRT>(start, space, obstacles_state, goal_state);
+        tensor_t path = planner->plan();
+
+        if (path.size(0) > 0) {
+            std::cout << "Found path with " << path.size(0) << " points\n";
+        } else {
+            std::cout << "No path found\n";
+            return;
+        }
+
+        SDL_Event event;
+        bool quit = false;
+
+        while (!quit) {
+            while (SDL_PollEvent(&event)) {
+                if (event.type == SDL_QUIT ||
+                    (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
+                    quit = true;
+                }
+                // R 키를 누르면 새로운 경로 계획
+                else if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_r) {
+                    path = planner->plan();
+                    if (path.size(0) > 0) {
+                        std::cout << "Replanned path with " << path.size(0) << " points\n";
+                    }
+                }
+            }
+
+            visualize_rrt_path(window.getRenderer(), path, start, goal_state, obstacles_state, planner);
+            SDL_Delay(16);  // 약 60 FPS
+        }
+
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
     }
 }
 
@@ -489,7 +598,7 @@ int main(int argc, char* argv[]){
     // test_critic();
     // test_sac();
     // test_frenet();
-    // test_sdl_object();
-    test_rrt();
+    test_sdl_object();
+    // test_rrt_visualization();
     return 0;
 }
