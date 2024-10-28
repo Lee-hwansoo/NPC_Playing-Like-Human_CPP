@@ -67,21 +67,25 @@ void CircleObstacle::add_random_movement() {
 }
 
 tensor_t CircleObstacle::get_state() const {
-    auto state = torch::cat({position_, torch::tensor({radius_}, get_tensor_dtype())});
+    auto state = torch::tensor({
+        position_[0].item<real_t>(),
+        position_[1].item<real_t>(),
+        radius_
+    }, get_tensor_dtype());
     return state;
 }
 
 void CircleObstacle::draw(SDL_Renderer* renderer) {
-    int x = static_cast<int>(position_[0].item<real_t>());
-    int y = static_cast<int>(position_[1].item<real_t>());
-    int r = static_cast<int>(radius_);
+    index_type x = static_cast<index_type>(position_[0].item<real_t>());
+    index_type y = static_cast<index_type>(position_[1].item<real_t>());
+    index_type r = static_cast<index_type>(radius_);
 
     SDL_SetRenderDrawColor(renderer, color_.r, color_.g, color_.b, color_.a);
 
     // Bresenham's circle algorithm with filling
-    int offsetx = 0;
-    int offsety = r;
-    int d = r - 1;
+    index_type offsetx = 0;
+    index_type offsety = r;
+    index_type d = r - 1;
 
     while (offsety >= offsetx) {
         SDL_RenderDrawLine(renderer, x - offsety, y + offsetx, x + offsety, y + offsetx);
@@ -105,6 +109,107 @@ void CircleObstacle::draw(SDL_Renderer* renderer) {
     }
 }
 
+RectangleObstacle::RectangleObstacle(std::optional<real_t> x, std::optional<real_t> y,
+                                    std::optional<real_t> width, std::optional<real_t> height,
+                                    std::optional<real_t> yaw,
+                                    const Bounds2D& limit, const SDL_Color& color, bool type)
+    : Object(x.value_or(0.0f), y.value_or(0.0f), limit, color, type)
+    , width_(0.0f)
+    , height_(0.0f)
+    , yaw_(0.0f) {
+
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+
+    if (yaw.has_value()) {
+        yaw_ = yaw.value();
+    } else {
+        std::uniform_real_distribution<real_t> dist_yaw(-constants::PI, constants::PI);
+        yaw_ = dist_yaw(gen);
+    }
+
+    if (width.has_value() && height.has_value()) {
+        width_ = width.value();
+        height_ = height.value();
+    } else {
+        std::uniform_real_distribution<real_t> dist_width(constants::RectangleObstacle::WIDTH_LIMITS.a,
+                                                        constants::RectangleObstacle::WIDTH_LIMITS.b);
+        std::uniform_real_distribution<real_t> dist_height(constants::RectangleObstacle::HEIGHT_LIMITS.a,
+                                                         constants::RectangleObstacle::HEIGHT_LIMITS.b);
+        width_ = dist_width(gen);
+        height_ = dist_height(gen);
+    }
+
+    reset(x, y);
+}
+
+void RectangleObstacle::reset(std::optional<real_t> x, std::optional<real_t> y) {
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+
+    if (x.has_value() && y.has_value()) {
+        position_ = torch::tensor({x.value(), y.value()}, get_tensor_dtype());
+    } else {
+        position_ = torch::tensor({limit_.random_x(gen), limit_.random_y(gen)}, get_tensor_dtype());
+    }
+}
+
+tensor_t RectangleObstacle::get_state() const {
+    auto state = torch::tensor({
+            position_[0].item<real_t>(),  // 좌상단 x
+            position_[1].item<real_t>(),  // 좌상단 y
+            width_,                       // 너비
+            height_,                      // 높이
+            yaw_                          // 회전각
+        }, get_tensor_dtype());
+    return state;
+}
+
+std::array<tensor_t, 4> RectangleObstacle::get_corners() const {
+    real_t cos_yaw = std::cos(yaw_);
+    real_t sin_yaw = std::sin(yaw_);
+
+    real_t x = position_[0].item<real_t>();
+    real_t y = position_[1].item<real_t>();
+
+    std::array<std::pair<real_t, real_t>, 4> corner_offsets = {
+        std::make_pair(0.0f, 0.0f),                // Top-left (origin)
+        std::make_pair(width_, 0.0f),              // Top-right
+        std::make_pair(width_, height_),           // Bottom-right
+        std::make_pair(0.0f, height_)              // Bottom-left
+    };
+
+    std::array<tensor_t, 4> corners;
+    for (size_t i = 0; i < 4; ++i) {
+        real_t dx = corner_offsets[i].first;
+        real_t dy = corner_offsets[i].second;
+
+        real_t rotated_x = x + (dx * cos_yaw - dy * sin_yaw);
+        real_t rotated_y = y + (dx * sin_yaw + dy * cos_yaw);
+
+        corners[i] = torch::tensor({rotated_x, rotated_y}, get_tensor_dtype());
+    }
+
+    return corners;
+}
+
+void RectangleObstacle::draw(SDL_Renderer* renderer) {
+    auto corners = get_corners();
+
+    SDL_SetRenderDrawColor(renderer, color_.r, color_.g, color_.b, color_.a);
+
+    std::array<SDL_Point, 5> points;
+    for (size_t i = 0; i < 4; ++i) {
+        points[i] = {
+            static_cast<int>(corners[i][0].item<real_t>()),
+            static_cast<int>(corners[i][1].item<real_t>())
+        };
+    }
+    points[4] = points[0];
+
+    SDL_RenderDrawLines(renderer, points.data(), 5);
+}
+
 Goal::Goal(std::optional<real_t> x, std::optional<real_t> y,
          real_t radius, const Bounds2D& limit,
          const SDL_Color& color, bool type)
@@ -126,23 +231,27 @@ void Goal::reset(std::optional<real_t> x, std::optional<real_t> y) {
 }
 
 tensor_t Goal::get_state() const {
-    auto state = torch::cat({position_, torch::tensor({radius_}, get_tensor_dtype())});
+    auto state = torch::tensor({
+            position_[0].item<real_t>(),
+            position_[1].item<real_t>(),
+            radius_
+        }, get_tensor_dtype());
     return state;
 }
 
 void Goal::draw(SDL_Renderer* renderer) {
-    int x = static_cast<int>(position_[0].item<real_t>());
-    int y = static_cast<int>(position_[1].item<real_t>());
-    int r = static_cast<int>(radius_);
-    int w = static_cast<int>(constants::Goal::WIDTH);
+    index_type x = static_cast<index_type>(position_[0].item<real_t>());
+    index_type y = static_cast<index_type>(position_[1].item<real_t>());
+    index_type r = static_cast<index_type>(radius_);
+    index_type w = static_cast<index_type>(constants::Goal::WIDTH);
 
     SDL_SetRenderDrawColor(renderer, color_.r, color_.g, color_.b, color_.a);
 
     // Bresenham's circle drawing algorithm
-    for (int curr_r = r; curr_r > r - w; curr_r--) {
-        int offsetx = 0;
-        int offsety = curr_r;
-        int d = curr_r - 1;
+    for (index_type curr_r = r; curr_r > r - w; curr_r--) {
+        index_type offsetx = 0;
+        index_type offsety = curr_r;
+        index_type d = curr_r - 1;
 
         while (offsety >= offsetx) {
             const SDL_Point points[] = {
@@ -412,20 +521,20 @@ void Agent::draw(SDL_Renderer* renderer) {
         SDL_RenderDrawLine(renderer, points.back().x, points.back().y, points[0].x, points[0].y);
     }
 
-    int x = static_cast<int>(position_[0].item<real_t>());
-    int y = static_cast<int>(position_[1].item<real_t>());
-    int r = static_cast<int>(radius_);
+    index_type x = static_cast<index_type>(position_[0].item<real_t>());
+    index_type y = static_cast<index_type>(position_[1].item<real_t>());
+    index_type r = static_cast<index_type>(radius_);
 
     SDL_SetRenderDrawColor(renderer, color_.r, color_.g, color_.b, color_.a);
 
-    int direction_x = x + static_cast<int>(r * 1.5f * std::cos(yaw_));
-    int direction_y = y + static_cast<int>(r * 1.5f * std::sin(yaw_));
+    index_type direction_x = x + static_cast<index_type>(r * 1.5f * std::cos(yaw_));
+    index_type direction_y = y + static_cast<index_type>(r * 1.5f * std::sin(yaw_));
     SDL_RenderDrawLine(renderer, x, y, direction_x, direction_y);
 
     // Bresenham's circle algorithm with filling
-    int offsetx = 0;
-    int offsety = r;
-    int d = r - 1;
+    index_type offsetx = 0;
+    index_type offsety = r;
+    index_type d = r - 1;
 
     while (offsety >= offsetx) {
         SDL_RenderDrawLine(renderer, x - offsety, y + offsetx, x + offsety, y + offsetx);

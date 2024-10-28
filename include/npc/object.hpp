@@ -65,6 +65,29 @@ private:
     void add_random_movement();
 };
 
+class RectangleObstacle : public Object {
+public:
+    RectangleObstacle(std::optional<real_t> x = std::nullopt,
+                   std::optional<real_t> y = std::nullopt,
+                   std::optional<real_t> width = std::nullopt,
+                   std::optional<real_t> height = std::nullopt,
+                   std::optional<real_t> yaw = std::nullopt,
+                   const Bounds2D& limit = constants::RectangleObstacle::BOUNDS,
+                   const SDL_Color& color = Display::to_sdl_color(Display::ORANGE),
+                   bool type = false);
+
+    void reset(std::optional<real_t> x = std::nullopt, std::optional<real_t> y = std::nullopt) override;
+    tensor_t get_state() const override;
+    void draw(SDL_Renderer* renderer) override;
+
+private:
+    real_t width_;
+    real_t height_;
+    real_t yaw_;
+
+    std::array<tensor_t, 4> get_corners() const;
+};
+
 class Goal : public Object {
 public:
     Goal(std::optional<real_t> x = std::nullopt,

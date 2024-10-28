@@ -87,7 +87,7 @@ namespace constants
         // Field of View (FOV) properties
         namespace FOV
         {
-            constexpr real_t ANGLE = 280.0f * DEG_TO_RAD;  // 103 degrees
+            constexpr real_t ANGLE = 280.0f * DEG_TO_RAD;  // 280 degrees
             constexpr real_t RANGE = 250.0f;  // 25m in simulation
             constexpr count_type RAY_COUNT = 28;
         }
@@ -111,6 +111,22 @@ namespace constants
 
         // Movement constraints
         const Vector2 VELOCITY_LIMITS(10.0f, 15.0f);  // Range: 1~1.5 m/s
+    }
+
+    namespace RectangleObstacle
+    {
+        constexpr count_type COUNT = 10;
+
+        const Vector2 WIDTH_LIMITS(5.0f, 100.0f);   // Range: 0.5~10m
+        const Vector2 HEIGHT_LIMITS(5.0f, 100.0f);  // Range: 0.5~10m
+
+        // Movement boundaries
+        const Bounds2D BOUNDS(
+            WIDTH_LIMITS.b,
+            static_cast<real_t>(Display::WIDTH) - WIDTH_LIMITS.b,
+            Section::GOAL_LINE + HEIGHT_LIMITS.b,
+            Section::START_LINE - HEIGHT_LIMITS.b
+        );
     }
 
     //--------------------------------------------------------------------------------
