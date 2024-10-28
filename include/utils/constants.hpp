@@ -96,7 +96,7 @@ namespace constants
     //--------------------------------------------------------------------------------
     // Obstacle Settings
     //--------------------------------------------------------------------------------
-    namespace Obstacle
+    namespace CircleObstacle
     {
         constexpr count_type COUNT = 50;
         constexpr real_t RADIUS = 10.0f;

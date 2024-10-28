@@ -26,7 +26,7 @@ void CircleObstacle::reset(std::optional<real_t> x, std::optional<real_t> y) {
     }
 
     if (type_) {
-        std::uniform_real_distribution<real_t> dist_force(constants::Obstacle::VELOCITY_LIMITS.a, constants::Obstacle::VELOCITY_LIMITS.b);
+        std::uniform_real_distribution<real_t> dist_force(constants::CircleObstacle::VELOCITY_LIMITS.a, constants::CircleObstacle::VELOCITY_LIMITS.b);
         std::uniform_real_distribution<real_t> dist_yaw(-constants::PI, constants::PI);
         std::uniform_real_distribution<real_t> dist_yaw_rate(-constants::PI/6, constants::PI/6);
 

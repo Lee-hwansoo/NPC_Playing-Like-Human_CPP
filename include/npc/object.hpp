@@ -46,8 +46,8 @@ class CircleObstacle : public Object {
 public:
     CircleObstacle(std::optional<real_t> x = std::nullopt,
                    std::optional<real_t> y = std::nullopt,
-                   real_t radius = constants::Obstacle::RADIUS,
-                   const Bounds2D& limit = constants::Obstacle::BOUNDS,
+                   real_t radius = constants::CircleObstacle::RADIUS,
+                   const Bounds2D& limit = constants::CircleObstacle::BOUNDS,
                    const SDL_Color& color = Display::to_sdl_color(Display::ORANGE),
                    bool type = true);
 

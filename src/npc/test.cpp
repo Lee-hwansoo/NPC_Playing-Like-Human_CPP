@@ -349,14 +349,14 @@ void testIntegratedObjects(SDL_Renderer* renderer) {
     SDL_RenderClear(renderer);
 
     std::vector<std::unique_ptr<object::CircleObstacle>> obstacles;
-    obstacles.reserve(Obstacle::COUNT);
-    for (size_t i = 0; i < Obstacle::COUNT; i++) {
+    obstacles.reserve(constants::CircleObstacle::COUNT);
+    for (size_t i = 0; i < constants::CircleObstacle::COUNT; i++) {
         auto obs = std::make_unique<object::CircleObstacle>();
         obs->reset();  // 초기 위치 설정
         obstacles.push_back(std::move(obs));
     }
 
-    tensor_t obstacles_state = torch::zeros({Obstacle::COUNT, 3}, get_tensor_dtype());
+    tensor_t obstacles_state = torch::zeros({constants::CircleObstacle::COUNT, 3}, get_tensor_dtype());
 
     auto updateObstaclesState = [&obstacles, &obstacles_state]() {
         for (size_t i = 0; i < obstacles.size(); ++i) {
