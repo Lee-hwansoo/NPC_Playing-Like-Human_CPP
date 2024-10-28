@@ -397,7 +397,6 @@ void Agent::draw(SDL_Renderer* renderer) {
 		);
 	}
 
-
     color = constants::Display::to_sdl_color(constants::Display::WHITE);
     if (fov_points_.size(0) > 1) {
         std::vector<SDL_Point> points(fov_points_.size(0));
