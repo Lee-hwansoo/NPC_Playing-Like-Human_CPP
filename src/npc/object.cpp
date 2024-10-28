@@ -1,5 +1,6 @@
 ﻿#include "npc/object.hpp"
 #include <memory>
+#include <random>
 
 namespace object {
 

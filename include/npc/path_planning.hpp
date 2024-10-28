@@ -1,7 +1,6 @@
 ﻿#pragma once
 
 #include "utils/types.hpp"
-#include "utils/constants.hpp"
 #include <torch/torch.h>
 #include <memory>
 #include <vector>

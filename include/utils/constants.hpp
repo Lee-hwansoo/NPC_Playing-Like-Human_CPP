@@ -12,11 +12,15 @@ namespace constants
     constexpr real_t RAD_TO_DEG = 180.0f / PI;
     constexpr real_t EPSILON = 1e-6f;
 
+    constexpr const char* LOG_DIR = "../../logs";
+
     //--------------------------------------------------------------------------------
     // Display Settings
     //--------------------------------------------------------------------------------
     namespace Display
     {
+        constexpr const char* WINDOW_TITLE = "Pearl Abyss";
+
         constexpr count_type WIDTH = 1000;    // 100m in simulation
         constexpr count_type HEIGHT = 1000;   // 100m in simulation
         constexpr count_type FPS = 30;

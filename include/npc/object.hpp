@@ -7,7 +7,6 @@
 #include <memory>
 #include <torch/torch.h>
 #include <optional>
-#include <random>
 
 namespace object {
 

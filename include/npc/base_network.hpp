@@ -130,7 +130,7 @@ public:
             torch::jit::Module loaded_model;
             try {
                 loaded_model = torch::jit::load(filepath.string(), device_);
-                std::cout << "\nSuccessfully loaded the model file." << std::endl;
+                std::cout << "\nSuccessfully loaded the model file: " << filepath.string() << std::endl;
 
                 std::cout << "\nChecking loaded " << network_name_ << " network parameters:" << std::endl;
                 for (const auto& p : loaded_model.named_parameters()) {
@@ -220,7 +220,7 @@ private:
         std::filesystem::path script_path(__FILE__);
         std::filesystem::path script_dir = script_path.parent_path();
         std::filesystem::path script_name = script_path.stem();
-        std::filesystem::path log_dir = script_dir / "../../logs" / script_name;
+        std::filesystem::path log_dir = script_dir / constants::LOG_DIR / script_name;
         log_dir = std::filesystem::absolute(log_dir).lexically_normal();
         std::filesystem::create_directories(log_dir);
         return log_dir.string();
