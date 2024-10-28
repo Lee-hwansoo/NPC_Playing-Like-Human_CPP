@@ -89,10 +89,13 @@ void CircleObstacle::draw(SDL_Renderer* renderer) {
     index_type d = r - 1;
 
     while (offsety >= offsetx) {
-        SDL_RenderDrawLine(renderer, x - offsety, y + offsetx, x + offsety, y + offsetx);
-        SDL_RenderDrawLine(renderer, x - offsety, y - offsetx, x + offsety, y - offsetx);
-        SDL_RenderDrawLine(renderer, x - offsetx, y + offsety, x + offsetx, y + offsety);
-        SDL_RenderDrawLine(renderer, x - offsetx, y - offsety, x + offsetx, y - offsety);
+        const SDL_Point points[] = {
+            {x + offsetx, y + offsety}, {x + offsetx, y - offsety},
+            {x - offsetx, y + offsety}, {x - offsetx, y - offsety},
+            {x + offsety, y + offsetx}, {x + offsety, y - offsetx},
+            {x - offsety, y + offsetx}, {x - offsety, y - offsetx}
+        };
+        SDL_RenderDrawPoints(renderer, points, 8);
 
         if (d >= 2*offsetx) {
             d -= 2*offsetx + 1;
@@ -115,36 +118,14 @@ RectangleObstacle::RectangleObstacle(std::optional<real_t> x, std::optional<real
                                     std::optional<real_t> yaw,
                                     const Bounds2D& limit, const SDL_Color& color, bool type)
     : Object(x.value_or(0.0f), y.value_or(0.0f), limit, color, type)
-    , width_(0.0f)
-    , height_(0.0f)
-    , yaw_(0.0f) {
+    , width_(width.value_or(0.0f))
+    , height_(height.value_or(0.0f))
+    , yaw_(yaw.value_or(0.0f)) {
 
-    static std::random_device rd;
-    static std::mt19937 gen(rd());
-
-    if (yaw.has_value()) {
-        yaw_ = yaw.value();
-    } else {
-        std::uniform_real_distribution<real_t> dist_yaw(-constants::PI, constants::PI);
-        yaw_ = dist_yaw(gen);
-    }
-
-    if (width.has_value() && height.has_value()) {
-        width_ = width.value();
-        height_ = height.value();
-    } else {
-        std::uniform_real_distribution<real_t> dist_width(constants::RectangleObstacle::WIDTH_LIMITS.a,
-                                                        constants::RectangleObstacle::WIDTH_LIMITS.b);
-        std::uniform_real_distribution<real_t> dist_height(constants::RectangleObstacle::HEIGHT_LIMITS.a,
-                                                         constants::RectangleObstacle::HEIGHT_LIMITS.b);
-        width_ = dist_width(gen);
-        height_ = dist_height(gen);
-    }
-
-    reset(x, y);
+    reset(x, y, width, height, yaw);
 }
 
-void RectangleObstacle::reset(std::optional<real_t> x, std::optional<real_t> y) {
+void RectangleObstacle::reset(std::optional<real_t> x, std::optional<real_t> y, std::optional<real_t> width, std::optional<real_t> height, std::optional<real_t> yaw) {
     static std::random_device rd;
     static std::mt19937 gen(rd());
 
@@ -153,6 +134,10 @@ void RectangleObstacle::reset(std::optional<real_t> x, std::optional<real_t> y) 
     } else {
         position_ = torch::tensor({limit_.random_x(gen), limit_.random_y(gen)}, get_tensor_dtype());
     }
+
+    width_ = width.has_value() ? width.value() : std::uniform_real_distribution<real_t>(constants::RectangleObstacle::WIDTH_LIMITS.a, constants::RectangleObstacle::WIDTH_LIMITS.b)(gen);
+    height_ = height.has_value() ? height.value() : std::uniform_real_distribution<real_t>(constants::RectangleObstacle::HEIGHT_LIMITS.a, constants::RectangleObstacle::HEIGHT_LIMITS.b)(gen);
+    yaw_ = yaw.has_value() ? yaw.value() : std::uniform_real_distribution<real_t>(-constants::PI, constants::PI)(gen);
 }
 
 tensor_t RectangleObstacle::get_state() const {
@@ -207,7 +192,6 @@ void RectangleObstacle::draw(SDL_Renderer* renderer) {
         };
     }
     points[4] = points[0];
-
     SDL_RenderDrawLines(renderer, points.data(), 5);
 }
 
@@ -538,10 +522,13 @@ void Agent::draw(SDL_Renderer* renderer) {
     index_type d = r - 1;
 
     while (offsety >= offsetx) {
-        SDL_RenderDrawLine(renderer, x - offsety, y + offsetx, x + offsety, y + offsetx);
-        SDL_RenderDrawLine(renderer, x - offsety, y - offsetx, x + offsety, y - offsetx);
-        SDL_RenderDrawLine(renderer, x - offsetx, y + offsety, x + offsetx, y + offsety);
-        SDL_RenderDrawLine(renderer, x - offsetx, y - offsety, x + offsetx, y - offsety);
+        const SDL_Point points[] = {
+            {x + offsetx, y + offsety}, {x + offsetx, y - offsety},
+            {x - offsetx, y + offsety}, {x - offsetx, y - offsety},
+            {x + offsety, y + offsetx}, {x + offsety, y - offsetx},
+            {x - offsety, y + offsetx}, {x - offsety, y - offsetx}
+        };
+        SDL_RenderDrawPoints(renderer, points, 8);
 
         if (d >= 2*offsetx) {
             d -= 2*offsetx + 1;

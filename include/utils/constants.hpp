@@ -119,15 +119,15 @@ namespace constants
 
     namespace RectangleObstacle
     {
-        constexpr count_type COUNT = 10;
+        constexpr count_type COUNT = 12;
 
-        const Vector2 WIDTH_LIMITS(5.0f, 100.0f);   // Range: 0.5~10m
-        const Vector2 HEIGHT_LIMITS(5.0f, 100.0f);  // Range: 0.5~10m
+        const Vector2 WIDTH_LIMITS(5.0f, 120.0f);   // Range: 0.5~12m
+        const Vector2 HEIGHT_LIMITS(5.0f, 120.0f);  // Range: 0.5~12m
 
         // Movement boundaries
         const Bounds2D BOUNDS(
-            WIDTH_LIMITS.b,
-            static_cast<real_t>(Display::WIDTH) - WIDTH_LIMITS.b,
+            WIDTH_LIMITS.a,
+            static_cast<real_t>(Display::WIDTH) - WIDTH_LIMITS.a,
             Section::GOAL_LINE + HEIGHT_LIMITS.b,
             Section::START_LINE - HEIGHT_LIMITS.b
         );

@@ -355,17 +355,30 @@ void testIntegratedObjects(SDL_Renderer* renderer) {
         obs->reset();  // 초기 위치 설정
         circle_obstacles.push_back(std::move(obs));
     }
-
     tensor_t circle_obstacles_state = torch::zeros({constants::CircleObstacle::COUNT, 3}, get_tensor_dtype());
-
-    auto updateObstaclesState = [&circle_obstacles, &circle_obstacles_state]() {
+    auto updateCircleObstaclesState = [&circle_obstacles, &circle_obstacles_state]() {
         for (size_t i = 0; i < circle_obstacles.size(); ++i) {
             circle_obstacles_state[i] = circle_obstacles[i]->get_state();
         }
         return circle_obstacles_state;
     };
+    circle_obstacles_state = updateCircleObstaclesState();
 
-    circle_obstacles_state = updateObstaclesState();
+    std::vector<std::unique_ptr<object::RectangleObstacle>> rectangle_obstacles;
+    rectangle_obstacles.reserve(constants::RectangleObstacle::COUNT);
+    for (size_t i = 0; i < constants::RectangleObstacle::COUNT; i++) {
+        auto obs = std::make_unique<object::RectangleObstacle>();
+        obs->reset();  // 초기 위치 설정
+        rectangle_obstacles.push_back(std::move(obs));
+    }
+    tensor_t rectangle_obstacles_state = torch::zeros({constants::CircleObstacle::COUNT, 5}, get_tensor_dtype());
+    auto updateRectangleObstaclesState = [&rectangle_obstacles, &rectangle_obstacles_state]() {
+        for (size_t i = 0; i < rectangle_obstacles.size(); ++i) {
+            rectangle_obstacles_state[i] = rectangle_obstacles[i]->get_state();
+        }
+        return rectangle_obstacles_state;
+    };
+    rectangle_obstacles_state = updateRectangleObstaclesState();
 
     // 목표 생성 및 초기화
     auto goal = std::make_unique<object::Goal>();
@@ -394,8 +407,12 @@ void testIntegratedObjects(SDL_Renderer* renderer) {
                 for (auto& obs : circle_obstacles) {
                     obs->reset();
                 }
+                for (auto& obs : rectangle_obstacles) {
+                    obs->reset();
+                }
                 goal->reset();
-                updateObstaclesState();
+                updateCircleObstaclesState();
+                updateRectangleObstaclesState();
                 agent->reset(500.0f, 900.0f, circle_obstacles_state, goal->get_state());
             }
         }
@@ -405,7 +422,7 @@ void testIntegratedObjects(SDL_Renderer* renderer) {
             obs->update(dt);
         }
 
-        updateObstaclesState();
+        updateCircleObstaclesState();
         agent->update(dt, forward_action, circle_obstacles_state, goal->get_state());
 
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
@@ -417,6 +434,10 @@ void testIntegratedObjects(SDL_Renderer* renderer) {
         SDL_RenderDrawLine(renderer, 0, Section::START_LINE, Display::WIDTH, Section::START_LINE);
 
         for (const auto& obs : circle_obstacles) {
+            obs->draw(renderer);
+        }
+
+        for (const auto& obs : rectangle_obstacles) {
             obs->draw(renderer);
         }
 

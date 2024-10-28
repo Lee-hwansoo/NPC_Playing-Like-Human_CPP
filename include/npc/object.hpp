@@ -75,7 +75,7 @@ public:
                    const SDL_Color& color = Display::to_sdl_color(Display::ORANGE),
                    bool type = false);
 
-    void reset(std::optional<real_t> x = std::nullopt, std::optional<real_t> y = std::nullopt) override;
+    void reset(std::optional<real_t> x = std::nullopt, std::optional<real_t> y = std::nullopt, std::optional<real_t> width = std::nullopt, std::optional<real_t> height = std::nullopt, std::optional<real_t> yaw = std::nullopt);
     tensor_t get_state() const override;
     void draw(SDL_Renderer* renderer) override;
 
