@@ -348,31 +348,31 @@ void testIntegratedObjects(SDL_Renderer* renderer) {
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
 
-    std::vector<std::unique_ptr<object::CircleObstacle>> obstacles;
-    obstacles.reserve(constants::CircleObstacle::COUNT);
+    std::vector<std::unique_ptr<object::CircleObstacle>> circle_obstacles;
+    circle_obstacles.reserve(constants::CircleObstacle::COUNT);
     for (size_t i = 0; i < constants::CircleObstacle::COUNT; i++) {
         auto obs = std::make_unique<object::CircleObstacle>();
         obs->reset();  // 초기 위치 설정
-        obstacles.push_back(std::move(obs));
+        circle_obstacles.push_back(std::move(obs));
     }
 
-    tensor_t obstacles_state = torch::zeros({constants::CircleObstacle::COUNT, 3}, get_tensor_dtype());
+    tensor_t circle_obstacles_state = torch::zeros({constants::CircleObstacle::COUNT, 3}, get_tensor_dtype());
 
-    auto updateObstaclesState = [&obstacles, &obstacles_state]() {
-        for (size_t i = 0; i < obstacles.size(); ++i) {
-            obstacles_state[i] = obstacles[i]->get_state();
+    auto updateObstaclesState = [&circle_obstacles, &circle_obstacles_state]() {
+        for (size_t i = 0; i < circle_obstacles.size(); ++i) {
+            circle_obstacles_state[i] = circle_obstacles[i]->get_state();
         }
-        return obstacles_state;
+        return circle_obstacles_state;
     };
 
-    obstacles_state = updateObstaclesState();
+    circle_obstacles_state = updateObstaclesState();
 
     // 목표 생성 및 초기화
     auto goal = std::make_unique<object::Goal>();
     goal->reset();
 
     // 에이전트 생성 및 초기화
-    auto agent = std::make_unique<object::Agent>(500.0f, 900.0f, 10.0f, constants::Agent::BOUNDS, Display::to_sdl_color(Display::BLUE), true, obstacles_state, goal->get_state());
+    auto agent = std::make_unique<object::Agent>(500.0f, 900.0f, 10.0f, constants::Agent::BOUNDS, Display::to_sdl_color(Display::BLUE), true, circle_obstacles_state, goal->get_state());
 
     bool quit = false;
     SDL_Event event;
@@ -391,22 +391,22 @@ void testIntegratedObjects(SDL_Renderer* renderer) {
                 quit = true;
             }
             else if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_r) {
-                for (auto& obs : obstacles) {
+                for (auto& obs : circle_obstacles) {
                     obs->reset();
                 }
                 goal->reset();
                 updateObstaclesState();
-                agent->reset(500.0f, 900.0f, obstacles_state, goal->get_state());
+                agent->reset(500.0f, 900.0f, circle_obstacles_state, goal->get_state());
             }
         }
 
         // 장애물 업데이트 - 고정된 dt로 시뮬레이션
-        for (auto& obs : obstacles) {
+        for (auto& obs : circle_obstacles) {
             obs->update(dt);
         }
 
         updateObstaclesState();
-        agent->update(dt, forward_action, obstacles_state, goal->get_state());
+        agent->update(dt, forward_action, circle_obstacles_state, goal->get_state());
 
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
@@ -416,7 +416,7 @@ void testIntegratedObjects(SDL_Renderer* renderer) {
         SDL_RenderDrawLine(renderer, 0, Section::GOAL_LINE, Display::WIDTH, Section::GOAL_LINE);
         SDL_RenderDrawLine(renderer, 0, Section::START_LINE, Display::WIDTH, Section::START_LINE);
 
-        for (const auto& obs : obstacles) {
+        for (const auto& obs : circle_obstacles) {
             obs->draw(renderer);
         }
 
@@ -454,7 +454,7 @@ int test_sdl_object(){
 
 void visualize_rrt_path(SDL_Renderer* renderer, const tensor_t& path,
                        const tensor_t& start, const tensor_t& goal_state,
-                       const tensor_t& obstacles_state,
+                       const tensor_t& circle_obstacles_state,
                        std::shared_ptr<path_planning::RRT> planner) {
     // 배경을 검은색으로 지우기
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
@@ -488,10 +488,10 @@ void visualize_rrt_path(SDL_Renderer* renderer, const tensor_t& path,
 
     // 장애물 그리기 (회색)
     SDL_SetRenderDrawColor(renderer, 128, 128, 128, 255);
-    for (int i = 0; i < obstacles_state.size(0); i++) {
-        int obs_x = static_cast<int>(obstacles_state[i][0].item<float>());
-        int obs_y = static_cast<int>(obstacles_state[i][1].item<float>());
-        int obs_radius = static_cast<int>(obstacles_state[i][2].item<float>());
+    for (int i = 0; i < circle_obstacles_state.size(0); i++) {
+        int obs_x = static_cast<int>(circle_obstacles_state[i][0].item<float>());
+        int obs_y = static_cast<int>(circle_obstacles_state[i][1].item<float>());
+        int obs_radius = static_cast<int>(circle_obstacles_state[i][2].item<float>());
 
         for (int w = 0; w < obs_radius * 2; w++) {
             for (int h = 0; h < obs_radius * 2; h++) {
@@ -548,7 +548,7 @@ void test_rrt_visualization() {
         Bounds2D space(0.0f, 1000.0f, 0.0f, 1000.0f);
 
         // 장애물 상태 설정
-        auto obstacles_state = torch::tensor({
+        auto circle_obstacles_state = torch::tensor({
             {200.0f, 200.0f, 10.0f},
             {400.0f, 600.0f, 10.0f},
             {600.0f, 400.0f, 10.0f},
@@ -556,7 +556,7 @@ void test_rrt_visualization() {
         });
 
         // RRT 플래너 생성 및 실행
-        std::shared_ptr<path_planning::RRT> planner = std::make_shared<path_planning::RRT>(start, space, obstacles_state, goal_state);
+        std::shared_ptr<path_planning::RRT> planner = std::make_shared<path_planning::RRT>(start, space, circle_obstacles_state, goal_state);
         tensor_t path = planner->plan();
 
         if (path.size(0) > 0) {
@@ -584,7 +584,7 @@ void test_rrt_visualization() {
                 }
             }
 
-            visualize_rrt_path(window.getRenderer(), path, start, goal_state, obstacles_state, planner);
+            visualize_rrt_path(window.getRenderer(), path, start, goal_state, circle_obstacles_state, planner);
             SDL_Delay(16);  // 약 60 FPS
         }
 
