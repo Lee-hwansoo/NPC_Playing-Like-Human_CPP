@@ -5,6 +5,7 @@
 #include "npc/critic.hpp"
 #include "npc/sac.hpp"
 #include "npc/object.hpp"
+#include "npc/path_planning.hpp"
 #include <SDL.h>
 #include <torch/torch.h>
 #include <iostream>
@@ -453,11 +454,42 @@ int test_sdl_object(){
     }
 }
 
+void test_rrt(){
+    // 시작점 설정
+    auto start = torch::tensor({0.0f, 0.0f});
+
+    // 목표점 설정 (x, y, radius)
+    auto goal_state = torch::tensor({800.0f, 800.0f, 5.0f});
+
+    // 공간 경계 설정
+    Bounds2D space(0.0f, 1000.0f, 0.0f, 1000.0f);
+
+    // 장애물 상태 설정 (Nx3 텐서: x, y, radius)
+    auto obstacles_state = torch::tensor({
+        {50.0f, 50.0f, 10.0f},
+        {70.0f, 30.0f, 15.0f}
+    });
+
+    // RRT 플래너 생성 및 실행
+    path_planning::RRT planner(start, goal_state, space, obstacles_state);
+    tensor_t path = planner.plan();
+
+    if (path.size(0) > 0) {
+        // path->size(0): 경로점의 수
+        // path->size(1): 2 (x, y 좌표)
+        std::cout << "Found path with " << path.size(0) << " points\n";
+        if (path.size(0) > 0) {
+            std::cout << path << std::endl;
+        }
+    }
+}
+
 int main(int argc, char* argv[]){
     // test_actor();
     // test_critic();
     // test_sac();
     // test_frenet();
-    test_sdl_object();
+    // test_sdl_object();
+    test_rrt();
     return 0;
 }

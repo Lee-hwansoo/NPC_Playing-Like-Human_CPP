@@ -111,4 +111,18 @@ namespace constants
         // Movement constraints
         const Vector2 VELOCITY_LIMITS(10.0f, 15.0f);  // Range: 1~1.5 m/s
     }
+
+    //--------------------------------------------------------------------------------
+    // PathPlanning RRT Settings
+    //--------------------------------------------------------------------------------
+    namespace RRT
+    {
+        constexpr count_type MAX_ITER = 5000;
+        constexpr real_t GOAL_SAMPLE_RATE = 0.1f;
+        constexpr real_t MIN_U = 10.0f;
+        constexpr real_t MAX_U = 200.0f;
+        constexpr real_t SUCCESS_DIST_THRESHOLD = Goal::RADIUS;
+        constexpr real_t COLLISION_CHECK_STEP = 0.2f;
+        constexpr real_t STEP_SIZE = 0.5f;
+    }
 }

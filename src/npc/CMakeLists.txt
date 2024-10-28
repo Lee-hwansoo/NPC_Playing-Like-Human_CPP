@@ -45,6 +45,7 @@ set(${PROJECT_NAME}_MAIN_FILES
     critic.cpp
     sac.cpp
     object.cpp
+    path_planning.cpp
 )
 add_executable(${PROJECT_NAME}_MAIN
     ${${PROJECT_NAME}_MAIN_FILES}
