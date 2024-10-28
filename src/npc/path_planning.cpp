@@ -5,12 +5,6 @@
 
 namespace path_planning {
 
-Node::Node(real_t x, real_t y) : x_(x), y_(y), parent_(nullptr) {}
-
-void Node::set_parent(const std::shared_ptr<Node>& parent) {
-    parent_ = parent;
-}
-
 RRT::RRT(const tensor_t& start,
          const types::Bounds2D& space,
          const tensor_t& obstacles_state,
@@ -171,30 +165,27 @@ bool RRT::is_path_collide(
     real_t dy = node_to->y() - node_from->y();
     real_t length = std::sqrt(dx*dx + dy*dy);
 
-    if (length < collision_check_step_) {
-        return false;
-    }
+	if (length < collision_check_step_) {
+		return is_collide(node_from) || is_collide(node_to);
+	}
 
-    real_t direction_x = dx/length;
-    real_t direction_y = dy/length;
+    count_type n_points = static_cast<count_type>(std::ceil(length / collision_check_step_)) + 1;
+    tensor_t t = torch::linspace(0, 1, n_points, device_);
+    tensor_t start_pos = torch::tensor({ node_from->x(), node_from->y() }, torch::TensorOptions().device(device_));
+    tensor_t end_pos = torch::tensor({ node_to->x(), node_to->y() }, torch::TensorOptions().device(device_));
 
-    std::vector<std::shared_ptr<Node>> nodes_to_check = {node_from, node_to};
+    tensor_t t_expanded = t.unsqueeze(1);
+    tensor_t points = start_pos * (1 - t_expanded) + end_pos * t_expanded;
+    tensor_t points_expanded = points.unsqueeze(1);
 
-    if (length >= collision_check_step_) {
-        count_type n_add = static_cast<count_type>(std::floor(length / collision_check_step_));
-        for (count_type i = 0; i < n_add; ++i) {
-            real_t step_node_x = node_from->x() + collision_check_step_ * direction_x * (i + 1.0f);
-            real_t step_node_y = node_from->y() + collision_check_step_ * direction_y * (i + 1.0f);
-            nodes_to_check.push_back(std::make_shared<Node>(step_node_x, step_node_y));
-        }
-    }
+    tensor_t obstacles_pos = obstacles_state_.slice(1, 0, 2).unsqueeze(0);
 
-    for (const auto& node : nodes_to_check) {
-        if (is_collide(node)) {
-            return true;
-        }
-    }
-    return false;
+    tensor_t distances = torch::norm(points_expanded - obstacles_pos, 2, 2);
+    tensor_t radius = obstacles_state_.select(1, 2).unsqueeze(0);
+
+    tensor_t collisions = distances <= radius;
+
+    return collisions.any().item<bool>();
 }
 
 bool RRT::check_goal(const std::shared_ptr<Node>& node) const {

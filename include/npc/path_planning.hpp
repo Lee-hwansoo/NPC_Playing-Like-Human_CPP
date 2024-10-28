@@ -1,10 +1,11 @@
 ﻿#pragma once
 
 #include "utils/types.hpp"
+#include "utils/constants.hpp"
 #include <torch/torch.h>
+#include <memory>
 #include <vector>
 #include <random>
-#include <optional>
 
 namespace path_planning {
 
@@ -12,18 +13,18 @@ using namespace types;
 
 class Node {
 public:
-    Node(real_t x, real_t y);
+    Node(real_t x, real_t y) : x_(x), y_(y), parent_(nullptr) {}
 
     real_t x() const { return x_; }
     real_t y() const { return y_; }
 
-    void set_parent(const std::shared_ptr<Node>& parent);
+    void set_parent(const std::shared_ptr<Node>& parent) { parent_ = parent; }
     std::shared_ptr<Node> parent() const { return parent_; }
 
 private:
     real_t x_;
     real_t y_;
-    std::shared_ptr<Node> parent_;
+    std::shared_ptr<Node> parent_;  // 부모 노드에 대한 shared_ptr
 };
 
 class RRT {
