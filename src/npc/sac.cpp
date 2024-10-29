@@ -1,21 +1,26 @@
 ﻿#include "npc/sac.hpp"
+#include <iostream>
 
-ReplayBuffer::ReplayBuffer(size_type buffer_size, size_type batch_size)
+ReplayBuffer::ReplayBuffer(size_type buffer_size, size_type batch_size, torch::Device device)
     : buffer_size_(buffer_size)
     , batch_size_(batch_size)
+    , device_(device)
     , generator_(std::random_device{}()) {}
 
-void ReplayBuffer::add(const tensor_t& state, const tensor_t& action,
-                      const tensor_t& reward, const tensor_t& next_state,
-                      const tensor_t& done) {
+void ReplayBuffer::add(const tensor_t& state, const tensor_t& action, const tensor_t& reward, const tensor_t& next_state, const tensor_t& done) {
     if (buffer_.size() >= buffer_size_) {
         buffer_.pop_front();
     }
-    buffer_.emplace_back(state, action, reward, next_state, done);
+    buffer_.emplace_back(
+        state.cpu(),
+        action.cpu(),
+        reward.cpu(),
+        next_state.cpu(),
+        done.cpu()
+    );
 }
 
-std::tuple<tensor_t, tensor_t, tensor_t,
-           tensor_t, tensor_t> ReplayBuffer::sample() {
+std::tuple<tensor_t, tensor_t, tensor_t, tensor_t, tensor_t> ReplayBuffer::sample() {
     std::vector<size_type> indices(batch_size_);
     std::vector<tensor_t> states, actions, rewards, next_states, dones;
     states.reserve(batch_size_);
@@ -37,11 +42,11 @@ std::tuple<tensor_t, tensor_t, tensor_t,
     }
 
     return {
-        torch::stack(states),
-        torch::stack(actions),
-        torch::stack(rewards),
-        torch::stack(next_states),
-        torch::stack(dones)
+        torch::stack(states).to(device_),
+        torch::stack(actions).to(device_),
+        torch::stack(rewards).to(device_),
+        torch::stack(next_states).to(device_),
+        torch::stack(dones).to(device_)
     };
 }
 
@@ -49,15 +54,15 @@ SAC::SAC(dim_type state_dim, dim_type action_dim,
         std::vector<real_t> min_action,
         std::vector<real_t> max_action,
         torch::Device device)
-    : actor_("actor", state_dim, action_dim, min_action, max_action)
-    , critic1_("critic1", state_dim, action_dim)
+    : actor_("actor", state_dim, action_dim, min_action, max_action, device)
+    , critic1_("critic1", state_dim, action_dim, device)
     , critic2_("critic2", state_dim, action_dim)
-    , critic1_target_("critic1_target", state_dim, action_dim)
-    , critic2_target_("critic2_target", state_dim, action_dim)
+    , critic1_target_("critic1_target", state_dim, action_dim, device)
+    , critic2_target_("critic2_target", state_dim, action_dim, device)
     , actor_optimizer_(actor_->parameters(), constants::NETWORK::LEARNING_RATE)
     , critic1_optimizer_(critic1_->parameters(), constants::NETWORK::LEARNING_RATE)
     , critic2_optimizer_(critic2_->parameters(), constants::NETWORK::LEARNING_RATE)
-    , memory_(std::make_unique<ReplayBuffer>(constants::NETWORK::BUFFER_SIZE, constants::NETWORK::BATCH_SIZE))
+    , memory_(std::make_unique<ReplayBuffer>(constants::NETWORK::BUFFER_SIZE, constants::NETWORK::BATCH_SIZE, device))
     , device_(device)
     , state_dim_(state_dim)
     , action_dim_(action_dim)
@@ -65,17 +70,11 @@ SAC::SAC(dim_type state_dim, dim_type action_dim,
     , max_action_(max_action)
     , gamma_(constants::NETWORK::GAMMA)
     , tau_(constants::NETWORK::TAU)
-    , alpha_(constants::NETWORK::ALPHA)
-    , start_episode_(0) {
+    , alpha_(constants::NETWORK::ALPHA) {
 
     critic1_target_->load_state_dict(critic1_->state_dict());
     critic2_target_->load_state_dict(critic2_->state_dict());
-
-    actor_->to(device_);
-    critic1_->to(device_);
-    critic2_->to(device_);
-    critic1_target_->to(device_);
-    critic2_target_->to(device_);
+    std::cout << "Successfully created SAC network" << std::endl;
 }
 
 tensor_t SAC::select_action(const tensor_t& state) {
@@ -91,6 +90,12 @@ void SAC::update() {
     }
 
     auto [states, actions, rewards, next_states, dones] = memory_->sample();
+
+    states = states.to(device_);
+    actions = actions.to(device_);
+    rewards = rewards.to(device_);
+    next_states = next_states.to(device_);
+    dones = dones.to(device_);
 
     tensor_t target_q;
     {

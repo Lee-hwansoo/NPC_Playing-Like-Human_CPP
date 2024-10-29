@@ -7,6 +7,8 @@ TrainEnvironment::TrainEnvironment(count_type width, count_type height, torch::D
 	set_observation_dim(constants::Agent::FOV::RAY_COUNT + 10);
 	set_action_dim(2);
 
+	std::cout << "Environment initialized, device: " << device << std::endl;
+
 	const auto [min_action, max_action] = get_action_space();
 	sac_ = std::make_unique<SAC>(
 		get_observation_dim(),
@@ -17,6 +19,8 @@ TrainEnvironment::TrainEnvironment(count_type width, count_type height, torch::D
 		);
 
 	state_ = init_objects();
+
+	std::cout << "Finished Environment initialized" << std::endl;
 }
 
 tensor_t TrainEnvironment::init_objects() {
@@ -39,25 +43,25 @@ tensor_t TrainEnvironment::init_objects() {
 	update_rectangle_obstacles_state();
 
 	goal_ = std::make_unique<object::Goal>(std::nullopt, std::nullopt, constants::Goal::RADIUS, constants::Goal::SPAWN_BOUNDS, Display::to_sdl_color(Display::GREEN), false);
-	agent_ = std::make_unique<object::Agent>(std::nullopt, std::nullopt, constants::Agent::RADIUS, constants::Agent::SPAWN_BOUNDS, constants::Agent::MOVE_BOUNDS, Display::to_sdl_color(Display::BLUE), true, circle_obstacles_state_, rectangle_obstacles_state_, goal_->get_state());
+	agent_ = std::make_unique<object::Agent>(std::nullopt, std::nullopt, constants::Agent::RADIUS, constants::Agent::SPAWN_BOUNDS, constants::Agent::MOVE_BOUNDS, Display::to_sdl_color(Display::BLUE), true, circle_obstacles_state_, rectangle_obstacles_state_, goal_->get_state().to(device_));
 
 	return get_observation();
 }
 
 void TrainEnvironment::update_circle_obstacles_state() {
 	for (size_t i = 0; i < circle_obstacles_.size(); ++i) {
-		circle_obstacles_state_[i] = circle_obstacles_[i]->get_state();
+		circle_obstacles_state_[i] = circle_obstacles_[i]->get_state().to(device_);
 	}
 }
 
 void TrainEnvironment::update_rectangle_obstacles_state() {
 	for (size_t i = 0; i < rectangle_obstacles_.size(); ++i) {
-		rectangle_obstacles_state_[i] = rectangle_obstacles_[i]->get_state();
+		rectangle_obstacles_state_[i] = rectangle_obstacles_[i]->get_state().to(device_);
 	}
 }
 
 tensor_t TrainEnvironment::get_observation() const {
-	return agent_->get_state();
+	return agent_->get_state().to(device_);
 }
 
 bool TrainEnvironment::check_goal() const { return agent_->is_goal(); }
@@ -89,7 +93,7 @@ std::tuple<tensor_t, tensor_t, bool, bool> TrainEnvironment::step(const tensor_t
 	terminated_ = check_goal();
 	truncated_ = check_bounds() || check_obstacle_collision() || step_count_ >= constants::NETWORK::MAX_STEP;
 
-	tensor_t reward = torch::tensor(calculate_reward(state_, action),get_tensor_dtype()).to(device_);
+	tensor_t reward = torch::tensor(calculate_reward(state_, action.to(device_)),get_tensor_dtype()).to(device_);
 
 	if (terminated_ || truncated_) {
 		tensor_t current_state = get_observation();
@@ -105,14 +109,14 @@ std::tuple<tensor_t, tensor_t, bool, bool> TrainEnvironment::step(const tensor_t
 
 	update_circle_obstacles_state();
 
-	state_ = agent_->update(fixed_dt_, action, circle_obstacles_state_, goal_->get_state());
+	state_ = agent_->update(fixed_dt_, action, circle_obstacles_state_, goal_->get_state().to(device_));
 
-	return std::make_tuple(state_, reward, terminated_, truncated_);
+	return std::make_tuple(state_.to(device_), reward, terminated_, truncated_);
 }
 
 real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t& action) {
-	real_t normalized_goal_dist = state[-4].item<real_t>();
-	real_t normalized_angle_diff = state[-3].item<real_t>();
+	real_t normalized_goal_dist = state.to(device_)[-4].item<real_t>();
+	real_t normalized_angle_diff = state.to(device_)[-3].item<real_t>();
 	real_t goal_in_fov = state[-2].item<real_t>();
 	real_t frenet_d = state[-1].item<real_t>();
 
@@ -171,12 +175,12 @@ std::vector<real_t> TrainEnvironment::train(const dim_type episodes, bool render
 
         while (!done) {
             // 행동 선택 및 환경 스텝
-            tensor_t action = sac_->select_action(state);
+            tensor_t action = sac_->select_action(state.to(device_));
             auto [next_state, reward, terminated, truncated] = step(action);
 
             // 경험 저장 및 학습
             done = terminated || truncated;
-            sac_->add(state, action, reward, next_state, torch::tensor(done, torch::TensorOptions().dtype(get_tensor_dtype()).device(device_)));
+            sac_->add(state.to(device_), action, reward, next_state.to(device_), torch::tensor(done, torch::TensorOptions().dtype(get_tensor_dtype()).device(device_)));
             sac_->update();
 
             episode_return += reward.item<real_t>();
@@ -220,7 +224,7 @@ std::vector<real_t> TrainEnvironment::test(const dim_type episodes, bool render)
 
 		while (!done) {
 			// 행동 선택 및 환경 스텝
-			tensor_t action = sac_->select_action(state);
+			tensor_t action = sac_->select_action(state.to(device_));
 			auto [next_state, reward, terminated, truncated] = step(action);
 
 			done = terminated || truncated;

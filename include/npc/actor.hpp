@@ -11,7 +11,8 @@ struct ActorImpl : public BaseNetwork {
 			dim_type state_dim,
 			dim_type action_dim,
 			std::vector<real_t> min_action,
-			std::vector<real_t> max_action);
+			std::vector<real_t> max_action,
+			torch::Device device = torch::kCPU);
 
 	void initialize_network() override;
 	void to(torch::Device device) override;

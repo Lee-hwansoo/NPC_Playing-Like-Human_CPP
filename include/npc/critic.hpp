@@ -5,7 +5,8 @@
 struct CriticImpl : public BaseNetwork {
 	CriticImpl(const std::string& network_name,
 			dim_type state_dim,
-			dim_type action_dim);
+			dim_type action_dim,
+			torch::Device device = torch::kCPU);
 
 	void initialize_network() override;
 	void to(torch::Device device) override;

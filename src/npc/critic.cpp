@@ -3,8 +3,9 @@
 
 CriticImpl::CriticImpl(const std::string& network_name,
 					dim_type state_dim,
-	                dim_type action_dim)
-		: BaseNetwork(network_name),
+	                dim_type action_dim,
+					torch::Device device)
+		: BaseNetwork(network_name, device),
 		  state_dim_(state_dim),
 		  action_dim_(action_dim) {
 
@@ -43,8 +44,10 @@ void CriticImpl::to(torch::Device device) {
 }
 
 tensor_t CriticImpl::forward(const tensor_t& state, const tensor_t& action) {
-	auto x = torch::cat({state, action}, 1);
-    x = x.to(this->device());
+	auto state_dev = state.to(this->device());
+	auto action_dev = action.to(this->device());
+
+	auto x = torch::cat({state_dev, action_dev}, 1);
 
 	x = torch::leaky_relu(fc1->forward(x));
 	x = dropout->forward(x);

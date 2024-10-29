@@ -17,8 +17,11 @@ using namespace constants;
 
 struct BaseNetwork : torch::nn::Module {
 public:
-    explicit BaseNetwork(const std::string& network_name)
-        : network_name_(network_name) {}
+    explicit BaseNetwork(const std::string& network_name, torch::Device device = torch::kCPU)
+        : network_name_(network_name)
+        , device_(device) {
+        this->to(device_);
+    }
 
     virtual ~BaseNetwork() = default;
 
@@ -34,6 +37,10 @@ public:
         }
     }
 
+    bool is_on_device(torch::Device device) const {
+        return device_ == device;
+    }
+
     torch::OrderedDict<std::string, tensor_t> state_dict() {
         torch::OrderedDict<std::string, tensor_t> state_dict;
 
@@ -41,11 +48,11 @@ public:
 		const auto& buffers = this->named_buffers();
 
         for (const auto& pair : params) {
-            state_dict.insert(pair.key(), pair.value().clone());
+            state_dict.insert(pair.key(), pair.value().detach().cpu());
         }
 
         for (const auto& pair : buffers) {
-            state_dict.insert(pair.key(), pair.value().clone());
+            state_dict.insert(pair.key(), pair.value().detach().cpu());
         }
 
         std::cout << "\nSuccessfully return " << network_name_ << " network parameters dictionary" << std::endl;
@@ -63,10 +70,10 @@ public:
             const auto& tensor = pair.value();
 
             if (model_params.contains(name)) {
-                model_params[name].copy_(tensor);
+                model_params[name].copy_(tensor.to(device_));
             }
             else if (model_buffers.contains(name)) {
-                model_buffers[name].copy_(tensor);
+                model_buffers[name].copy_(tensor.to(device_));
             }
             else {
                 std::cerr << "Warning: Key '" << name << "' in state dict was not found in the model" << std::endl;
@@ -78,6 +85,7 @@ public:
 
     void save_network_parameters(dim_type episode) {
         try {
+            this->to(torch::kCPU);
             std::string timestamp = get_current_timestamp();
             std::string log_dir = get_log_directory();
 
@@ -102,6 +110,7 @@ public:
             }
 
             archive.save_to(filepath.string());
+            this->to(device_);
             std::cout << "\nSuccessfully saved " << network_name_ << " network parameters to: " << filepath << std::endl;
         }
         catch (const std::exception& e) {
@@ -183,6 +192,7 @@ public:
                 }
             }
 
+            this->to(device_);
             std::cout << "Loaded network parameters from episode " << episode
                      << ". Training will continue from episode " << episode + 1 << std::endl;
         }

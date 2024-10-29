@@ -11,7 +11,7 @@
 
 class ReplayBuffer {
 public:
-    explicit ReplayBuffer(size_type buffer_size, size_type batch_size);
+    explicit ReplayBuffer(size_type buffer_size, size_type batch_size, torch::Device device);
 
     virtual ~ReplayBuffer() = default;
 
@@ -22,17 +22,16 @@ public:
              const tensor_t& reward, const tensor_t& next_state,
              const tensor_t& done);
 
-    std::tuple<tensor_t, tensor_t, tensor_t,
-               tensor_t, tensor_t> sample();
+    std::tuple<tensor_t, tensor_t, tensor_t, tensor_t, tensor_t> sample();
 
     size_type size() const { return buffer_.size(); }
     size_type batch_size() const { return batch_size_; }
 
 private:
-    std::deque<std::tuple<tensor_t, tensor_t, tensor_t,
-                         tensor_t, tensor_t>> buffer_;
+    std::deque<std::tuple<tensor_t, tensor_t, tensor_t, tensor_t, tensor_t>> buffer_;
     size_type buffer_size_;
     size_type batch_size_;
+    torch::Device device_;
     std::mt19937 generator_;
 };
 
@@ -109,5 +108,4 @@ private:
     real_t gamma_;
     real_t tau_;
     real_t alpha_;
-    dim_type start_episode_;
 };

@@ -5,13 +5,14 @@ ActorImpl::ActorImpl(const std::string& network_name,
 					dim_type state_dim,
 	                dim_type action_dim,
 	                std::vector<real_t> min_action,
-	                std::vector<real_t> max_action)
-		: BaseNetwork(network_name),
+	                std::vector<real_t> max_action,
+					torch::Device device)
+		: BaseNetwork(network_name, device),
 		  state_dim_(state_dim),
 		  action_dim_(action_dim) {
 
-	min_action_ = torch::tensor(min_action);
-	max_action_ = torch::tensor(max_action);
+	min_action_ = torch::tensor(min_action).to(device);
+	max_action_ = torch::tensor(max_action).to(device);
 	initialize_network();
 }
 
@@ -50,7 +51,7 @@ void ActorImpl::to(torch::Device device) {
 }
 
 std::tuple<tensor_t, tensor_t> ActorImpl::forward(const tensor_t& state) {
-	auto x = state.device() == this->device() ? state : state.to(this->device());
+	auto x = state.to(this->device());
 
 	x = torch::leaky_relu(fc1->forward(x));
 	x = dropout->forward(x);
@@ -65,9 +66,9 @@ std::tuple<tensor_t, tensor_t> ActorImpl::forward(const tensor_t& state) {
 }
 
 std::tuple<tensor_t, tensor_t> ActorImpl::sample(const tensor_t& state) {
-	auto state_device = state.device() == this->device() ? state : state.to(this->device());
+	auto x = state.to(this->device());
 
-	auto [mean, log_std] = forward(state_device);
+	auto [mean, log_std] = forward(x);
 	auto std = torch::exp(log_std);
 
 	auto epsilon = torch::randn_like(mean);
