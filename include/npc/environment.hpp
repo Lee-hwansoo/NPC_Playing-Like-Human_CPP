@@ -39,6 +39,7 @@ public:
 
 	void set_observation_dim(dim_type observation_dim) { observation_dim_ = observation_dim; }
 	void set_action_dim(dim_type action_dim) { action_dim_ = action_dim; }
+	void set_render(SDL_Renderer* renderer) { renderer_ = renderer; }
 
 	dim_type get_observation_dim() const { return observation_dim_; }
 	dim_type get_action_dim() const { return action_dim_; }
@@ -64,6 +65,8 @@ protected:
 
 	const torch::Device device_;
 
+	SDL_Renderer* renderer_;
+
 	virtual tensor_t get_observation() const = 0;
 	virtual real_t calculate_reward(const tensor_t& state) = 0;
 	virtual bool check_goal() const = 0;
@@ -80,7 +83,6 @@ public:
 
 	tensor_t reset() override;
 	std::tuple<tensor_t, real_t, bool, bool> step(const tensor_t& action) override;
-	//void render(SDL_Renderer* renderer) const override;
 	void save(dim_type episode);
 	void load(const std::string& timestamp, dim_type episode);
 	std::vector<real_t> train(const real_t episodes, bool render = false);
