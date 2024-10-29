@@ -71,8 +71,6 @@ public:
 
     tensor_t select_action(const tensor_t& state);
     void update();
-    std::vector<real_t> train(int episodes, bool render = false);
-    std::vector<real_t> test(int episodes, bool render = true);
     void save_network_parameters(dim_type episode);
     void load_network_parameters(const std::string& timestamp, dim_type episode){
         actor_->load_network_parameters(timestamp, episode);

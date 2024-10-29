@@ -46,6 +46,7 @@ set(${PROJECT_NAME}_MAIN_FILES
     sac.cpp
     object.cpp
     path_planning.cpp
+    environment.cpp
 )
 add_executable(${PROJECT_NAME}_MAIN
     ${${PROJECT_NAME}_MAIN_FILES}

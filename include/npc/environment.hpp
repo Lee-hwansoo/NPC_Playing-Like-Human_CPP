@@ -10,13 +10,9 @@
 class BaseEnvironment {
 public:
 	explicit BaseEnvironment(count_type width = Display::WIDTH,
-							 count_type height = Display::HEIGHT,
-							 dim_type observation_dim = 0,
-							 dim_type action_dim = 0)
+							 count_type height = Display::HEIGHT)
 		: width_(width)
 		, height_(height)
-		, observation_dim_(observation_dim)
-		, action_dim_(action_dim)
 		, device_(utils::get_device()) {}
 
 	virtual ~BaseEnvironment() = default;
@@ -39,6 +35,9 @@ public:
 		return { min_action, max_action };
 	}
 
+	void set_observation_dim(dim_type observation_dim) { observation_dim_ = observation_dim; }
+	void set_action_dim(dim_type action_dim) { action_dim_ = action_dim; }
+
 	dim_type get_observation_dim() const { return observation_dim_; }
 	dim_type get_action_dim() const { return action_dim_; }
 	tensor_t get_state() const { return state_; }
@@ -50,10 +49,10 @@ public:
 protected:
 	const count_type width_;
 	const count_type height_;
-	dim_type observation_dim_;
-	dim_type action_dim_;
-	count_type step_count_{ 0 };
+	dim_type observation_dim_{ 0 };
+	dim_type action_dim_{ 0 };
 	real_t fixed_dt_{ 1.0f / static_cast<real_t>(Display::FPS) };
+	count_type step_count_{ 0 };
 	bool terminated_{ false };
 	bool truncated_{ false };
 	tensor_t state_;
@@ -64,24 +63,44 @@ protected:
 	const torch::Device device_;
 
 	virtual tensor_t get_observation() const = 0;
-	virtual real_t calculate_reward(const tensor_t& state, const tensor_t& action) = 0;
+	virtual real_t calculate_reward(const tensor_t& state) = 0;
 	virtual bool check_goal() const = 0;
 	virtual bool check_bounds() const = 0;
 	virtual bool check_obstacle_collision() const = 0;
 };
 
 
-class BasicEnvironment : public BaseEnvironment {
+class TrainEnvironment : public BaseEnvironment {
 public:
+	TrainEnvironment(count_type width = Display::WIDTH,
+					 count_type height = Display::HEIGHT);
 
+	tensor_t reset() override;
+	std::tuple<tensor_t, real_t, bool, bool> step(const tensor_t& action) override;
+	void render(SDL_Renderer* renderer) const override;
+	void save(dim_type episode);
+	void load(const std::string& timestamp, dim_type episode);
+	std::vector<real_t> train(const real_t episodes, bool render = false);
+	std::vector<real_t> test(const real_t episodes, bool render = false);
 
 protected:
+	tensor_t get_observation() const override;
+	real_t calculate_reward(const tensor_t& state, const tensor_t& action) override;
+	bool check_goal() const override;
+	bool check_bounds() const override;
+	bool check_obstacle_collision() const override;
 
 private:
 	std::vector<std::unique_ptr<object::CircleObstacle>> circle_obstacles_;
 	std::vector<std::unique_ptr<object::RectangleObstacle>> rectangle_obstacles_;
+	tensor_t circle_obstacles_state_;
+	tensor_t rectangle_obstacles_state_;
 	std::unique_ptr<object::Goal> goal_;
 	std::unique_ptr<object::Agent> agent_;
 
 	std::unique_ptr<SAC> sac_;
+
+	tensor_t init_objects();
+	void update_circle_obstacles_state() const;
+	void update_rectangle_obstacles_state() const;
 };

@@ -371,7 +371,7 @@ void testIntegratedObjects(SDL_Renderer* renderer) {
         obs->reset();  // 초기 위치 설정
         rectangle_obstacles.push_back(std::move(obs));
     }
-    tensor_t rectangle_obstacles_state = torch::zeros({constants::CircleObstacle::COUNT, 5}, get_tensor_dtype());
+    tensor_t rectangle_obstacles_state = torch::zeros({constants::RectangleObstacle::COUNT, 5}, get_tensor_dtype());
     auto updateRectangleObstaclesState = [&rectangle_obstacles, &rectangle_obstacles_state]() {
         for (size_t i = 0; i < rectangle_obstacles.size(); ++i) {
             rectangle_obstacles_state[i] = rectangle_obstacles[i]->get_state();
