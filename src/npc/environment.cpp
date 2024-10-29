@@ -1,4 +1,5 @@
 #include "npc/environment.hpp"
+#include "utils/constants.hpp"
 #include "utils/types.hpp"
 
 TrainEnvironment::TrainEnvironment(count_type width, count_type height, torch::Device device)
@@ -184,12 +185,20 @@ std::vector<real_t> TrainEnvironment::train(const dim_type episodes, bool render
             // 렌더링 수행
             if (render) {
                 std::cout << "render" << std::endl;
+				for (auto& obs : circle_obstacles_) {
+					obs->draw(renderer_);
+				}
+				for (auto& obs : rectangle_obstacles_) {
+					obs->draw(renderer_);
+				}
+				goal_->draw(renderer_);
+				agent_->draw(renderer_);
             }
         }
 
         reward_history.push_back(episode_return);
 
-		if (episode+1 % 10 == 0) {
+		if (episode+1 % constants::NETWORK::INTERVAL == 0) {
 			log_statistics(reward_history, episode);
 			save(episode + 1);
 		}
@@ -219,9 +228,17 @@ std::vector<real_t> TrainEnvironment::test(const dim_type episodes, bool render)
 			state = next_state;
 
 			// 렌더링 수행
-			if (render) {
-				std::cout << "render" << std::endl;
-			}
+            if (render) {
+                std::cout << "render" << std::endl;
+				for (auto& obs : circle_obstacles_) {
+					obs->draw(renderer_);
+				}
+				for (auto& obs : rectangle_obstacles_) {
+					obs->draw(renderer_);
+				}
+				goal_->draw(renderer_);
+				agent_->draw(renderer_);
+            }
 		}
 
 		reward_history.push_back(episode_return);
