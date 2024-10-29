@@ -143,10 +143,14 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 	return reward;
 }
 
-//void TrainEnvironment::save(dim_type episode) {
-//	sac_->save_network_parameters(episode);
-//}
-//
-//void TrainEnvironment::load(const std::string& timestamp, dim_type episode) {
-//	sac_->load_network_parameters(timestamp, episode);
-//}
+void TrainEnvironment::save(dim_type episode) {
+	if (sac_) {
+		sac_->save_network_parameters(episode);
+	}
+}
+
+void TrainEnvironment::load(const std::string& timestamp, dim_type episode) {
+	if (sac_) {
+		sac_->load_network_parameters(timestamp, episode);
+	}
+}
