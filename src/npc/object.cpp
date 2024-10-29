@@ -324,10 +324,82 @@ std::tuple<tensor_t, tensor_t, real_t, real_t, bool> Agent::calculate_fov(const 
             auto t = torch::where(valid_intersections, (-b - torch::sqrt(safe_discriminant)) / (2 * a), torch::full_like(b, std::numeric_limits<real_t>::infinity()));
             t = torch::where(t < 0, torch::full_like(t, std::numeric_limits<real_t>::infinity()), t);
 
-            auto [obstacles_distances, _]  = torch::min(t, 0);
-            closest_distances = torch::min(closest_distances, obstacles_distances);
+            auto [circle_obstacles_distances, _]  = torch::min(t, 0);
+            closest_distances = torch::min(closest_distances, circle_obstacles_distances);
         }
     }
+
+	if (rectangle_obstacles_state.size(0) > 0 && rectangle_obstacles_state.size(1) >= 5) {
+		// 모든 직사각형과 모든 레이에 대한 계산을 한번에 수행
+		auto rect_positions = rectangle_obstacles_state.slice(1, 0, 2);                    // [num_rect, 2]
+		auto rect_sizes = rectangle_obstacles_state.slice(1, 2, 4);                        // [num_rect, 2]
+        auto rect_centers = rect_positions + (rect_sizes / 2);
+		auto rect_angles = rectangle_obstacles_state.select(1, 4);                         // [num_rect]
+
+		// 회전 행렬 생성 [num_rect, 2, 2]
+		auto cos_theta = torch::cos(rect_angles);
+		auto sin_theta = torch::sin(rect_angles);
+		auto rotation_matrices = torch::stack({
+			torch::stack({cos_theta, sin_theta}, 1),
+			torch::stack({-sin_theta, cos_theta}, 1)
+			}, 1);                                                                            // [num_rect, 2, 2]
+
+			// 에이전트 위치를 각 직사각형의 로컬 좌표계로 변환 [num_rect, 2]
+		auto to_rect = agent_pos.unsqueeze(0) - rect_centers;                          // [num_rect, 2]
+		auto local_agent_pos = torch::matmul(rotation_matrices, to_rect.unsqueeze(2)).squeeze(2);  // [num_rect, 2]
+
+		// 모든 레이 방향을 각 직사각형의 로컬 좌표계로 변환 [num_rect, num_rays, 2]
+		auto local_ray_dirs = torch::matmul(
+			rotation_matrices,                                                            // [num_rect, 2, 2]
+			ray_directions.transpose(0, 1).unsqueeze(0).expand({ rectangle_obstacles_state.size(0), -1, -1 })  // [num_rect, 2, num_rays]
+		);                                                                               // [num_rect, 2, num_rays]
+		local_ray_dirs = local_ray_dirs.transpose(1, 2);                                // [num_rect, num_rays, 2]
+
+		// 각 직사각형의 경계 계산
+		auto half_sizes = rect_sizes / 2;                                               // [num_rect, 2]
+		auto x_min = -half_sizes.select(1, 0);                                         // [num_rect]
+		auto x_max = half_sizes.select(1, 0);                                          // [num_rect]
+		auto y_min = -half_sizes.select(1, 1);                                         // [num_rect]
+		auto y_max = half_sizes.select(1, 1);                                          // [num_rect]
+
+		// x 방향 경계와의 교차점 계산
+		auto dir_x = local_ray_dirs.select(2, 0);                                      // [num_rect, num_rays]
+		auto dir_y = local_ray_dirs.select(2, 1);                                      // [num_rect, num_rays]
+		auto origin_x = local_agent_pos.select(1, 0).unsqueeze(1);                     // [num_rect, 1]
+		auto origin_y = local_agent_pos.select(1, 1).unsqueeze(1);                     // [num_rect, 1]
+
+		auto tx_min = (x_min.unsqueeze(1) - origin_x) / dir_x;                        // [num_rect, num_rays]
+		auto tx_max = (x_max.unsqueeze(1) - origin_x) / dir_x;                        // [num_rect, num_rays]
+		auto ty_min = (y_min.unsqueeze(1) - origin_y) / dir_y;                        // [num_rect, num_rays]
+		auto ty_max = (y_max.unsqueeze(1) - origin_y) / dir_y;                        // [num_rect, num_rays]
+
+		// x 경계 교차점에서의 y 좌표
+		auto y_at_tx_min = origin_y + tx_min * dir_y;                                 // [num_rect, num_rays]
+		auto y_at_tx_max = origin_y + tx_max * dir_y;                                 // [num_rect, num_rays]
+
+		// y 경계 교차점에서의 x 좌표
+		auto x_at_ty_min = origin_x + ty_min * dir_x;                                 // [num_rect, num_rays]
+		auto x_at_ty_max = origin_x + ty_max * dir_x;                                 // [num_rect, num_rays]
+
+		// 유효한 교차점 찾기
+		auto valid_tx_min = (tx_min > 0) & (y_at_tx_min >= y_min.unsqueeze(1)) & (y_at_tx_min <= y_max.unsqueeze(1));
+		auto valid_tx_max = (tx_max > 0) & (y_at_tx_max >= y_min.unsqueeze(1)) & (y_at_tx_max <= y_max.unsqueeze(1));
+		auto valid_ty_min = (ty_min > 0) & (x_at_ty_min >= x_min.unsqueeze(1)) & (x_at_ty_min <= x_max.unsqueeze(1));
+		auto valid_ty_max = (ty_max > 0) & (x_at_ty_max >= x_min.unsqueeze(1)) & (x_at_ty_max <= x_max.unsqueeze(1));
+
+		// 무효한 교차점을 무한대로 설정
+		tx_min = torch::where(valid_tx_min, tx_min, torch::full_like(tx_min, std::numeric_limits<real_t>::infinity()));
+		tx_max = torch::where(valid_tx_max, tx_max, torch::full_like(tx_max, std::numeric_limits<real_t>::infinity()));
+		ty_min = torch::where(valid_ty_min, ty_min, torch::full_like(ty_min, std::numeric_limits<real_t>::infinity()));
+		ty_max = torch::where(valid_ty_max, ty_max, torch::full_like(ty_max, std::numeric_limits<real_t>::infinity()));
+
+		// 모든 교차점 중 가장 가까운 거리 찾기
+		auto all_distances = torch::stack({ tx_min, tx_max, ty_min, ty_max }, 0);       // [4, num_rect, num_rays]
+		auto [min_rect_distances, _] = torch::min(all_distances, 0);                   // [num_rect, num_rays]
+		auto [final_rect_distances, __] = torch::min(min_rect_distances, 0);           // [num_rays]
+
+		closest_distances = torch::min(closest_distances, final_rect_distances);
+	}
 
     bool goal_in_fov = false;
     if (goal_distance <= constants::Agent::FOV::RANGE && abs_angle_diff <= constants::Agent::FOV::ANGLE / 2) {
