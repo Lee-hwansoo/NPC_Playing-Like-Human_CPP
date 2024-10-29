@@ -151,12 +151,98 @@ bool RRT::is_same_node(
            (std::abs(node1->y() - node2->y()) < constants::EPSILON);
 }
 
+bool RRT::check_circle_collision(const tensor_t& position) const {
+	if (circle_obstacles_state_.size(0) == 0 || circle_obstacles_state_.size(1) < 3) {
+		return false;
+	}
+
+	auto distances = torch::norm(circle_obstacles_state_.slice(1, 0, 2) - position.unsqueeze(0), 2, 1);
+	return torch::any(distances < circle_obstacles_state_.select(1, 2)).item<bool>();
+}
+
+bool RRT::check_circle_path_collision(const tensor_t& points) const {
+	if (circle_obstacles_state_.size(0) == 0 || circle_obstacles_state_.size(1) < 3) {
+		return false;
+	}
+
+	tensor_t points_expanded = points.unsqueeze(1);
+	tensor_t obstacles_pos = circle_obstacles_state_.slice(1, 0, 2).unsqueeze(0);
+	tensor_t distances = torch::norm(points_expanded - obstacles_pos, 2, 2);
+	tensor_t radius = circle_obstacles_state_.select(1, 2).unsqueeze(0);
+
+	return torch::any(distances <= radius).item<bool>();
+}
+
+bool RRT::check_rectangle_collision(const tensor_t& position) const {
+	if (rectangle_obstacles_state_.size(0) == 0 || rectangle_obstacles_state_.size(1) < 5) {
+		return false;
+	}
+
+	// 직사각형 상태 추출 [num_rect, 2], [num_rect, 2], [num_rect]
+	auto rect_positions = rectangle_obstacles_state_.slice(1, 0, 2);    // 좌상단 위치
+	auto rect_sizes = rectangle_obstacles_state_.slice(1, 2, 4);        // 너비, 높이
+	auto rect_angles = rectangle_obstacles_state_.select(1, 4);         // 회전 각도
+
+	// 회전 행렬 생성 [num_rect, 2, 2]
+	auto cos_theta = torch::cos(rect_angles);
+	auto sin_theta = torch::sin(rect_angles);
+	auto rotation_matrices = torch::stack({
+		torch::stack({cos_theta, sin_theta}, 1),
+		torch::stack({-sin_theta, cos_theta}, 1)
+		}, 1);
+
+	// 위치를 각 직사각형의 로컬 좌표계로 변환 [num_rect, 2]
+	auto to_rect = position.unsqueeze(0) - rect_positions;
+	auto local_pos = torch::matmul(rotation_matrices, to_rect.unsqueeze(2)).squeeze(2);
+
+	// 충돌 검사 - 점이 직사각형 내부에 있는지 확인
+	auto x_collision = (local_pos.select(1, 0) >= 0) &
+		(local_pos.select(1, 0) <= rect_sizes.select(1, 0));
+	auto y_collision = (local_pos.select(1, 1) >= 0) &
+		(local_pos.select(1, 1) <= rect_sizes.select(1, 1));
+
+	return torch::any(x_collision & y_collision).item<bool>();
+}
+
+bool RRT::check_rectangle_path_collision(const tensor_t& points) const {
+	if (rectangle_obstacles_state_.size(0) == 0 || rectangle_obstacles_state_.size(1) < 5) {
+		return false;
+	}
+
+	auto rect_positions = rectangle_obstacles_state_.slice(1, 0, 2);    // [num_rect, 2]
+	auto rect_sizes = rectangle_obstacles_state_.slice(1, 2, 4);        // [num_rect, 2]
+	auto rect_angles = rectangle_obstacles_state_.select(1, 4);         // [num_rect]
+
+	// 회전 행렬 생성 [num_rect, 2, 2]
+	auto cos_theta = torch::cos(rect_angles);
+	auto sin_theta = torch::sin(rect_angles);
+	auto rotation_matrices = torch::stack({
+		torch::stack({cos_theta, sin_theta}, 1),
+		torch::stack({-sin_theta, cos_theta}, 1)
+		}, 1);
+
+	// 각 점을 각 직사각형의 로컬 좌표계로 변환 [n_points, num_rect, 2]
+	auto points_expanded = points.unsqueeze(1);  // [n_points, 1, 2]
+	auto to_rect = points_expanded - rect_positions.unsqueeze(0);  // [n_points, num_rect, 2]
+
+	auto local_points = torch::matmul(
+		rotation_matrices.unsqueeze(0),  // [1, num_rect, 2, 2]
+		to_rect.unsqueeze(3)  // [n_points, num_rect, 2, 1]
+	).squeeze(3);  // [n_points, num_rect, 2]
+
+	// 각 점에 대해 직사각형 내부 충돌 검사
+	auto x_collision = (local_points.select(2, 0) >= 0) &
+		(local_points.select(2, 0) <= rect_sizes.select(1, 0).unsqueeze(0));
+	auto y_collision = (local_points.select(2, 1) >= 0) &
+		(local_points.select(2, 1) <= rect_sizes.select(1, 1).unsqueeze(0));
+
+	return torch::any(x_collision & y_collision).item<bool>();
+}
+
 bool RRT::is_collide(const std::shared_ptr<Node>& node) const {
     auto position = torch::tensor({node->x(), node->y()}, torch::TensorOptions().dtype(get_tensor_dtype()).device(device_));
 
-    auto distances = torch::norm(circle_obstacles_state_.slice(1, 0, 2) - position.unsqueeze(0), 2, 1);
-
-    return torch::any(distances < circle_obstacles_state_.select(1, 2)).item<bool>();
+    return check_circle_collision(position) || check_rectangle_collision(position);
 }
 
 bool RRT::is_path_collide(
@@ -178,16 +264,8 @@ bool RRT::is_path_collide(
 
     tensor_t t_expanded = t.unsqueeze(1);
     tensor_t points = start_pos * (1 - t_expanded) + end_pos * t_expanded;
-    tensor_t points_expanded = points.unsqueeze(1);
 
-    tensor_t obstacles_pos = circle_obstacles_state_.slice(1, 0, 2).unsqueeze(0);
-
-    tensor_t distances = torch::norm(points_expanded - obstacles_pos, 2, 2);
-    tensor_t radius = circle_obstacles_state_.select(1, 2).unsqueeze(0);
-
-    tensor_t collisions = distances <= radius;
-
-    return collisions.any().item<bool>();
+    return check_circle_path_collision(points) || check_rectangle_path_collision(points);
 }
 
 bool RRT::check_goal(const std::shared_ptr<Node>& node) const {

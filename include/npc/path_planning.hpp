@@ -76,6 +76,11 @@ private:
 
     std::mt19937 gen_;
     std::uniform_real_distribution<real_t> unit_dist_;
+
+    bool check_circle_collision(const tensor_t& position) const;
+    bool check_circle_path_collision(const tensor_t& points) const;
+    bool check_rectangle_collision(const tensor_t& position) const;
+    bool check_rectangle_path_collision(const tensor_t& points) const;
 };
 
 } // namespace path_planning
