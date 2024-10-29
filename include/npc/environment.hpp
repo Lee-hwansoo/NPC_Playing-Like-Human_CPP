@@ -23,7 +23,7 @@ public:
 	BaseEnvironment& operator=(const BaseEnvironment&) = delete;
 
 	virtual tensor_t reset() = 0;
-	virtual std::tuple<tensor_t, real_t, bool, bool> step(const tensor_t& action) = 0;
+	virtual std::tuple<tensor_t, tensor_t, bool, bool> step(const tensor_t& action) = 0;
 	virtual void render(SDL_Renderer* renderer) const = 0;
 
 	virtual tensor_t get_observation_space() const {
@@ -82,11 +82,11 @@ public:
 					 torch::Device device = torch::kCPU);
 
 	tensor_t reset() override;
-	std::tuple<tensor_t, real_t, bool, bool> step(const tensor_t& action) override;
+	std::tuple<tensor_t, tensor_t, bool, bool> step(const tensor_t& action) override;
 	void save(dim_type episode);
 	void load(const std::string& timestamp, dim_type episode);
-	std::vector<real_t> train(const real_t episodes, bool render = false);
-	std::vector<real_t> test(const real_t episodes, bool render = false);
+	std::vector<real_t> train(const dim_type episodes, bool render = false);
+	std::vector<real_t> test(const dim_type episodes, bool render = false);
 
 protected:
 	tensor_t get_observation() const override;
@@ -105,7 +105,10 @@ private:
 
 	std::unique_ptr<SAC> sac_;
 
+	dim_type start_episode_{ 0 };
+
 	tensor_t init_objects();
 	void update_circle_obstacles_state();
 	void update_rectangle_obstacles_state();
+	void log_statistics(const std::vector<real_t>& reward_history, dim_type episode) const;
 };

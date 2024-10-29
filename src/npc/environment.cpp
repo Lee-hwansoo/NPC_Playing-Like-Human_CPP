@@ -1,4 +1,5 @@
 #include "npc/environment.hpp"
+#include "utils/types.hpp"
 
 TrainEnvironment::TrainEnvironment(count_type width, count_type height, torch::Device device)
 	: BaseEnvironment(width, height, device) {
@@ -83,11 +84,11 @@ tensor_t TrainEnvironment::reset() {
 	return get_observation();
 }
 
-std::tuple<tensor_t, real_t, bool, bool> TrainEnvironment::step(const tensor_t& action) {
+std::tuple<tensor_t, tensor_t, bool, bool> TrainEnvironment::step(const tensor_t& action) {
 	terminated_ = check_goal();
 	truncated_ = check_bounds() || check_obstacle_collision() || step_count_ >= constants::NETWORK::MAX_STEP;
 
-	real_t reward = calculate_reward(state_, action);
+	tensor_t reward = torch::tensor(calculate_reward(state_, action),get_tensor_dtype()).to(device_);
 
 	if (terminated_ || truncated_) {
 		tensor_t current_state = get_observation();
@@ -152,5 +153,103 @@ void TrainEnvironment::save(dim_type episode) {
 void TrainEnvironment::load(const std::string& timestamp, dim_type episode) {
 	if (sac_) {
 		sac_->load_network_parameters(timestamp, episode);
+		start_episode_ = episode;
 	}
+}
+
+std::vector<real_t> TrainEnvironment::train(const dim_type episodes, bool render) {
+	sac_->train();
+
+    std::vector<real_t> reward_history;
+    reward_history.reserve(static_cast<size_t>(episodes));
+
+    for (dim_type episode = start_episode_; episode < start_episode_+ episodes; ++episode) {
+        real_t episode_return = 0.0f;
+        tensor_t state = reset();
+		bool done = false;
+
+        while (!done) {
+            // 행동 선택 및 환경 스텝
+            tensor_t action = sac_->select_action(state);
+            auto [next_state, reward, terminated, truncated] = step(action);
+
+            // 경험 저장 및 학습
+            done = terminated || truncated;
+            sac_->add(state, action, reward, next_state, torch::tensor(done, torch::TensorOptions().dtype(get_tensor_dtype()).device(device_)));
+            sac_->update();
+
+            episode_return += reward.item<real_t>();
+            state = next_state;
+
+            // 렌더링 수행
+            if (render) {
+                std::cout << "render" << std::endl;
+            }
+        }
+
+        reward_history.push_back(episode_return);
+
+		if (episode+1 % 10 == 0) {
+			log_statistics(reward_history, episode);
+			save(episode + 1);
+		}
+    }
+
+    return reward_history;
+}
+
+std::vector<real_t> TrainEnvironment::test(const dim_type episodes, bool render) {
+	sac_->eval();
+
+	std::vector<real_t> reward_history;
+	reward_history.reserve(static_cast<size_t>(episodes));
+
+	for (dim_type episode = 0; episode < episodes; ++episode) {
+		real_t episode_return = 0.0f;
+		tensor_t state = reset();
+		bool done = false;
+
+		while (!done) {
+			// 행동 선택 및 환경 스텝
+			tensor_t action = sac_->select_action(state);
+			auto [next_state, reward, terminated, truncated] = step(action);
+
+			done = terminated || truncated;
+			episode_return += reward.item<real_t>();
+			state = next_state;
+
+			// 렌더링 수행
+			if (render) {
+				std::cout << "render" << std::endl;
+			}
+		}
+
+		reward_history.push_back(episode_return);
+	}
+
+	return reward_history;
+}
+
+void TrainEnvironment::log_statistics(const std::vector<real_t>& reward_history, dim_type episode) const {
+	// 최근 10개 에피소드의 보상 통계 계산
+	size_t start_idx = std::max(0, static_cast<int>(reward_history.size()) - 10);
+	std::vector<real_t> recent_rewards(reward_history.begin() + start_idx, reward_history.end());
+
+	// 평균, 중앙값, 표준편차 계산
+	real_t mean_reward = std::accumulate(recent_rewards.begin(), recent_rewards.end(), 0.0f) / recent_rewards.size();
+
+	std::vector<real_t> sorted_rewards = recent_rewards;
+	std::sort(sorted_rewards.begin(), sorted_rewards.end());
+	real_t median_reward = sorted_rewards[sorted_rewards.size() / 2];
+
+	real_t variance = 0.0f;
+	for (const auto& reward : recent_rewards) {
+		variance += std::pow(reward - mean_reward, 2);
+	}
+	real_t std_dev = std::sqrt(variance / recent_rewards.size());
+
+	std::cout << "Episode " << episode + 1
+			<< ", Average Reward: " << std::fixed << std::setprecision(2) << mean_reward
+			<< ", Median Reward: " << median_reward
+			<< ", std: " << std_dev << std::endl;
 }
