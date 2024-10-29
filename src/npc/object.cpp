@@ -68,11 +68,11 @@ void CircleObstacle::add_random_movement() {
 }
 
 tensor_t CircleObstacle::get_state() const {
-    auto state = torch::tensor({
-        position_[0].item<real_t>(),
-        position_[1].item<real_t>(),
-        radius_
-    }, get_tensor_dtype());
+    tensor_t state = torch::tensor({
+			position_[0].item<real_t>(),
+			position_[1].item<real_t>(),
+			radius_
+		}, get_tensor_dtype());
     return state;
 }
 
@@ -141,7 +141,7 @@ void RectangleObstacle::reset(std::optional<real_t> x, std::optional<real_t> y, 
 }
 
 tensor_t RectangleObstacle::get_state() const {
-    auto state = torch::tensor({
+    tensor_t state = torch::tensor({
             position_[0].item<real_t>(),  // 좌상단 x
             position_[1].item<real_t>(),  // 좌상단 y
             width_,                       // 너비
@@ -216,7 +216,7 @@ void Goal::reset(std::optional<real_t> x, std::optional<real_t> y) {
 }
 
 tensor_t Goal::get_state() const {
-    auto state = torch::tensor({
+    tensor_t state = torch::tensor({
             position_[0].item<real_t>(),
             position_[1].item<real_t>(),
             radius_
@@ -562,6 +562,15 @@ tensor_t Agent::get_state() const {
 
     return state;
 };
+
+tensor_t Agent::get_raw_state() const {
+    tensor_t state = torch::tensor({
+		position_[0].item<real_t>(),
+		position_[1].item<real_t>(),
+		radius_
+		}, get_tensor_dtype());
+	return state;
+}
 
 void Agent::draw(SDL_Renderer* renderer) {
     SDL_Color color = constants::Display::to_sdl_color(constants::Display::GRAY);
