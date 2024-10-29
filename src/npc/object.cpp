@@ -512,8 +512,8 @@ tensor_t Agent::reset(std::optional<real_t> x, std::optional<real_t> y, const te
 
     std::tie(fov_points_, fov_distances_, goal_distance_, angle_to_goal_, is_goal_in_fov_, is_collison_) = calculate_fov(position_, yaw_, circle_obstacles_state, rectangle_obstacles_state, goal_state);
 
-	//path_planner_->update(position_, circle_obstacles_state, rectangle_obstacles_state, goal_state);
-	//initial_path_ = path_planner_->plan();
+	path_planner_->update(position_, circle_obstacles_state, rectangle_obstacles_state, goal_state);
+	initial_path_ = path_planner_->plan();
 	std::tie(frenet_point_, frenet_d_) = get_frenet_d();
 
     return get_state();
