@@ -5,9 +5,9 @@
 namespace object {
 
 CircleObstacle::CircleObstacle(std::optional<real_t> x, std::optional<real_t> y,
-                             real_t radius, const Bounds2D& limit,
+                             real_t radius, const Bounds2D& spawn_limit,
                              const SDL_Color& color, bool type)
-    : Object(x.value_or(0.0f), y.value_or(0.0f), limit, color, type)
+    : Object(x.value_or(0.0f), y.value_or(0.0f), spawn_limit, color, type)
     , radius_(radius)
     , force_(0.0f)
     , yaw_(0.0f)
@@ -23,7 +23,7 @@ void CircleObstacle::reset(std::optional<real_t> x, std::optional<real_t> y) {
     if (x.has_value() && y.has_value()) {
         position_ = torch::tensor({x.value(), y.value()}, get_tensor_dtype());
     } else {
-        position_ = torch::tensor({limit_.random_x(gen), limit_.random_y(gen)}, get_tensor_dtype());
+        position_ = torch::tensor({spawn_limit_.random_x(gen), spawn_limit_.random_y(gen)}, get_tensor_dtype());
     }
 
     if (type_) {
@@ -50,7 +50,7 @@ void CircleObstacle::update(real_t dt) {
     auto movement = torch::tensor({std::cos(yaw_), std::sin(yaw_)}, get_tensor_dtype());
     auto new_position = position_ + force_ * movement * dt;
 
-    if (this->check_collision(new_position)) {
+    if (this->check_bounds(new_position)) {
         yaw_ = std::fmod(yaw_ + constants::PI, 2 * constants::PI);
         add_random_movement();
         movement = torch::tensor({std::cos(yaw_), std::sin(yaw_)}, get_tensor_dtype());
@@ -116,8 +116,8 @@ void CircleObstacle::draw(SDL_Renderer* renderer) {
 RectangleObstacle::RectangleObstacle(std::optional<real_t> x, std::optional<real_t> y,
                                     std::optional<real_t> width, std::optional<real_t> height,
                                     std::optional<real_t> yaw,
-                                    const Bounds2D& limit, const SDL_Color& color, bool type)
-    : Object(x.value_or(0.0f), y.value_or(0.0f), limit, color, type)
+                                    const Bounds2D& spawn_limit, const SDL_Color& color, bool type)
+    : Object(x.value_or(0.0f), y.value_or(0.0f), spawn_limit, color, type)
     , width_(width.value_or(0.0f))
     , height_(height.value_or(0.0f))
     , yaw_(yaw.value_or(0.0f)) {
@@ -132,7 +132,7 @@ void RectangleObstacle::reset(std::optional<real_t> x, std::optional<real_t> y, 
     if (x.has_value() && y.has_value()) {
         position_ = torch::tensor({x.value(), y.value()}, get_tensor_dtype());
     } else {
-        position_ = torch::tensor({limit_.random_x(gen), limit_.random_y(gen)}, get_tensor_dtype());
+        position_ = torch::tensor({spawn_limit_.random_x(gen), spawn_limit_.random_y(gen)}, get_tensor_dtype());
     }
 
     width_ = width.has_value() ? width.value() : std::uniform_real_distribution<real_t>(constants::RectangleObstacle::WIDTH_LIMITS.a, constants::RectangleObstacle::WIDTH_LIMITS.b)(gen);
@@ -196,9 +196,9 @@ void RectangleObstacle::draw(SDL_Renderer* renderer) {
 }
 
 Goal::Goal(std::optional<real_t> x, std::optional<real_t> y,
-         real_t radius, const Bounds2D& limit,
+         real_t radius, const Bounds2D& spawn_limit,
          const SDL_Color& color, bool type)
-    : Object(x.value_or(0.0f), y.value_or(0.0f), limit, color, type)
+    : Object(x.value_or(0.0f), y.value_or(0.0f), spawn_limit, color, type)
     , radius_(radius) {
 
     reset(x, y);
@@ -211,7 +211,7 @@ void Goal::reset(std::optional<real_t> x, std::optional<real_t> y) {
     if (x.has_value() && y.has_value()) {
         position_ = torch::tensor({x.value(), y.value()}, get_tensor_dtype());
     } else {
-        position_ = torch::tensor({limit_.random_x(gen), limit_.random_y(gen)}, get_tensor_dtype());
+        position_ = torch::tensor({spawn_limit_.random_x(gen), spawn_limit_.random_y(gen)}, get_tensor_dtype());
     }
 }
 
@@ -265,21 +265,25 @@ void Goal::draw(SDL_Renderer* renderer) {
 }
 
 Agent::Agent(std::optional<real_t> x, std::optional<real_t> y,
-             real_t radius, const Bounds2D& limit,
+             real_t radius, const Bounds2D& spawn_limit,
+             const Bounds2D& move_limit,
              const SDL_Color& color, bool type,
-             const tensor_t& obstacles_state, const tensor_t& goal_state)
-    : Object(x.value_or(0.0f), y.value_or(0.0f), limit, color, type)
+             const tensor_t& circle_obstacles_state, const tensor_t& rectangle_obstacles_state,
+             const tensor_t& goal_state)
+    : Object(x.value_or(0.0f), y.value_or(0.0f), spawn_limit, color, type)
     , radius_(radius)
     , velocity_(torch::tensor({0.0f, 0.0f}, get_tensor_dtype()))
     , yaw_(0.0f)
-    , obstacles_state_(obstacles_state)
+    , move_limit_(move_limit)
+    , circle_obstacles_state_(circle_obstacles_state)
+    , rectangle_obstacles_state_(rectangle_obstacles_state)
     , goal_state_(goal_state)
-    , path_planner_(std::make_unique<path_planning::RRT>(position_, Bounds2D(0, constants::Display::WIDTH, 0, constants::Display::HEIGHT), obstacles_state, goal_state)) {
+    , path_planner_(std::make_unique<path_planning::RRT>(position_, Bounds2D(0, constants::Display::WIDTH, 0, constants::Display::HEIGHT), circle_obstacles_state, goal_state)) {
 
-    reset(x, y, obstacles_state, goal_state);
+    reset(x, y, circle_obstacles_state, rectangle_obstacles_state, goal_state);
 }
 
-std::tuple<tensor_t, tensor_t, real_t, real_t, bool> Agent::calculate_fov(const tensor_t& agent_pos, const real_t& agent_angle, const tensor_t& obstacles_state, const tensor_t& goal_state) {
+std::tuple<tensor_t, tensor_t, real_t, real_t, bool> Agent::calculate_fov(const tensor_t& agent_pos, const real_t& agent_angle, const tensor_t& circle_obstacles_state, const tensor_t& rectangle_obstacles_state, const tensor_t& goal_state) {
     auto ray_angles = torch::linspace(agent_angle - constants::Agent::FOV::ANGLE / 2, agent_angle + constants::Agent::FOV::ANGLE / 2, constants::Agent::FOV::RAY_COUNT, get_tensor_dtype());
     auto ray_cos = torch::cos(ray_angles);
     auto ray_sin = torch::sin(ray_angles);
@@ -302,14 +306,14 @@ std::tuple<tensor_t, tensor_t, real_t, real_t, bool> Agent::calculate_fov(const 
     border_distances = torch::where(border_distances <= 0, torch::full_like(border_distances, std::numeric_limits<real_t>::infinity()), border_distances);
     auto closest_distances = torch::min(std::get<0>(torch::min(border_distances, 0)), torch::full({constants::Agent::FOV::RAY_COUNT}, constants::Agent::FOV::RANGE, get_tensor_dtype()));
 
-    if (obstacles_state.size(0) > 0 && obstacles_state.size(1) >= 3) {
-        auto obstacles_pos = obstacles_state.slice(1, 0, 2);
+    if (circle_obstacles_state.size(0) > 0 && circle_obstacles_state.size(1) >= 3) {
+        auto obstacles_pos = circle_obstacles_state.slice(1, 0, 2);
         auto diff = agent_pos.unsqueeze(0) - obstacles_pos;
         auto oc = diff.unsqueeze(1).expand({-1, constants::Agent::FOV::RAY_COUNT, 2});
 
         auto a = torch::sum(ray_directions * ray_directions, 1);
         auto b = 2 * torch::sum(oc * ray_directions.unsqueeze(0), 2);
-        auto c = torch::sum(oc * oc, 2) - obstacles_state.select(1, 2).unsqueeze(1).pow(2);
+        auto c = torch::sum(oc * oc, 2) - circle_obstacles_state.select(1, 2).unsqueeze(1).pow(2);
 
         auto discriminant = b.pow(2) - 4 * a * c;
         auto valid_intersections = discriminant >= 0;
@@ -384,30 +388,30 @@ std::tuple<Vector2, real_t> Agent::get_frenet_d() {
     }
 }
 
-tensor_t Agent::reset(std::optional<real_t> x, std::optional<real_t> y, const tensor_t& obstacles_state, const tensor_t& goal_state) {
+tensor_t Agent::reset(std::optional<real_t> x, std::optional<real_t> y, const tensor_t& circle_obstacles_state, const tensor_t& rectangle_obstacles_state, const tensor_t& goal_state) {
     static std::random_device rd;
     static std::mt19937 gen(rd());
 
     if (x.has_value() && y.has_value()) {
         position_ = torch::tensor({x.value(), y.value()}, get_tensor_dtype());
     } else {
-        position_ = torch::tensor({limit_.random_x(gen), limit_.random_y(gen)}, get_tensor_dtype());
+        position_ = torch::tensor({spawn_limit_.random_x(gen), spawn_limit_.random_y(gen)}, get_tensor_dtype());
     }
 
     velocity_ = torch::tensor({0.0f, 0.0f}, get_tensor_dtype());
     yaw_ = -0.5f * constants::PI;
     trajectory_ = torch::stack({position_});
 
-    std::tie(fov_points_, fov_distances_, goal_distance_, angle_to_goal_, is_goal_in_fov_) = calculate_fov(position_, yaw_, obstacles_state, goal_state);
+    std::tie(fov_points_, fov_distances_, goal_distance_, angle_to_goal_, is_goal_in_fov_) = calculate_fov(position_, yaw_, circle_obstacles_state, rectangle_obstacles_state, goal_state);
 
-	path_planner_->update(position_, obstacles_state, goal_state);
+	path_planner_->update(position_, circle_obstacles_state, goal_state);
 	initial_path_ = path_planner_->plan();
 	std::tie(frenet_point_, frenet_d_) = get_frenet_d();
 
     return get_state();
 }
 
-tensor_t Agent::update(const real_t dt, const tensor_t& scaled_action, const tensor_t& obstacles_state, const tensor_t& goal_state){
+tensor_t Agent::update(const real_t dt, const tensor_t& scaled_action, const tensor_t& circle_obstacles_state, const tensor_t& goal_state){
     real_t force = scaled_action[0].item<real_t>() * constants::Agent::VELOCITY_LIMITS.b;
     real_t yaw_change = scaled_action[1].item<real_t>() * constants::Agent::YAW_CHANGE_LIMIT;
 
@@ -421,7 +425,7 @@ tensor_t Agent::update(const real_t dt, const tensor_t& scaled_action, const ten
     yaw_ = std::atan2(velocity_[1].item<real_t>(), velocity_[0].item<real_t>());
     trajectory_ = torch::cat({trajectory_, position_.unsqueeze(0)});
 
-    std::tie(fov_points_, fov_distances_, goal_distance_, angle_to_goal_, is_goal_in_fov_) = calculate_fov(position_, yaw_, obstacles_state, goal_state);
+    std::tie(fov_points_, fov_distances_, goal_distance_, angle_to_goal_, is_goal_in_fov_) = calculate_fov(position_, yaw_, circle_obstacles_state, rectangle_obstacles_state_, goal_state);
 
     std::tie(frenet_point_, frenet_d_) = get_frenet_d();
     return get_state();

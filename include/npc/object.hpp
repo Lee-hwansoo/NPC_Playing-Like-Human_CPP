@@ -16,11 +16,11 @@ using namespace constants;
 class Object {
 public:
     Object(real_t x, real_t y,
-           const Bounds2D& limit,
+           const Bounds2D& spawn_limit,
            const SDL_Color& color,
            bool type)
         : position_(torch::tensor({x, y}, get_tensor_dtype()))
-        , limit_(limit)
+        , spawn_limit_(spawn_limit)
         , color_(color)
         , type_(type) {}
 
@@ -28,7 +28,7 @@ public:
 
     virtual void reset(std::optional<real_t> x = std::nullopt, std::optional<real_t> y = std::nullopt) {}
     virtual void update(real_t dt) {}
-    virtual bool check_collision(const tensor_t& new_position) {return limit_.is_outside(new_position[0].item<real_t>(), new_position[1].item<real_t>());}
+    virtual bool check_bounds(const tensor_t& new_position) {return spawn_limit_.is_outside(new_position[0].item<real_t>(), new_position[1].item<real_t>());}
     virtual void draw(SDL_Renderer* renderer) = 0;
 
     virtual tensor_t get_state() const { return position_; }
@@ -36,7 +36,7 @@ public:
 
 protected:
     tensor_t position_;
-    Bounds2D limit_;
+    Bounds2D spawn_limit_;
     SDL_Color color_;
     bool type_;  // True: Dynamic, False: Static
 };
@@ -46,7 +46,7 @@ public:
     CircleObstacle(std::optional<real_t> x = std::nullopt,
                    std::optional<real_t> y = std::nullopt,
                    real_t radius = constants::CircleObstacle::RADIUS,
-                   const Bounds2D& limit = constants::CircleObstacle::BOUNDS,
+                   const Bounds2D& spawn_limit = constants::CircleObstacle::SPAWN_BOUNDS,
                    const SDL_Color& color = Display::to_sdl_color(Display::ORANGE),
                    bool type = true);
 
@@ -71,7 +71,7 @@ public:
                    std::optional<real_t> width = std::nullopt,
                    std::optional<real_t> height = std::nullopt,
                    std::optional<real_t> yaw = std::nullopt,
-                   const Bounds2D& limit = constants::RectangleObstacle::BOUNDS,
+                   const Bounds2D& spawn_limit = constants::RectangleObstacle::SPAWN_BOUNDS,
                    const SDL_Color& color = Display::to_sdl_color(Display::ORANGE),
                    bool type = false);
 
@@ -92,7 +92,7 @@ public:
     Goal(std::optional<real_t> x = std::nullopt,
          std::optional<real_t> y = std::nullopt,
          real_t radius = constants::Goal::RADIUS,
-         const Bounds2D& limit = constants::Goal::BOUNDS,
+         const Bounds2D& spawn_limit = constants::Goal::SPAWN_BOUNDS,
          const SDL_Color& color = Display::to_sdl_color(Display::GREEN),
          bool type = false);
 
@@ -109,22 +109,27 @@ public:
     Agent(std::optional<real_t> x = std::nullopt,
           std::optional<real_t> y = std::nullopt,
           real_t radius = constants::Agent::RADIUS,
-          const Bounds2D& limit = constants::Agent::BOUNDS,
+          const Bounds2D& spawn_limit = constants::Agent::SPAWN_BOUNDS,
+          const Bounds2D& move_limit = constants::Agent::MOVE_BOUNDS,
           const SDL_Color& color = Display::to_sdl_color(Display::BLUE),
           bool type = true,
-          const tensor_t& obstacles_state = torch::tensor({}),
+          const tensor_t& circle_obstacles_state = torch::tensor({}),
+          const tensor_t& rectangle_obstacles_state = torch::tensor({}),
           const tensor_t& goal_state = torch::tensor({}));
 
-    tensor_t reset(std::optional<real_t> x = std::nullopt, std::optional<real_t> y = std::nullopt, const tensor_t& obstacles_state = torch::tensor({}), const tensor_t& goal_state = torch::tensor({}));
-    tensor_t update(const real_t dt, const tensor_t& scaled_action, const tensor_t& obstacles_state, const tensor_t& goal_state);
+    tensor_t reset(std::optional<real_t> x = std::nullopt, std::optional<real_t> y = std::nullopt, const tensor_t& circle_obstacles_state = torch::tensor({}), const tensor_t& rectangle_obstacles_state = torch::tensor({}), const tensor_t& goal_state = torch::tensor({}));
+    tensor_t update(const real_t dt, const tensor_t& scaled_action, const tensor_t& circle_obstacles_state, const tensor_t& goal_state);
     tensor_t get_state() const override;
+    bool check_bounds(const tensor_t& new_position) { return move_limit_.is_outside(new_position[0].item<real_t>(), new_position[1].item<real_t>()); }
     void draw(SDL_Renderer* renderer) override;
 
 private:
     real_t radius_;
     tensor_t velocity_;
     real_t yaw_;
-    const tensor_t& obstacles_state_;
+    Bounds2D move_limit_;
+    const tensor_t& circle_obstacles_state_;
+    const tensor_t& rectangle_obstacles_state_;
     const tensor_t& goal_state_;
 
     tensor_t trajectory_;
@@ -143,7 +148,8 @@ private:
     std::tuple<tensor_t, tensor_t, real_t, real_t, bool> calculate_fov(
         const tensor_t& agent_pos,
         const real_t& agent_angle,
-        const tensor_t& obstacles_state,
+        const tensor_t& circle_obstacles_state,
+        const tensor_t& rectangle_obstacles_state,
         const tensor_t& goal_state
     );
 

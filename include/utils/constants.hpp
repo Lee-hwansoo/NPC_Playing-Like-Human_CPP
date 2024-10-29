@@ -56,7 +56,7 @@ namespace constants
         constexpr real_t RADIUS = 10.0f;
         constexpr real_t WIDTH = 3.0f;
 
-        const Bounds2D BOUNDS(
+        const Bounds2D SPAWN_BOUNDS(
             RADIUS + WIDTH,
             static_cast<real_t>(Display::WIDTH) - (RADIUS + WIDTH),
             RADIUS + WIDTH,
@@ -77,12 +77,19 @@ namespace constants
         constexpr real_t  ALPHA = 0.2f;
 
         // Movement boundaries
-        const Bounds2D BOUNDS(
+        const Bounds2D SPAWN_BOUNDS(
             RADIUS,
             static_cast<real_t>(Display::WIDTH) - RADIUS,
             Section::START_LINE + RADIUS,
             static_cast<real_t>(Display::HEIGHT) - RADIUS
         );
+
+		const Bounds2D MOVE_BOUNDS(
+			RADIUS,
+			static_cast<real_t>(Display::WIDTH) - RADIUS,
+			RADIUS,
+			static_cast<real_t>(Display::HEIGHT) - RADIUS
+		);
 
         // Movement constraints
         const Vector2 VELOCITY_LIMITS(30.0f, 50.0f);  // Range: 3~5 m/s
@@ -106,7 +113,7 @@ namespace constants
         constexpr real_t RADIUS = 10.0f;
 
         // Movement boundaries
-        const Bounds2D BOUNDS(
+        const Bounds2D SPAWN_BOUNDS(
             RADIUS,
             static_cast<real_t>(Display::WIDTH) - RADIUS,
             Section::GOAL_LINE + RADIUS,
@@ -125,7 +132,7 @@ namespace constants
         const Vector2 HEIGHT_LIMITS(5.0f, 120.0f);  // Range: 0.5~12m
 
         // Movement boundaries
-        const Bounds2D BOUNDS(
+        const Bounds2D SPAWN_BOUNDS(
             WIDTH_LIMITS.a,
             static_cast<real_t>(Display::WIDTH) - WIDTH_LIMITS.a,
             Section::GOAL_LINE + HEIGHT_LIMITS.b,
