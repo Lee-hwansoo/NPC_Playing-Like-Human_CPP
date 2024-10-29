@@ -120,7 +120,7 @@ public:
     tensor_t reset(std::optional<real_t> x = std::nullopt, std::optional<real_t> y = std::nullopt, const tensor_t& circle_obstacles_state = torch::tensor({}), const tensor_t& rectangle_obstacles_state = torch::tensor({}), const tensor_t& goal_state = torch::tensor({}));
     tensor_t update(const real_t dt, const tensor_t& scaled_action, const tensor_t& circle_obstacles_state, const tensor_t& goal_state);
     tensor_t get_state() const override;
-    bool check_bounds(const tensor_t& new_position) { return move_limit_.is_outside(new_position[0].item<real_t>(), new_position[1].item<real_t>()); }
+    bool check_bounds(const tensor_t& new_position) override { return move_limit_.is_outside(new_position[0].item<real_t>(), new_position[1].item<real_t>()); }
     void draw(SDL_Renderer* renderer) override;
 
 private:

@@ -333,7 +333,6 @@ std::tuple<tensor_t, tensor_t, real_t, real_t, bool> Agent::calculate_fov(const 
 		// 모든 직사각형과 모든 레이에 대한 계산을 한번에 수행
 		auto rect_positions = rectangle_obstacles_state.slice(1, 0, 2);                    // [num_rect, 2]
 		auto rect_sizes = rectangle_obstacles_state.slice(1, 2, 4);                        // [num_rect, 2]
-        auto rect_centers = rect_positions + (rect_sizes / 2);
 		auto rect_angles = rectangle_obstacles_state.select(1, 4);                         // [num_rect]
 
 		// 회전 행렬 생성 [num_rect, 2, 2]
@@ -356,16 +355,10 @@ std::tuple<tensor_t, tensor_t, real_t, real_t, bool> Agent::calculate_fov(const 
 		local_ray_dirs = local_ray_dirs.transpose(1, 2);                                // [num_rect, num_rays, 2]
 
 		// 각 직사각형의 경계 계산
-		//auto half_sizes = rect_sizes / 2;                                               // [num_rect, 2]
-		//auto x_min = -half_sizes.select(1, 0);                                         // [num_rect]
-		//auto x_max = half_sizes.select(1, 0);                                          // [num_rect]
-		//auto y_min = -half_sizes.select(1, 1);                                         // [num_rect]
-		//auto y_max = half_sizes.select(1, 1);                                          // [num_rect]
-
-		auto x_min = torch::zeros_like(rect_sizes.select(1, 0));
-		auto x_max = rect_sizes.select(1, 0);
-		auto y_min = torch::zeros_like(rect_sizes.select(1, 1));
-		auto y_max = rect_sizes.select(1, 1);
+		auto x_min = torch::zeros_like(rect_sizes.select(1, 0));                        // [num_rect]
+		auto x_max = rect_sizes.select(1, 0);                                           // [num_rect]
+		auto y_min = torch::zeros_like(rect_sizes.select(1, 1));                        // [num_rect]
+		auto y_max = rect_sizes.select(1, 1);                                           // [num_rect]
 
 		// x 방향 경계와의 교차점 계산
 		auto dir_x = local_ray_dirs.select(2, 0);                                      // [num_rect, num_rays]
