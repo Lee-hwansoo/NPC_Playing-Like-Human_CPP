@@ -278,7 +278,7 @@ Agent::Agent(std::optional<real_t> x, std::optional<real_t> y,
     , circle_obstacles_state_(circle_obstacles_state)
     , rectangle_obstacles_state_(rectangle_obstacles_state)
     , goal_state_(goal_state)
-    , path_planner_(std::make_unique<path_planning::RRT>(position_, Bounds2D(0, constants::Display::WIDTH, 0, constants::Display::HEIGHT), circle_obstacles_state, rectangle_obstacles_state, goal_state, constants::RRT::SUCCESS_DIST_THRESHOLD)) {
+    , path_planner_(std::make_unique<path_planning::RRT>(position_, Bounds2D(0, constants::Display::WIDTH, 0, constants::Display::HEIGHT), circle_obstacles_state, rectangle_obstacles_state, goal_state)) {
 
     reset(x, y, circle_obstacles_state, rectangle_obstacles_state, goal_state);
 }

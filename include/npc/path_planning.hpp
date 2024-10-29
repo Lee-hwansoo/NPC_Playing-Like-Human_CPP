@@ -33,7 +33,6 @@ public:
         const tensor_t& circle_obstacles_state,
         const tensor_t& rectangle_obstacles_state,
         const tensor_t& goal_state,
-        real_t success_dist_threshold = 1.0f,
         const torch::Device device = torch::kCPU);
 
     void update(const tensor_t& start, const tensor_t& circle_obstacles_state, const tensor_t& rectangle_obstacles_state, const tensor_t& goal_state);

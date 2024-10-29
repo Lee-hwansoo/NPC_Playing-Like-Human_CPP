@@ -10,7 +10,6 @@ RRT::RRT(const tensor_t& start,
 	     const tensor_t& circle_obstacles_state,
 	     const tensor_t& rectangle_obstacles_state,
          const tensor_t& goal_state,
-         real_t success_dist_threshold,
          const torch::Device device)
     : space_(space)
     , circle_obstacles_state_(circle_obstacles_state.to(device))
