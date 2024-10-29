@@ -24,7 +24,7 @@ public:
 
 	virtual tensor_t reset() = 0;
 	virtual std::tuple<tensor_t, tensor_t, bool, bool> step(const tensor_t& action) = 0;
-	virtual void render(SDL_Renderer* renderer) const = 0;
+	virtual void render(SDL_Renderer* renderer) const {}
 
 	virtual tensor_t get_observation_space() const {
 		return torch::full({ observation_dim_ }, std::numeric_limits<real_t>::infinity(),
@@ -68,7 +68,7 @@ protected:
 	SDL_Renderer* renderer_;
 
 	virtual tensor_t get_observation() const = 0;
-	virtual real_t calculate_reward(const tensor_t& state) = 0;
+	virtual real_t calculate_reward(const tensor_t& state) { return 0.0f; }
 	virtual bool check_goal() const = 0;
 	virtual bool check_bounds() const = 0;
 	virtual bool check_obstacle_collision() const = 0;
