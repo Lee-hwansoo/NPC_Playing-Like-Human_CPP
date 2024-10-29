@@ -351,7 +351,7 @@ void testIntegratedObjects(SDL_Renderer* renderer) {
     std::vector<std::unique_ptr<object::CircleObstacle>> circle_obstacles;
     circle_obstacles.reserve(constants::CircleObstacle::COUNT);
     for (size_t i = 0; i < constants::CircleObstacle::COUNT; i++) {
-        auto obs = std::make_unique<object::CircleObstacle>();
+        auto obs = std::make_unique<object::CircleObstacle>(std::nullopt, std::nullopt, constants::CircleObstacle::RADIUS, constants::CircleObstacle::BOUNDS, Display::to_sdl_color(Display::ORANGE), true);
         obs->reset();  // 초기 위치 설정
         circle_obstacles.push_back(std::move(obs));
     }
@@ -367,7 +367,7 @@ void testIntegratedObjects(SDL_Renderer* renderer) {
     std::vector<std::unique_ptr<object::RectangleObstacle>> rectangle_obstacles;
     rectangle_obstacles.reserve(constants::RectangleObstacle::COUNT);
     for (size_t i = 0; i < constants::RectangleObstacle::COUNT; i++) {
-        auto obs = std::make_unique<object::RectangleObstacle>();
+        auto obs = std::make_unique<object::RectangleObstacle>(std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, constants::RectangleObstacle::BOUNDS, Display::to_sdl_color(Display::ORANGE), false);
         obs->reset();  // 초기 위치 설정
         rectangle_obstacles.push_back(std::move(obs));
     }
@@ -381,11 +381,11 @@ void testIntegratedObjects(SDL_Renderer* renderer) {
     rectangle_obstacles_state = updateRectangleObstaclesState();
 
     // 목표 생성 및 초기화
-    auto goal = std::make_unique<object::Goal>();
+    auto goal = std::make_unique<object::Goal>(std::nullopt, std::nullopt, constants::Goal::RADIUS, constants::Goal::BOUNDS, Display::to_sdl_color(Display::GREEN), false);
     goal->reset();
 
     // 에이전트 생성 및 초기화
-    auto agent = std::make_unique<object::Agent>(500.0f, 900.0f, 10.0f, constants::Agent::BOUNDS, Display::to_sdl_color(Display::BLUE), true, circle_obstacles_state, goal->get_state());
+    auto agent = std::make_unique<object::Agent>(std::nullopt, std::nullopt, constants::Agent::RADIUS, constants::Agent::BOUNDS, Display::to_sdl_color(Display::BLUE), true, circle_obstacles_state, goal->get_state());
 
     bool quit = false;
     SDL_Event event;
@@ -413,7 +413,7 @@ void testIntegratedObjects(SDL_Renderer* renderer) {
                 goal->reset();
                 updateCircleObstaclesState();
                 updateRectangleObstaclesState();
-                agent->reset(500.0f, 900.0f, circle_obstacles_state, goal->get_state());
+                agent->reset(std::nullopt, std::nullopt, circle_obstacles_state, goal->get_state());
             }
         }
 
