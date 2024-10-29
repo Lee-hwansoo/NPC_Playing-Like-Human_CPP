@@ -283,48 +283,76 @@ Agent::Agent(std::optional<real_t> x, std::optional<real_t> y,
     reset(x, y, circle_obstacles_state, rectangle_obstacles_state, goal_state);
 }
 
-std::tuple<tensor_t, tensor_t, real_t, real_t, bool> Agent::calculate_fov(const tensor_t& agent_pos, const real_t& agent_angle, const tensor_t& circle_obstacles_state, const tensor_t& rectangle_obstacles_state, const tensor_t& goal_state) {
+std::tuple<tensor_t, tensor_t, real_t, real_t, bool, bool> Agent::calculate_fov(const tensor_t& agent_pos, const real_t& agent_angle, const tensor_t& circle_obstacles_state, const tensor_t& rectangle_obstacles_state, const tensor_t& goal_state) {
+    bool is_collision = false;
+
+    // FOV를 이루는 ray들의 각도 계산 [num_rays]
     auto ray_angles = torch::linspace(agent_angle - constants::Agent::FOV::ANGLE / 2, agent_angle + constants::Agent::FOV::ANGLE / 2, constants::Agent::FOV::RAY_COUNT, get_tensor_dtype());
+    
+    // ray들의 방향 벡터 계산 [num_rays, 2]
     auto ray_cos = torch::cos(ray_angles);
     auto ray_sin = torch::sin(ray_angles);
     auto ray_directions = torch::stack({ray_cos, ray_sin}, 1);
 
-    auto goal_vector = goal_state.slice(0, 0, 2) - agent_pos;
+    // 목표와의 상대 위치, 거리, 각도 계산
+    auto goal_vector = goal_state.slice(0, 0, 2) - agent_pos;       // [2]
     auto goal_distance = torch::norm(goal_vector).item<real_t>();
     auto goal_angle = torch::atan2(goal_vector[1], goal_vector[0]).item<real_t>();
     auto angle_diff = std::fmod(goal_angle - agent_angle + constants::PI, 2 * constants::PI) - constants::PI;
     auto abs_angle_diff = std::abs(angle_diff);
 
-    auto x_dirs = ray_directions.select(1, 0);
-    auto y_dirs = ray_directions.select(1, 1);
-    auto border_distances = torch::stack({
+    // 화면 경계와의 ray casting 계산
+    auto x_dirs = ray_directions.select(1, 0);                      // [num_rays]
+	auto y_dirs = ray_directions.select(1, 1);                      // [num_rays]
+
+    // 각 ray와 화면 경계의 교차점까지의 거리 계산 [4, num_rays]
+	auto border_distances = torch::stack({
         (-agent_pos[0].item<real_t>()) / x_dirs,
         (constants::Display::WIDTH - agent_pos[0].item<real_t>()) / x_dirs,
         (-agent_pos[1].item<real_t>()) / y_dirs,
         (constants::Display::HEIGHT - agent_pos[1].item<real_t>()) / y_dirs
     });
+
+    // 음수 거리(반대 방향)를 무한대로 설정
     border_distances = torch::where(border_distances <= 0, torch::full_like(border_distances, std::numeric_limits<real_t>::infinity()), border_distances);
+    // ray별 가장 가까운 경계 거리 계산, FOV 최대 범위로 제한 [num_rays]
     auto closest_distances = torch::min(std::get<0>(torch::min(border_distances, 0)), torch::full({constants::Agent::FOV::RAY_COUNT}, constants::Agent::FOV::RANGE, get_tensor_dtype()));
 
     if (circle_obstacles_state.size(0) > 0 && circle_obstacles_state.size(1) >= 3) {
-        auto obstacles_pos = circle_obstacles_state.slice(1, 0, 2);
-        auto diff = agent_pos.unsqueeze(0) - obstacles_pos;
-        auto oc = diff.unsqueeze(1).expand({-1, constants::Agent::FOV::RAY_COUNT, 2});
+        // 모든 원형 장애물의 상태값 추출
+        auto obstacles_pos = circle_obstacles_state.slice(1, 0, 2);                     // [num_circles, 2]
+        // 에이전트와 각 원형 장애물 간의 거리 벡터 계산
+        auto diff = agent_pos.unsqueeze(0) - obstacles_pos;                             // [num_circles, 2]
 
-        auto a = torch::sum(ray_directions * ray_directions, 1);
-        auto b = 2 * torch::sum(oc * ray_directions.unsqueeze(0), 2);
-        auto c = torch::sum(oc * oc, 2) - circle_obstacles_state.select(1, 2).unsqueeze(1).pow(2);
+		// 충돌 검사
+		auto distances_squared = torch::sum(diff * diff, 1);                                  // [num_circles]
+		auto radii = circle_obstacles_state.select(1, 2) + constants::Agent::RADIUS;         // [num_circles]
+		auto radii_squared = radii.pow(2);                                                   // [num_circles]
+		if (torch::any(distances_squared <= radii_squared).item<bool>()) {
+			is_collision = true;
+		}
 
-        auto discriminant = b.pow(2) - 4 * a * c;
-        auto valid_intersections = discriminant >= 0;
+        // 각 ray에 대한 벡터 확장
+        auto oc = diff.unsqueeze(1).expand({-1, constants::Agent::FOV::RAY_COUNT, 2});  // [num_circles, num_rays, 2]
+
+        // ray casting을 위한 2차 방정식 계수 계산
+		auto a = torch::sum(ray_directions * ray_directions, 1);                             // [num_rays]
+		auto b = 2 * torch::sum(oc * ray_directions.unsqueeze(0), 2);                       // [num_circles, num_rays]
+		auto c = torch::sum(oc * oc, 2) - circle_obstacles_state.select(1, 2).unsqueeze(1).pow(2);  // [num_circles, num_rays]
+
+		// 판별식 계산
+		auto discriminant = b.pow(2) - 4 * a * c;                                           // [num_circles, num_rays]
+		auto valid_intersections = discriminant >= 0;                                        // [num_circles, num_rays]
 
         if (torch::any(valid_intersections).item<bool>()) {
             auto safe_discriminant = torch::where(valid_intersections, discriminant, torch::zeros_like(discriminant));
 
-            auto t = torch::where(valid_intersections, (-b - torch::sqrt(safe_discriminant)) / (2 * a), torch::full_like(b, std::numeric_limits<real_t>::infinity()));
+            // 교차점까지의 거리 계산 (더 가까운 교차점 선택)
+            auto t = torch::where(valid_intersections, (-b - torch::sqrt(safe_discriminant)) / (2 * a), torch::full_like(b, std::numeric_limits<real_t>::infinity()));      // [num_circles, num_rays]
             t = torch::where(t < 0, torch::full_like(t, std::numeric_limits<real_t>::infinity()), t);
 
-            auto [circle_obstacles_distances, _]  = torch::min(t, 0);
+            // 모든 원형 장애물에 대해 가장 가까운 거리 선택
+            auto [circle_obstacles_distances, _]  = torch::min(t, 0);                       // [num_rays]
             closest_distances = torch::min(closest_distances, circle_obstacles_distances);
         }
     }
@@ -346,6 +374,16 @@ std::tuple<tensor_t, tensor_t, real_t, real_t, bool> Agent::calculate_fov(const 
 		// 에이전트 위치를 각 직사각형의 로컬 좌표계로 변환 [num_rect, 2]
 		auto to_rect = agent_pos.unsqueeze(0) - rect_positions;                          // [num_rect, 2]
 		auto local_agent_pos = torch::matmul(rotation_matrices, to_rect.unsqueeze(2)).squeeze(2);  // [num_rect, 2]
+
+        // 충돌 검사 - 에이전트의 반경을 고려한 AABB 테스트
+		auto x_collision = (local_agent_pos.select(1, 0) >= -constants::Agent::RADIUS) &
+			(local_agent_pos.select(1, 0) <= rect_sizes.select(1, 0) + constants::Agent::RADIUS);
+		auto y_collision = (local_agent_pos.select(1, 1) >= -constants::Agent::RADIUS) &
+			(local_agent_pos.select(1, 1) <= rect_sizes.select(1, 1) + constants::Agent::RADIUS);
+
+		if (torch::any(x_collision & y_collision).item<bool>()) {
+			is_collision = true;
+		}
 
 		// 모든 레이 방향을 각 직사각형의 로컬 좌표계로 변환 [num_rect, num_rays, 2]
 		auto local_ray_dirs = torch::matmul(
@@ -408,7 +446,7 @@ std::tuple<tensor_t, tensor_t, real_t, real_t, bool> Agent::calculate_fov(const 
     auto points = agent_pos.unsqueeze(0) + ray_directions * closest_distances.unsqueeze(1);
     auto fov_points = torch::cat({agent_pos.unsqueeze(0), points});
 
-    return std::make_tuple(fov_points, closest_distances, goal_distance, angle_diff, goal_in_fov);
+    return std::make_tuple(fov_points, closest_distances, goal_distance, angle_diff, goal_in_fov, is_collision);
 }
 
 index_type Agent::get_closest_waypoint() {
@@ -472,7 +510,7 @@ tensor_t Agent::reset(std::optional<real_t> x, std::optional<real_t> y, const te
     yaw_ = -0.5f * constants::PI;
     trajectory_ = torch::stack({position_});
 
-    std::tie(fov_points_, fov_distances_, goal_distance_, angle_to_goal_, is_goal_in_fov_) = calculate_fov(position_, yaw_, circle_obstacles_state, rectangle_obstacles_state, goal_state);
+    std::tie(fov_points_, fov_distances_, goal_distance_, angle_to_goal_, is_goal_in_fov_, is_collison_) = calculate_fov(position_, yaw_, circle_obstacles_state, rectangle_obstacles_state, goal_state);
 
 	//path_planner_->update(position_, circle_obstacles_state, rectangle_obstacles_state, goal_state);
 	//initial_path_ = path_planner_->plan();
@@ -495,7 +533,7 @@ tensor_t Agent::update(const real_t dt, const tensor_t& scaled_action, const ten
     yaw_ = std::atan2(velocity_[1].item<real_t>(), velocity_[0].item<real_t>());
     trajectory_ = torch::cat({trajectory_, position_.unsqueeze(0)});
 
-    std::tie(fov_points_, fov_distances_, goal_distance_, angle_to_goal_, is_goal_in_fov_) = calculate_fov(position_, yaw_, circle_obstacles_state, rectangle_obstacles_state_, goal_state);
+    std::tie(fov_points_, fov_distances_, goal_distance_, angle_to_goal_, is_goal_in_fov_, is_collison_) = calculate_fov(position_, yaw_, circle_obstacles_state, rectangle_obstacles_state_, goal_state);
 
     std::tie(frenet_point_, frenet_d_) = get_frenet_d();
     return get_state();

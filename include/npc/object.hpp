@@ -144,8 +144,9 @@ private:
     real_t goal_distance_;
     real_t angle_to_goal_;
     bool is_goal_in_fov_;
+    bool is_collison_;
 
-    std::tuple<tensor_t, tensor_t, real_t, real_t, bool> calculate_fov(
+    std::tuple<tensor_t, tensor_t, real_t, real_t, bool, bool> calculate_fov(
         const tensor_t& agent_pos,
         const real_t& agent_angle,
         const tensor_t& circle_obstacles_state,
