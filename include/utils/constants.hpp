@@ -153,7 +153,7 @@ namespace constants
 	//--------------------------------------------------------------------------------
 	// SAC Settings
 	//--------------------------------------------------------------------------------
-    namespace SAC
+    namespace NETWORK
     {
         constexpr real_t  MAX_STEP = 2000;
 		constexpr count_type BUFFER_SIZE = 1000000;
@@ -161,6 +161,6 @@ namespace constants
 		constexpr real_t  GAMMA = 0.99f;
 		constexpr real_t  TAU = 0.005f;
 		constexpr real_t  ALPHA = 0.2f;
-        constexpr real_t  LEARNING_RATE = 3e-4;
+        constexpr real_t  LEARNING_RATE = 3e-4f;
     }
 }

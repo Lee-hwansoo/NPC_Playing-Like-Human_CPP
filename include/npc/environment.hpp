@@ -6,14 +6,16 @@
 #include "npc/sac.hpp"
 #include "npc/object.hpp"
 #include <SDL.h>
+#include <string>
 
 class BaseEnvironment {
 public:
 	explicit BaseEnvironment(count_type width = Display::WIDTH,
-							 count_type height = Display::HEIGHT)
+							 count_type height = Display::HEIGHT,
+							 torch::Device device = torch::kCPU)
 		: width_(width)
 		, height_(height)
-		, device_(utils::get_device()) {}
+		, device_(device) {}
 
 	virtual ~BaseEnvironment() = default;
 
@@ -73,11 +75,12 @@ protected:
 class TrainEnvironment : public BaseEnvironment {
 public:
 	TrainEnvironment(count_type width = Display::WIDTH,
-					 count_type height = Display::HEIGHT);
+					 count_type height = Display::HEIGHT,
+					 torch::Device device = torch::kCPU);
 
 	tensor_t reset() override;
 	std::tuple<tensor_t, real_t, bool, bool> step(const tensor_t& action) override;
-	void render(SDL_Renderer* renderer) const override;
+	//void render(SDL_Renderer* renderer) const override;
 	void save(dim_type episode);
 	void load(const std::string& timestamp, dim_type episode);
 	std::vector<real_t> train(const real_t episodes, bool render = false);
@@ -85,7 +88,7 @@ public:
 
 protected:
 	tensor_t get_observation() const override;
-	real_t calculate_reward(const tensor_t& state, const tensor_t& action) override;
+	real_t calculate_reward(const tensor_t& state, const tensor_t& action);
 	bool check_goal() const override;
 	bool check_bounds() const override;
 	bool check_obstacle_collision() const override;
@@ -101,6 +104,6 @@ private:
 	std::unique_ptr<SAC> sac_;
 
 	tensor_t init_objects();
-	void update_circle_obstacles_state() const;
-	void update_rectangle_obstacles_state() const;
+	void update_circle_obstacles_state();
+	void update_rectangle_obstacles_state();
 };

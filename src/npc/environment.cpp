@@ -1,7 +1,7 @@
 #include "npc/environment.hpp"
 
-TrainEnvironment::TrainEnvironment(count_type width, count_type height)
-	: BaseEnvironment(width, height) {
+TrainEnvironment::TrainEnvironment(count_type width, count_type height, torch::Device device)
+	: BaseEnvironment(width, height, device) {
 	set_observation_dim(constants::Agent::FOV::RAY_COUNT + 10);
 	set_action_dim(2);
 
@@ -42,13 +42,13 @@ tensor_t TrainEnvironment::init_objects() {
 	return get_observation();
 }
 
-void TrainEnvironment::update_circle_obstacles_state() const {
+void TrainEnvironment::update_circle_obstacles_state() {
 	for (size_t i = 0; i < circle_obstacles_.size(); ++i) {
 		circle_obstacles_state_[i] = circle_obstacles_[i]->get_state();
 	}
 }
 
-void TrainEnvironment::update_rectangle_obstacles_state() const {
+void TrainEnvironment::update_rectangle_obstacles_state() {
 	for (size_t i = 0; i < rectangle_obstacles_.size(); ++i) {
 		rectangle_obstacles_state_[i] = rectangle_obstacles_[i]->get_state();
 	}
@@ -85,7 +85,7 @@ tensor_t TrainEnvironment::reset() {
 
 std::tuple<tensor_t, real_t, bool, bool> TrainEnvironment::step(const tensor_t& action) {
 	terminated_ = check_goal();
-	truncated_ = check_bounds() || check_obstacle_collision() || step_count_ >= constants::SAC::MAX_STEP;
+	truncated_ = check_bounds() || check_obstacle_collision() || step_count_ >= constants::NETWORK::MAX_STEP;
 
 	real_t reward = calculate_reward(state_, action);
 
@@ -143,10 +143,10 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 	return reward;
 }
 
-void TrainEnvironment::save(dim_type episode) {
-	sac_->save_network_parameters(episode);
-}
-
-void TrainEnvironment::load(const std::string& timestamp, dim_type episode) {
-	sac_->load_network_parameters(timestamp, episode);
-}
+//void TrainEnvironment::save(dim_type episode) {
+//	sac_->save_network_parameters(episode);
+//}
+//
+//void TrainEnvironment::load(const std::string& timestamp, dim_type episode) {
+//	sac_->load_network_parameters(timestamp, episode);
+//}
