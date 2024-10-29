@@ -7,12 +7,14 @@ namespace path_planning {
 
 RRT::RRT(const tensor_t& start,
          const types::Bounds2D& space,
-         const tensor_t& obstacles_state,
+	     const tensor_t& circle_obstacles_state,
+	     const tensor_t& rectangle_obstacles_state,
          const tensor_t& goal_state,
          real_t success_dist_threshold,
          const torch::Device device)
     : space_(space)
-    , obstacles_state_(obstacles_state.to(device))
+    , circle_obstacles_state_(circle_obstacles_state.to(device))
+    , rectangle_obstacles_state_(rectangle_obstacles_state.to(device))
     , device_(device)
     , max_iter_(constants::RRT::MAX_ITER)
     , goal_sample_rate_(constants::RRT::GOAL_SAMPLE_RATE)
@@ -30,10 +32,11 @@ RRT::RRT(const tensor_t& start,
     node_list_.reserve(max_iter_);
 }
 
-void RRT::update(const tensor_t& start, const tensor_t& obstacles_state, const tensor_t& goal_state) {
+void RRT::update(const tensor_t& start, const tensor_t& circle_obstacles_state, const tensor_t& rectangle_obstacles_state, const tensor_t& goal_state) {
     start_node_ = std::make_shared<Node>(start[0].item<real_t>(), start[1].item<real_t>());
     goal_node_ = std::make_shared<Node>(goal_state[0].item<real_t>(), goal_state[1].item<real_t>());
-    obstacles_state_ = obstacles_state.to(device_);
+    circle_obstacles_state_ = circle_obstacles_state.to(device_);
+    rectangle_obstacles_state_ = rectangle_obstacles_state.to(device_);
 }
 
 tensor_t RRT::plan() {
@@ -152,9 +155,9 @@ bool RRT::is_same_node(
 bool RRT::is_collide(const std::shared_ptr<Node>& node) const {
     auto position = torch::tensor({node->x(), node->y()}, torch::TensorOptions().dtype(get_tensor_dtype()).device(device_));
 
-    auto distances = torch::norm(obstacles_state_.slice(1, 0, 2) - position.unsqueeze(0), 2, 1);
+    auto distances = torch::norm(circle_obstacles_state_.slice(1, 0, 2) - position.unsqueeze(0), 2, 1);
 
-    return torch::any(distances < obstacles_state_.select(1, 2)).item<bool>();
+    return torch::any(distances < circle_obstacles_state_.select(1, 2)).item<bool>();
 }
 
 bool RRT::is_path_collide(
@@ -178,10 +181,10 @@ bool RRT::is_path_collide(
     tensor_t points = start_pos * (1 - t_expanded) + end_pos * t_expanded;
     tensor_t points_expanded = points.unsqueeze(1);
 
-    tensor_t obstacles_pos = obstacles_state_.slice(1, 0, 2).unsqueeze(0);
+    tensor_t obstacles_pos = circle_obstacles_state_.slice(1, 0, 2).unsqueeze(0);
 
     tensor_t distances = torch::norm(points_expanded - obstacles_pos, 2, 2);
-    tensor_t radius = obstacles_state_.select(1, 2).unsqueeze(0);
+    tensor_t radius = circle_obstacles_state_.select(1, 2).unsqueeze(0);
 
     tensor_t collisions = distances <= radius;
 

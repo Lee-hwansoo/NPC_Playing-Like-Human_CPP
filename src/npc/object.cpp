@@ -278,7 +278,7 @@ Agent::Agent(std::optional<real_t> x, std::optional<real_t> y,
     , circle_obstacles_state_(circle_obstacles_state)
     , rectangle_obstacles_state_(rectangle_obstacles_state)
     , goal_state_(goal_state)
-    , path_planner_(std::make_unique<path_planning::RRT>(position_, Bounds2D(0, constants::Display::WIDTH, 0, constants::Display::HEIGHT), circle_obstacles_state, goal_state)) {
+    , path_planner_(std::make_unique<path_planning::RRT>(position_, Bounds2D(0, constants::Display::WIDTH, 0, constants::Display::HEIGHT), circle_obstacles_state, rectangle_obstacles_state, goal_state, constants::RRT::SUCCESS_DIST_THRESHOLD)) {
 
     reset(x, y, circle_obstacles_state, rectangle_obstacles_state, goal_state);
 }
@@ -474,8 +474,8 @@ tensor_t Agent::reset(std::optional<real_t> x, std::optional<real_t> y, const te
 
     std::tie(fov_points_, fov_distances_, goal_distance_, angle_to_goal_, is_goal_in_fov_) = calculate_fov(position_, yaw_, circle_obstacles_state, rectangle_obstacles_state, goal_state);
 
-	path_planner_->update(position_, circle_obstacles_state, goal_state);
-	initial_path_ = path_planner_->plan();
+	//path_planner_->update(position_, circle_obstacles_state, rectangle_obstacles_state, goal_state);
+	//initial_path_ = path_planner_->plan();
 	std::tie(frenet_point_, frenet_d_) = get_frenet_d();
 
     return get_state();
