@@ -577,7 +577,7 @@ void test_rrt_visualization() {
         });
 
         // RRT 플래너 생성 및 실행
-        std::shared_ptr<path_planning::RRT> planner = std::make_shared<path_planning::RRT>(start, space, circle_obstacles_state, goal_state);
+        std::shared_ptr<path_planning::RRT> planner = std::make_shared<path_planning::RRT>(start, space, circle_obstacles_state, torch::tensor({}), goal_state);
         tensor_t path = planner->plan();
 
         if (path.size(0) > 0) {
