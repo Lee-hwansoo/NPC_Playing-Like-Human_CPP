@@ -220,7 +220,7 @@ std::vector<real_t> TrainEnvironment::train(const dim_type episodes, bool render
 				SDL_RenderPresent(renderer_);
 			}
 
-			std::cout << "\rEpisode: " << episode + 1 << "/" << episodes << " | Step: " << step_count_ << " " << std::flush;
+			std::cout << "\rEpisode: " << episode + 1 << "/" << start_episode_+ episodes << " | Step: " << step_count_ << " " << std::flush;
 		}
 
 		reward_history.push_back(episode_return);
