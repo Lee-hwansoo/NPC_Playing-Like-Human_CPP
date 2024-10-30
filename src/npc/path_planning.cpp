@@ -37,8 +37,6 @@ void RRT::update(const tensor_t& start, const tensor_t& circle_obstacles_state, 
 }
 
 tensor_t RRT::plan() {
-    std::cout << "Start planning" << std::endl;
-
     count_type attempt = 0;
     while (attempt < constants::RRT::MAX_ATTEMPTS) {
         bool path_found = false;
@@ -62,7 +60,6 @@ tensor_t RRT::plan() {
             node_list_.push_back(new_node);
 
             if (check_goal(new_node)) {
-                std::cout << "Finished planning" << std::endl;
                 path_found = true;
                 return backtrace_path(new_node);
             }
