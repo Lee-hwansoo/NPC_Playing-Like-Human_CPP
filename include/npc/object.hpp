@@ -18,11 +18,13 @@ public:
     Object(real_t x, real_t y,
            const Bounds2D& spawn_limit,
            const SDL_Color& color,
-           bool type)
+           bool type,
+           torch::Device device = torch::kCPU)
         : position_(torch::tensor({x, y}, get_tensor_dtype()))
         , spawn_limit_(spawn_limit)
         , color_(color)
-        , type_(type) {}
+        , type_(type)
+        , device_(device) {}
 
     virtual ~Object() = default;
 
@@ -31,7 +33,7 @@ public:
     virtual bool check_bounds(const tensor_t& new_position) {return spawn_limit_.is_outside(new_position[0].item<real_t>(), new_position[1].item<real_t>());}
     virtual void draw(SDL_Renderer* renderer) = 0;
 
-    virtual tensor_t get_state() const { return position_; }
+    virtual tensor_t get_state() const { return position_.unsqueeze(0); }
     bool is_dynamic() const { return type_; }
 
 protected:
@@ -39,6 +41,7 @@ protected:
     Bounds2D spawn_limit_;
     SDL_Color color_;
     bool type_;  // True: Dynamic, False: Static
+    torch::Device device_;
 };
 
 class CircleObstacle : public Object {
@@ -48,7 +51,8 @@ public:
                    real_t radius = constants::CircleObstacle::RADIUS,
                    const Bounds2D& spawn_limit = constants::CircleObstacle::SPAWN_BOUNDS,
                    const SDL_Color& color = Display::to_sdl_color(Display::ORANGE),
-                   bool type = true);
+                   bool type = true,
+                   torch::Device device = torch::kCPU);
 
     void reset(std::optional<real_t> x = std::nullopt, std::optional<real_t> y = std::nullopt) override;
     void update(real_t dt) override;
@@ -73,7 +77,8 @@ public:
                    std::optional<real_t> yaw = std::nullopt,
                    const Bounds2D& spawn_limit = constants::RectangleObstacle::SPAWN_BOUNDS,
                    const SDL_Color& color = Display::to_sdl_color(Display::ORANGE),
-                   bool type = false);
+                   bool type = false,
+                   torch::Device device = torch::kCPU);
 
     void reset(std::optional<real_t> x = std::nullopt, std::optional<real_t> y = std::nullopt, std::optional<real_t> width = std::nullopt, std::optional<real_t> height = std::nullopt, std::optional<real_t> yaw = std::nullopt);
     tensor_t get_state() const override;
@@ -94,7 +99,8 @@ public:
          real_t radius = constants::Goal::RADIUS,
          const Bounds2D& spawn_limit = constants::Goal::SPAWN_BOUNDS,
          const SDL_Color& color = Display::to_sdl_color(Display::GREEN),
-         bool type = false);
+         bool type = false,
+         torch::Device device = torch::kCPU);
 
     void reset(std::optional<real_t> x = std::nullopt, std::optional<real_t> y = std::nullopt) override;
     tensor_t get_state() const override;
@@ -115,13 +121,14 @@ public:
           bool type = true,
           const tensor_t& circle_obstacles_state = torch::tensor({}),
           const tensor_t& rectangle_obstacles_state = torch::tensor({}),
-          const tensor_t& goal_state = torch::tensor({}));
+          const tensor_t& goal_state = torch::tensor({}),
+          torch::Device device = torch::kCPU);
 
     tensor_t reset(std::optional<real_t> x = std::nullopt, std::optional<real_t> y = std::nullopt, const tensor_t& circle_obstacles_state = torch::tensor({}), const tensor_t& rectangle_obstacles_state = torch::tensor({}), const tensor_t& goal_state = torch::tensor({}));
     tensor_t update(const real_t dt, const tensor_t& scaled_action, const tensor_t& circle_obstacles_state, const tensor_t& goal_state);
     tensor_t get_state() const override;
     tensor_t get_raw_state() const;
-	bool is_goal() const { return goal_state_.numel() == 0 ? false : (position_ - goal_state_.slice(0, 0, 2)).norm().item<real_t>() <= (radius_ + goal_state_[2].item<real_t>()); }
+	bool is_goal() const { return goal_state_.numel() == 0 ? false : (position_ - goal_state_[0].slice(0, 0, 2)).norm().item<real_t>() <= (radius_ + goal_state_[0][2].item<real_t>()); }
     bool is_collison() const { return is_collison_; }
 	bool is_out() const { return move_limit_.is_outside(position_[0].item<real_t>(), position_[1].item<real_t>()); }
     bool check_bounds(const tensor_t& new_position) override { return move_limit_.is_outside(new_position[0].item<real_t>(), new_position[1].item<real_t>()); }

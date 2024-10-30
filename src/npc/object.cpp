@@ -6,8 +6,8 @@ namespace object {
 
 CircleObstacle::CircleObstacle(std::optional<real_t> x, std::optional<real_t> y,
                              real_t radius, const Bounds2D& spawn_limit,
-                             const SDL_Color& color, bool type)
-    : Object(x.value_or(0.0f), y.value_or(0.0f), spawn_limit, color, type)
+                             const SDL_Color& color, bool type, torch::Device device)
+    : Object(x.value_or(0.0f), y.value_or(0.0f), spawn_limit, color, type, device)
     , radius_(radius)
     , force_(0.0f)
     , yaw_(0.0f)
@@ -21,9 +21,9 @@ void CircleObstacle::reset(std::optional<real_t> x, std::optional<real_t> y) {
     static std::mt19937 gen(rd());
 
     if (x.has_value() && y.has_value()) {
-        position_ = torch::tensor({x.value(), y.value()}, get_tensor_dtype());
+        position_ = torch::tensor({x.value(), y.value()}, get_tensor_dtype()).to(device_);
     } else {
-        position_ = torch::tensor({spawn_limit_.random_x(gen), spawn_limit_.random_y(gen)}, get_tensor_dtype());
+        position_ = torch::tensor({spawn_limit_.random_x(gen), spawn_limit_.random_y(gen)}, get_tensor_dtype()).to(device_);
     }
 
     if (type_) {
@@ -47,13 +47,13 @@ void CircleObstacle::update(real_t dt) {
     yaw_ += yaw_rate_ * dt;
     yaw_ = std::fmod(yaw_ + constants::PI, 2 * constants::PI) - constants::PI;
 
-    auto movement = torch::tensor({std::cos(yaw_), std::sin(yaw_)}, get_tensor_dtype());
+    auto movement = torch::tensor({std::cos(yaw_), std::sin(yaw_)}, get_tensor_dtype()).to(device_);
     auto new_position = position_ + force_ * movement * dt;
 
     if (this->check_bounds(new_position)) {
         yaw_ = std::fmod(yaw_ + constants::PI, 2 * constants::PI);
         add_random_movement();
-        movement = torch::tensor({std::cos(yaw_), std::sin(yaw_)}, get_tensor_dtype());
+        movement = torch::tensor({std::cos(yaw_), std::sin(yaw_)}, get_tensor_dtype()).to(device_);
         new_position = position_ + force_ * movement * dt;
     }
 
@@ -72,8 +72,8 @@ tensor_t CircleObstacle::get_state() const {
 			position_[0].item<real_t>(),
 			position_[1].item<real_t>(),
 			radius_
-		}, get_tensor_dtype());
-    return state;
+		}, get_tensor_dtype()).to(device_);
+    return state.unsqueeze(0);
 }
 
 void CircleObstacle::draw(SDL_Renderer* renderer) {
@@ -116,8 +116,8 @@ void CircleObstacle::draw(SDL_Renderer* renderer) {
 RectangleObstacle::RectangleObstacle(std::optional<real_t> x, std::optional<real_t> y,
                                     std::optional<real_t> width, std::optional<real_t> height,
                                     std::optional<real_t> yaw,
-                                    const Bounds2D& spawn_limit, const SDL_Color& color, bool type)
-    : Object(x.value_or(0.0f), y.value_or(0.0f), spawn_limit, color, type)
+                                    const Bounds2D& spawn_limit, const SDL_Color& color, bool type, torch::Device device)
+    : Object(x.value_or(0.0f), y.value_or(0.0f), spawn_limit, color, type, device)
     , width_(width.value_or(0.0f))
     , height_(height.value_or(0.0f))
     , yaw_(yaw.value_or(0.0f)) {
@@ -130,9 +130,9 @@ void RectangleObstacle::reset(std::optional<real_t> x, std::optional<real_t> y, 
     static std::mt19937 gen(rd());
 
     if (x.has_value() && y.has_value()) {
-        position_ = torch::tensor({x.value(), y.value()}, get_tensor_dtype());
+        position_ = torch::tensor({x.value(), y.value()}, get_tensor_dtype()).to(device_);
     } else {
-        position_ = torch::tensor({spawn_limit_.random_x(gen), spawn_limit_.random_y(gen)}, get_tensor_dtype());
+        position_ = torch::tensor({spawn_limit_.random_x(gen), spawn_limit_.random_y(gen)}, get_tensor_dtype()).to(device_);
     }
 
     width_ = width.has_value() ? width.value() : std::uniform_real_distribution<real_t>(constants::RectangleObstacle::WIDTH_LIMITS.a, constants::RectangleObstacle::WIDTH_LIMITS.b)(gen);
@@ -147,8 +147,8 @@ tensor_t RectangleObstacle::get_state() const {
             width_,                       // 너비
             height_,                      // 높이
             yaw_                          // 회전각
-        }, get_tensor_dtype());
-    return state;
+        }, get_tensor_dtype()).to(device_);
+    return state.unsqueeze(0);
 }
 
 std::array<tensor_t, 4> RectangleObstacle::get_corners() const {
@@ -173,7 +173,7 @@ std::array<tensor_t, 4> RectangleObstacle::get_corners() const {
         real_t rotated_x = x + (dx * cos_yaw - dy * sin_yaw);
         real_t rotated_y = y + (dx * sin_yaw + dy * cos_yaw);
 
-        corners[i] = torch::tensor({rotated_x, rotated_y}, get_tensor_dtype());
+        corners[i] = torch::tensor({rotated_x, rotated_y}, get_tensor_dtype()).to(device_);
     }
 
     return corners;
@@ -197,8 +197,8 @@ void RectangleObstacle::draw(SDL_Renderer* renderer) {
 
 Goal::Goal(std::optional<real_t> x, std::optional<real_t> y,
          real_t radius, const Bounds2D& spawn_limit,
-         const SDL_Color& color, bool type)
-    : Object(x.value_or(0.0f), y.value_or(0.0f), spawn_limit, color, type)
+         const SDL_Color& color, bool type, torch::Device device)
+    : Object(x.value_or(0.0f), y.value_or(0.0f), spawn_limit, color, type, device)
     , radius_(radius) {
 
     reset(x, y);
@@ -209,9 +209,9 @@ void Goal::reset(std::optional<real_t> x, std::optional<real_t> y) {
     static std::mt19937 gen(rd());
 
     if (x.has_value() && y.has_value()) {
-        position_ = torch::tensor({x.value(), y.value()}, get_tensor_dtype());
+        position_ = torch::tensor({x.value(), y.value()}, get_tensor_dtype()).to(device_);
     } else {
-        position_ = torch::tensor({spawn_limit_.random_x(gen), spawn_limit_.random_y(gen)}, get_tensor_dtype());
+        position_ = torch::tensor({spawn_limit_.random_x(gen), spawn_limit_.random_y(gen)}, get_tensor_dtype()).to(device_);
     }
 }
 
@@ -220,8 +220,8 @@ tensor_t Goal::get_state() const {
             position_[0].item<real_t>(),
             position_[1].item<real_t>(),
             radius_
-        }, get_tensor_dtype());
-    return state;
+        }, get_tensor_dtype()).to(device_);
+    return state.unsqueeze(0);
 }
 
 void Goal::draw(SDL_Renderer* renderer) {
@@ -269,10 +269,10 @@ Agent::Agent(std::optional<real_t> x, std::optional<real_t> y,
              const Bounds2D& move_limit,
              const SDL_Color& color, bool type,
              const tensor_t& circle_obstacles_state, const tensor_t& rectangle_obstacles_state,
-             const tensor_t& goal_state)
-    : Object(x.value_or(0.0f), y.value_or(0.0f), spawn_limit, color, type)
+             const tensor_t& goal_state, torch::Device device)
+    : Object(x.value_or(0.0f), y.value_or(0.0f), spawn_limit, color, type, device)
     , radius_(radius)
-    , velocity_(torch::tensor({0.0f, 0.0f}, get_tensor_dtype()))
+    , velocity_(torch::tensor({0.0f, 0.0f}, get_tensor_dtype()).to(device))
     , yaw_(0.0f)
     , move_limit_(move_limit)
     , circle_obstacles_state_(circle_obstacles_state)
@@ -287,7 +287,7 @@ std::tuple<tensor_t, tensor_t, real_t, real_t, bool, bool> Agent::calculate_fov(
     bool is_collision = false;
 
     // FOV를 이루는 ray들의 각도 계산 [num_rays]
-    auto ray_angles = torch::linspace(agent_angle - constants::Agent::FOV::ANGLE / 2, agent_angle + constants::Agent::FOV::ANGLE / 2, constants::Agent::FOV::RAY_COUNT, get_tensor_dtype());
+    auto ray_angles = torch::linspace(agent_angle - constants::Agent::FOV::ANGLE / 2, agent_angle + constants::Agent::FOV::ANGLE / 2, constants::Agent::FOV::RAY_COUNT, get_tensor_dtype()).to(device_);
     
     // ray들의 방향 벡터 계산 [num_rays, 2]
     auto ray_cos = torch::cos(ray_angles);
@@ -295,7 +295,7 @@ std::tuple<tensor_t, tensor_t, real_t, real_t, bool, bool> Agent::calculate_fov(
     auto ray_directions = torch::stack({ray_cos, ray_sin}, 1);
 
     // 목표와의 상대 위치, 거리, 각도 계산
-    auto goal_vector = goal_state.slice(0, 0, 2) - agent_pos;       // [2]
+    auto goal_vector = goal_state[0].slice(0, 0, 2) - agent_pos;       // [2]
     auto goal_distance = torch::norm(goal_vector).item<real_t>();
     auto goal_angle = torch::atan2(goal_vector[1], goal_vector[0]).item<real_t>();
     auto angle_diff = std::fmod(goal_angle - agent_angle + constants::PI, 2 * constants::PI) - constants::PI;
@@ -311,12 +311,12 @@ std::tuple<tensor_t, tensor_t, real_t, real_t, bool, bool> Agent::calculate_fov(
         (constants::Display::WIDTH - agent_pos[0].item<real_t>()) / x_dirs,
         (-agent_pos[1].item<real_t>()) / y_dirs,
         (constants::Display::HEIGHT - agent_pos[1].item<real_t>()) / y_dirs
-    });
+    }).to(device_);
 
     // 음수 거리(반대 방향)를 무한대로 설정
-    border_distances = torch::where(border_distances <= 0, torch::full_like(border_distances, std::numeric_limits<real_t>::infinity()), border_distances);
+    border_distances = torch::where(border_distances <= 0, torch::full_like(border_distances, std::numeric_limits<real_t>::infinity()).to(device_), border_distances);
     // ray별 가장 가까운 경계 거리 계산, FOV 최대 범위로 제한 [num_rays]
-    auto closest_distances = torch::min(std::get<0>(torch::min(border_distances, 0)), torch::full({constants::Agent::FOV::RAY_COUNT}, constants::Agent::FOV::RANGE, get_tensor_dtype()));
+    auto closest_distances = torch::min(std::get<0>(torch::min(border_distances, 0)), torch::full({constants::Agent::FOV::RAY_COUNT}, constants::Agent::FOV::RANGE, get_tensor_dtype()).to(device_));
 
     if (circle_obstacles_state.size(0) > 0 && circle_obstacles_state.size(1) >= 3) {
         // 모든 원형 장애물의 상태값 추출
@@ -475,8 +475,8 @@ std::tuple<Vector2, real_t> Agent::get_frenet_d() {
 		tensor_t diff_vec = x_vec - proj_vec;
 		real_t frenet_d = torch::norm(diff_vec).item<real_t>();
 
-        tensor_t x_vec_3d = torch::zeros({ 3 }, get_tensor_dtype());
-        tensor_t n_vec_3d = torch::zeros({ 3 }, get_tensor_dtype());
+        tensor_t x_vec_3d = torch::zeros({ 3 }, get_tensor_dtype()).to(device_);
+        tensor_t n_vec_3d = torch::zeros({ 3 }, get_tensor_dtype()).to(device_);
 
 		x_vec_3d.index_put_({ torch::indexing::Slice(0, 2) }, x_vec);
 		n_vec_3d.index_put_({ torch::indexing::Slice(0, 2) }, n_vec);
@@ -501,14 +501,14 @@ tensor_t Agent::reset(std::optional<real_t> x, std::optional<real_t> y, const te
     static std::mt19937 gen(rd());
 
     if (x.has_value() && y.has_value()) {
-        position_ = torch::tensor({x.value(), y.value()}, get_tensor_dtype());
+        position_ = torch::tensor({x.value(), y.value()}, get_tensor_dtype()).to(device_);
     } else {
-        position_ = torch::tensor({spawn_limit_.random_x(gen), spawn_limit_.random_y(gen)}, get_tensor_dtype());
+        position_ = torch::tensor({spawn_limit_.random_x(gen), spawn_limit_.random_y(gen)}, get_tensor_dtype()).to(device_);
     }
 
-    velocity_ = torch::tensor({0.0f, 0.0f}, get_tensor_dtype());
+    velocity_ = torch::tensor({0.0f, 0.0f}, get_tensor_dtype()).to(device_);
     yaw_ = -0.5f * constants::PI;
-    trajectory_ = torch::stack({position_});
+    trajectory_ = torch::stack({position_}).to(device_);;
 
     std::tie(fov_points_, fov_distances_, goal_distance_, angle_to_goal_, is_goal_in_fov_, is_collison_) = calculate_fov(position_, yaw_, circle_obstacles_state, rectangle_obstacles_state, goal_state);
 
@@ -527,11 +527,11 @@ tensor_t Agent::update(const real_t dt, const tensor_t& scaled_action, const ten
     yaw_ = std::fmod(yaw_ + constants::PI, 2 * constants::PI) - constants::PI;
 
     force = std::clamp(force, 1.0f, 50.0f);
-    velocity_ = force * torch::tensor({std::cos(yaw_), std::sin(yaw_)}, get_tensor_dtype()) * dt;
+    velocity_ = force * torch::tensor({std::cos(yaw_), std::sin(yaw_)}, get_tensor_dtype()).to(device_) * dt;
 
     position_ = position_ + velocity_;
     yaw_ = std::atan2(velocity_[1].item<real_t>(), velocity_[0].item<real_t>());
-    trajectory_ = torch::cat({trajectory_, position_.unsqueeze(0)});
+    trajectory_ = torch::cat({trajectory_, position_.unsqueeze(0)}).to(device_);;
 
     std::tie(fov_points_, fov_distances_, goal_distance_, angle_to_goal_, is_goal_in_fov_, is_collison_) = calculate_fov(position_, yaw_, circle_obstacles_state, rectangle_obstacles_state_, goal_state);
 
@@ -540,14 +540,14 @@ tensor_t Agent::update(const real_t dt, const tensor_t& scaled_action, const ten
 }
 
 tensor_t Agent::get_state() const {
-    auto normalized_position = position_ / torch::tensor({static_cast<real_t>(constants::Display::WIDTH), static_cast<real_t>(constants::Display::HEIGHT)}, get_tensor_dtype());
-    auto normalized_yaw = torch::tensor({yaw_ / constants::PI}, get_tensor_dtype());
+    auto normalized_position = position_ / torch::tensor({static_cast<real_t>(constants::Display::WIDTH), static_cast<real_t>(constants::Display::HEIGHT)}, get_tensor_dtype()).to(device_);
+    auto normalized_yaw = torch::tensor({yaw_ / constants::PI}, get_tensor_dtype()).to(device_);
     auto normalized_velocity = velocity_ / constants::Agent::VELOCITY_LIMITS.b;
     auto normalized_fov_dist = fov_distances_.flatten() / constants::Agent::FOV::RANGE;
-    auto normalized_goal_dist = torch::tensor({goal_distance_ / std::sqrt(constants::Display::WIDTH * constants::Display::WIDTH + constants::Display::HEIGHT * constants::Display::HEIGHT)}, get_tensor_dtype());
-    auto normalized_angle_diff = torch::tensor({angle_to_goal_ / constants::PI}, get_tensor_dtype());
-    auto goal_in_fov_tensor = torch::tensor({static_cast<real_t>(is_goal_in_fov_)}, get_tensor_dtype());
-    auto normalized_frenet_d = torch::tensor({frenet_d_ / (constants::Display::WIDTH > constants::Display::HEIGHT ? constants::Display::WIDTH : constants::Display::HEIGHT)}, get_tensor_dtype());
+    auto normalized_goal_dist = torch::tensor({goal_distance_ / std::sqrt(constants::Display::WIDTH * constants::Display::WIDTH + constants::Display::HEIGHT * constants::Display::HEIGHT)}, get_tensor_dtype()).to(device_);
+    auto normalized_angle_diff = torch::tensor({angle_to_goal_ / constants::PI}, get_tensor_dtype()).to(device_);
+    auto goal_in_fov_tensor = torch::tensor({static_cast<real_t>(is_goal_in_fov_)}, get_tensor_dtype()).to(device_);
+    auto normalized_frenet_d = torch::tensor({frenet_d_ / (constants::Display::WIDTH > constants::Display::HEIGHT ? constants::Display::WIDTH : constants::Display::HEIGHT)}, get_tensor_dtype()).to(device_);
 
     auto state = torch::cat({
         normalized_position,
@@ -560,7 +560,7 @@ tensor_t Agent::get_state() const {
         normalized_frenet_d
     });
 
-    return state;
+    return state.unsqueeze(0);
 };
 
 tensor_t Agent::get_raw_state() const {
@@ -568,8 +568,8 @@ tensor_t Agent::get_raw_state() const {
 		position_[0].item<real_t>(),
 		position_[1].item<real_t>(),
 		radius_
-		}, get_tensor_dtype());
-	return state;
+		}, get_tensor_dtype()).to(device_);
+	return state.unsqueeze(0);
 }
 
 void Agent::draw(SDL_Renderer* renderer) {
