@@ -23,7 +23,7 @@ struct ActorImpl : public BaseNetwork {
 	dim_type action_dim() const { return action_dim_; }
 
 private:
-	torch::nn::Linear fc1{ nullptr }, fc2{ nullptr }, fc3{ nullptr };
+	torch::nn::Linear fc1{ nullptr }, fc2{ nullptr }, fc3{ nullptr }, fc4{ nullptr }, fc5{ nullptr };
 	torch::nn::Linear fc_mean{ nullptr }, fc_log_std{ nullptr };
 	torch::nn::Dropout dropout{ nullptr };
 

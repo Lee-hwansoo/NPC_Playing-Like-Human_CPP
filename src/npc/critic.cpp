@@ -13,10 +13,12 @@ CriticImpl::CriticImpl(const std::string& network_name,
 }
 
 void CriticImpl::initialize_network() {
-	fc1 = register_module("fc1", torch::nn::Linear(state_dim_ + action_dim_, 256));
-	fc2 = register_module("fc2", torch::nn::Linear(256, 256));
+	fc1 = register_module("fc1", torch::nn::Linear(state_dim_ + action_dim_, 128));
+	fc2 = register_module("fc2", torch::nn::Linear(128, 256));
 	fc3 = register_module("fc3", torch::nn::Linear(256, 256));
-    fc4 = register_module("fc4", torch::nn::Linear(256, 1));
+	fc4 = register_module("fc4", torch::nn::Linear(256, 256));
+	fc5 = register_module("fc5", torch::nn::Linear(256, 128));
+    fc6 = register_module("fc6", torch::nn::Linear(128, 1));
 	dropout = register_module("dropout", torch::nn::Dropout(0.1));
 
 	std::cout << "\nInitializing "<< this->network_name() << " network" << std::endl;
@@ -56,7 +58,12 @@ tensor_t CriticImpl::forward(const tensor_t& state, const tensor_t& action) {
 	x = torch::leaky_relu(fc2->forward(x));
 	x = dropout->forward(x);
 	x = torch::leaky_relu(fc3->forward(x));
-    x = fc4->forward(x);
+	x = dropout->forward(x);
+	x = torch::leaky_relu(fc4->forward(x));
+	x = dropout->forward(x);
+	x = torch::leaky_relu(fc5->forward(x));
+	x = dropout->forward(x);
+    x = fc6->forward(x);
 
 	return x;
 }

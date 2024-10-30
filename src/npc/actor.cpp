@@ -17,11 +17,13 @@ ActorImpl::ActorImpl(const std::string& network_name,
 }
 
 void ActorImpl::initialize_network() {
-	fc1 = register_module("fc1", torch::nn::Linear(state_dim_, 256));
-	fc2 = register_module("fc2", torch::nn::Linear(256, 256));
+	fc1 = register_module("fc1", torch::nn::Linear(state_dim_, 128));
+	fc2 = register_module("fc2", torch::nn::Linear(128, 256));
 	fc3 = register_module("fc3", torch::nn::Linear(256, 256));
-	fc_mean = register_module("fc_mean", torch::nn::Linear(256, action_dim_));
-	fc_log_std = register_module("fc_log_std", torch::nn::Linear(256, action_dim_));
+	fc4 = register_module("fc4", torch::nn::Linear(256, 256));
+	fc5 = register_module("fc5", torch::nn::Linear(256, 128));
+	fc_mean = register_module("fc_mean", torch::nn::Linear(128, action_dim_));
+	fc_log_std = register_module("fc_log_std", torch::nn::Linear(128, action_dim_));
 	dropout = register_module("dropout", torch::nn::Dropout(0.1));
 
 	std::cout << "\nInitializing "<< this->network_name() << " network" << std::endl;
@@ -58,6 +60,10 @@ std::tuple<tensor_t, tensor_t> ActorImpl::forward(const tensor_t& state) {
 	x = torch::leaky_relu(fc2->forward(x));
 	x = dropout->forward(x);
 	x = torch::leaky_relu(fc3->forward(x));
+	x = dropout->forward(x);
+	x = torch::leaky_relu(fc4->forward(x));
+	x = dropout->forward(x);
+	x = torch::leaky_relu(fc5->forward(x));
 
 	auto mean = fc_mean->forward(x);
 	auto log_std = torch::clamp(fc_log_std->forward(x), -20.0, 2.0);
