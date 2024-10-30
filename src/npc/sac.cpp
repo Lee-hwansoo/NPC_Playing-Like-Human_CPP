@@ -36,9 +36,9 @@ std::tuple<tensor_t, tensor_t, tensor_t, tensor_t, tensor_t> ReplayBuffer::sampl
         const auto& [s, a, r, ns, d] = buffer_[indices[i]];
         states.push_back(s);
         actions.push_back(a);
-        rewards.push_back(r);
+        rewards.push_back(r.reshape({ 1 }));
         next_states.push_back(ns);
-        dones.push_back(d);
+        dones.push_back(d.reshape({ 1 }));
     }
 
     return {
@@ -90,12 +90,6 @@ void SAC::update() {
     }
 
     auto [states, actions, rewards, next_states, dones] = memory_->sample();
-
-    states = states;
-    actions = actions;
-    rewards = rewards;
-    next_states = next_states;
-    dones = dones;
 
     tensor_t target_q;
     {

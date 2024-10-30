@@ -69,11 +69,10 @@ std::tuple<tensor_t, tensor_t> ActorImpl::sample(const tensor_t& batch_state) {
 	auto x = batch_state.to(this->device());
 
 	auto [mean, log_std] = forward(x);
-	auto std = torch::exp(log_std);
 
+	auto std = torch::exp(log_std);
 	auto epsilon = torch::randn_like(mean);
 	auto x_t = mean + epsilon * std;
-
 	auto action = torch::tanh(x_t);
 	action = (action + 1.0) / 2.0;
 	action = action * (max_action_ - min_action_) + min_action_;
