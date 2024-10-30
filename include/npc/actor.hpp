@@ -24,8 +24,8 @@ struct ActorImpl : public BaseNetwork {
 
 private:
 	torch::nn::Linear fc1{ nullptr }, fc2{ nullptr }, fc3{ nullptr }, fc4{ nullptr }, fc5{ nullptr };
+	torch::nn::LayerNorm ln1{ nullptr }, ln2{ nullptr }, ln3{ nullptr }, ln4{ nullptr }, ln5{ nullptr };
 	torch::nn::Linear fc_mean{ nullptr }, fc_log_std{ nullptr };
-	torch::nn::Dropout dropout{ nullptr };
 
 	dim_type state_dim_, action_dim_;
 	tensor_t min_action_, max_action_;

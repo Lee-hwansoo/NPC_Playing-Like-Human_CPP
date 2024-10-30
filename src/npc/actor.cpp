@@ -18,13 +18,17 @@ ActorImpl::ActorImpl(const std::string& network_name,
 
 void ActorImpl::initialize_network() {
 	fc1 = register_module("fc1", torch::nn::Linear(state_dim_, 128));
+	ln1 = register_module("ln1", torch::nn::LayerNorm(torch::nn::LayerNormOptions({128})));
 	fc2 = register_module("fc2", torch::nn::Linear(128, 256));
+	ln2 = register_module("ln2", torch::nn::LayerNorm(torch::nn::LayerNormOptions({256})));
 	fc3 = register_module("fc3", torch::nn::Linear(256, 256));
+	ln3 = register_module("ln3", torch::nn::LayerNorm(torch::nn::LayerNormOptions({256})));
 	fc4 = register_module("fc4", torch::nn::Linear(256, 256));
+	ln4 = register_module("ln4", torch::nn::LayerNorm(torch::nn::LayerNormOptions({256})));
 	fc5 = register_module("fc5", torch::nn::Linear(256, 128));
+	ln5 = register_module("ln5", torch::nn::LayerNorm(torch::nn::LayerNormOptions({128})));
 	fc_mean = register_module("fc_mean", torch::nn::Linear(128, action_dim_));
 	fc_log_std = register_module("fc_log_std", torch::nn::Linear(128, action_dim_));
-	dropout = register_module("dropout", torch::nn::Dropout(0.1));
 
 	std::cout << "\nInitializing "<< this->network_name() << " network" << std::endl;
 	count_type count = 0;
@@ -55,15 +59,11 @@ void ActorImpl::to(torch::Device device) {
 std::tuple<tensor_t, tensor_t> ActorImpl::forward(const tensor_t& state) {
 	auto x = state.to(this->device());
 
-	x = torch::leaky_relu(fc1->forward(x));
-	x = dropout->forward(x);
-	x = torch::leaky_relu(fc2->forward(x));
-	x = dropout->forward(x);
-	x = torch::leaky_relu(fc3->forward(x));
-	x = dropout->forward(x);
-	x = torch::leaky_relu(fc4->forward(x));
-	x = dropout->forward(x);
-	x = torch::leaky_relu(fc5->forward(x));
+    x = torch::leaky_relu(ln1->forward(fc1->forward(x)));
+    x = torch::leaky_relu(ln2->forward(fc2->forward(x)));
+    x = torch::leaky_relu(ln3->forward(fc3->forward(x)));
+    x = torch::leaky_relu(ln4->forward(fc4->forward(x)));
+    x = torch::leaky_relu(ln5->forward(fc5->forward(x)));
 
 	auto mean = fc_mean->forward(x);
 	auto log_std = torch::clamp(fc_log_std->forward(x), -20.0, 2.0);

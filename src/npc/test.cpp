@@ -183,7 +183,7 @@ void testBasicTrainEnvironmnet(SDL_Renderer* renderer) {
     environment::TrainEnvironment env(constants::Display::WIDTH, constants::Display::HEIGHT);
     env.set_render(renderer);
     // env.load("20241031_004809", 200);
-    env.train(300, true);
+    env.train(150, true);
 }
 
 int main(int argc, char* argv[]) {
