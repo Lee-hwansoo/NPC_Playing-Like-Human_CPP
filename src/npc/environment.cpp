@@ -174,59 +174,67 @@ std::vector<real_t> TrainEnvironment::train(const dim_type episodes, bool render
     std::vector<real_t> reward_history;
     reward_history.reserve(static_cast<size_t>(episodes));
 
+	bool quit = false;
     for (dim_type episode = start_episode_; episode < start_episode_+ episodes; ++episode) {
-        real_t episode_return = 0.0f;
-        tensor_t state = reset();
-		bool done = false;
+		if (!quit) {
+			real_t episode_return = 0.0f;
+			tensor_t state = reset();
+			bool done = false;
 
-        while (!done) {
-            // 행동 선택 및 환경 스텝
-            tensor_t action = sac_->select_action(state);
-            auto [next_state, reward, terminated, truncated] = step(action);
+			while (!done && !quit) {
+				// 행동 선택 및 환경 스텝
+				tensor_t action = sac_->select_action(state);
+				auto [next_state, reward, terminated, truncated] = step(action);
 
-            // 경험 저장 및 학습
-            done = terminated || truncated;
-            sac_->add(state, action, reward, next_state, torch::tensor(done, get_tensor_dtype()));
-            sac_->update();
+				// 경험 저장 및 학습
+				done = terminated || truncated;
+				sac_->add(state, action, reward, next_state, torch::tensor(done, get_tensor_dtype()));
+				sac_->update();
 
-            episode_return += reward.item<real_t>();
-            state = next_state;
+				episode_return += reward.item<real_t>();
+				state = next_state;
 
-            // 렌더링 수행
-            if (render) {
-				SDL_Event event;
-				while (SDL_PollEvent(&event)) {
-					if (event.type == SDL_QUIT ||
-						(event.key.keysym.sym == SDLK_ESCAPE)) {
-						break;
+				// 렌더링 수행
+				if (render) {
+					SDL_Event event;
+					while (SDL_PollEvent(&event)) {
+						if (event.type == SDL_QUIT ||
+							(event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
+							quit = true;
+							break;
+						}
 					}
+
+					SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
+					SDL_RenderClear(renderer_);
+
+					auto color = Display::to_sdl_color(Display::GREEN);
+					SDL_SetRenderDrawColor(renderer_, color.r, color.g, color.b, color.a);
+					SDL_RenderDrawLine(renderer_, 0, Section::GOAL_LINE, Display::WIDTH, Section::GOAL_LINE);
+					SDL_RenderDrawLine(renderer_, 0, Section::START_LINE, Display::WIDTH, Section::START_LINE);
+
+					for (auto& obs : circle_obstacles_) {
+						obs->draw(renderer_);
+					}
+					for (auto& obs : rectangle_obstacles_) {
+						obs->draw(renderer_);
+					}
+					goal_->draw(renderer_);
+					agent_->draw(renderer_);
+
+					std::cout << "\rEpisode: " << episode + 1 << "/" << episodes
+						<< " | Step: " << step_count_ << std::flush;
+
+					SDL_RenderPresent(renderer_);
 				}
-				SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
-				SDL_RenderClear(renderer_);
+			}
 
-				auto color = Display::to_sdl_color(Display::GREEN);
-				SDL_SetRenderDrawColor(renderer_, color.r, color.g, color.b, color.a);
-				SDL_RenderDrawLine(renderer_, 0, Section::GOAL_LINE, Display::WIDTH, Section::GOAL_LINE);
-				SDL_RenderDrawLine(renderer_, 0, Section::START_LINE, Display::WIDTH, Section::START_LINE);
+			reward_history.push_back(episode_return);
 
-				for (auto& obs : circle_obstacles_) {
-					obs->draw(renderer_);
-				}
-				for (auto& obs : rectangle_obstacles_) {
-					obs->draw(renderer_);
-				}
-				goal_->draw(renderer_);
-				agent_->draw(renderer_);
-
-				SDL_RenderPresent(renderer_);
-            }
-        }
-
-        reward_history.push_back(episode_return);
-
-		if (episode+1 % constants::NETWORK::INTERVAL == 0) {
-			log_statistics(reward_history, episode);
-			save(episode + 1);
+			if (episode + 1 % constants::NETWORK::INTERVAL == 0) {
+				log_statistics(reward_history, episode);
+				save(episode + 1);
+			}
 		}
     }
 
