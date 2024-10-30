@@ -72,6 +72,9 @@ protected:
 	virtual bool check_goal() const = 0;
 	virtual bool check_bounds() const = 0;
 	virtual bool check_obstacle_collision() const = 0;
+
+	virtual tensor_t get_min_action() const = 0;
+	virtual tensor_t get_max_action() const = 0;
 };
 
 
@@ -94,6 +97,13 @@ protected:
 	bool check_goal() const override;
 	bool check_bounds() const override;
 	bool check_obstacle_collision() const override;
+
+	tensor_t get_min_action() const override {
+		return torch::tensor({ constants::Agent::VELOCITY_LIMITS.a / constants::Agent::VELOCITY_LIMITS.b, -(constants::Agent::YAW_CHANGE_LIMIT / constants::Agent::YAW_CHANGE_LIMIT) }, get_tensor_dtype());
+	}
+	tensor_t get_max_action() const override {
+		return torch::tensor({ constants::Agent::VELOCITY_LIMITS.b / constants::Agent::VELOCITY_LIMITS.b, (constants::Agent::YAW_CHANGE_LIMIT / constants::Agent::YAW_CHANGE_LIMIT) }, get_tensor_dtype());
+	}
 
 private:
 	std::vector<std::unique_ptr<object::CircleObstacle>> circle_obstacles_;

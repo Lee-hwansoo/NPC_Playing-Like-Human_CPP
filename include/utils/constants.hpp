@@ -89,12 +89,6 @@ namespace constants
         // Movement constraints
         const Vector2 VELOCITY_LIMITS(30.0f, 50.0f);  // Range: 3~5 m/s
         constexpr real_t YAW_CHANGE_LIMIT = 51.5f * DEG_TO_RAD;  // 51.5 degrees/s
-        tensor_t get_min_action() {
-            return torch::tensor({ VELOCITY_LIMITS.a / VELOCITY_LIMITS.b, -(YAW_CHANGE_LIMIT / YAW_CHANGE_LIMIT) }, get_tensor_dtype());
-        }
-		tensor_t get_max_action() {
-			return torch::tensor({ VELOCITY_LIMITS.b / VELOCITY_LIMITS.b, (YAW_CHANGE_LIMIT / YAW_CHANGE_LIMIT) }, get_tensor_dtype());
-		}
 
         // Field of View (FOV) properties
         namespace FOV
