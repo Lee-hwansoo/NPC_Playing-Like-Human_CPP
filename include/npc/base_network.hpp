@@ -70,10 +70,10 @@ public:
             const auto& tensor = pair.value();
 
             if (model_params.contains(name)) {
-                model_params[name].copy_(tensor.to(device_));
+                model_params[name].copy_(tensor);
             }
             else if (model_buffers.contains(name)) {
-                model_buffers[name].copy_(tensor.to(device_));
+                model_buffers[name].copy_(tensor);
             }
             else {
                 std::cerr << "Warning: Key '" << name << "' in state dict was not found in the model" << std::endl;

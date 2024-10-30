@@ -9,12 +9,10 @@ RRT::RRT(const tensor_t& start,
          const types::Bounds2D& space,
 	     const tensor_t& circle_obstacles_state,
 	     const tensor_t& rectangle_obstacles_state,
-         const tensor_t& goal_state,
-         const torch::Device device)
+         const tensor_t& goal_state)
     : space_(space)
-    , circle_obstacles_state_(circle_obstacles_state.to(device))
-    , rectangle_obstacles_state_(rectangle_obstacles_state.to(device))
-    , device_(device)
+    , circle_obstacles_state_(circle_obstacles_state)
+    , rectangle_obstacles_state_(rectangle_obstacles_state)
     , max_iter_(constants::RRT::MAX_ITER)
     , goal_sample_rate_(constants::RRT::GOAL_SAMPLE_RATE)
     , min_u_(constants::RRT::MIN_U)
@@ -34,8 +32,8 @@ RRT::RRT(const tensor_t& start,
 void RRT::update(const tensor_t& start, const tensor_t& circle_obstacles_state, const tensor_t& rectangle_obstacles_state, const tensor_t& goal_state) {
     start_node_ = std::make_shared<Node>(start[0].item<real_t>(), start[1].item<real_t>());
     goal_node_ = std::make_shared<Node>(goal_state[0].item<real_t>(), goal_state[1].item<real_t>());
-    circle_obstacles_state_ = circle_obstacles_state.to(device_);
-    rectangle_obstacles_state_ = rectangle_obstacles_state.to(device_);
+    circle_obstacles_state_ = circle_obstacles_state;
+    rectangle_obstacles_state_ = rectangle_obstacles_state;
 }
 
 tensor_t RRT::plan() {
@@ -88,7 +86,7 @@ tensor_t RRT::plan() {
     fallback_path.push_back(goal_node_->x());
     fallback_path.push_back(goal_node_->y());
 
-    return torch::from_blob(fallback_path.data(), {2, 2}, torch::TensorOptions().dtype(get_tensor_dtype()).device(device_)).clone();
+    return torch::from_blob(fallback_path.data(), {2, 2}).clone();
 }
 
 std::shared_ptr<Node> RRT::get_random_node() {
@@ -240,7 +238,7 @@ bool RRT::check_rectangle_path_collision(const tensor_t& points) const {
 }
 
 bool RRT::is_collide(const std::shared_ptr<Node>& node) const {
-    auto position = torch::tensor({node->x(), node->y()}, torch::TensorOptions().dtype(get_tensor_dtype()).device(device_));
+    auto position = torch::tensor({node->x(), node->y()});
 
     return check_circle_collision(position) || check_rectangle_collision(position);
 }
@@ -258,9 +256,9 @@ bool RRT::is_path_collide(
 	}
 
     count_type n_points = static_cast<count_type>(std::ceil(length / collision_check_step_)) + 1;
-    tensor_t t = torch::linspace(0, 1, n_points, device_);
-    tensor_t start_pos = torch::tensor({ node_from->x(), node_from->y() }, torch::TensorOptions().device(device_));
-    tensor_t end_pos = torch::tensor({ node_to->x(), node_to->y() }, torch::TensorOptions().device(device_));
+    tensor_t t = torch::linspace(0, 1, n_points);
+    tensor_t start_pos = torch::tensor({ node_from->x(), node_from->y() }, torch::TensorOptions());
+    tensor_t end_pos = torch::tensor({ node_to->x(), node_to->y() }, torch::TensorOptions());
 
     tensor_t t_expanded = t.unsqueeze(1);
     tensor_t points = start_pos * (1 - t_expanded) + end_pos * t_expanded;
@@ -288,7 +286,7 @@ tensor_t RRT::backtrace_path(const std::shared_ptr<Node>& node) const {
 
     auto options = torch::TensorOptions()
         .dtype(get_tensor_dtype())
-        .device(device_);
+        ;
 
     auto path_tensor = torch::from_blob(path_points.data(),
                                       {static_cast<int64_t>(path_points.size() / 2), 2},

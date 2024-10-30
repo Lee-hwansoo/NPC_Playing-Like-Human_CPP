@@ -1,7 +1,6 @@
 ﻿#pragma once
 
 #include "npc/base_network.hpp"
-#include <vector>
 
 using namespace types;
 using namespace constants;

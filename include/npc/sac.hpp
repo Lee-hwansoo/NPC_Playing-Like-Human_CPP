@@ -6,7 +6,6 @@
 #include <deque>
 #include <random>
 #include <tuple>
-#include <vector>
 #include <memory>
 
 class ReplayBuffer {

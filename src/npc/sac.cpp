@@ -42,11 +42,11 @@ std::tuple<tensor_t, tensor_t, tensor_t, tensor_t, tensor_t> ReplayBuffer::sampl
     }
 
     return {
-        torch::stack(states).to(device_),
-        torch::stack(actions).to(device_),
-        torch::stack(rewards).to(device_),
-        torch::stack(next_states).to(device_),
-        torch::stack(dones).to(device_)
+        torch::stack(states),
+        torch::stack(actions),
+        torch::stack(rewards),
+        torch::stack(next_states),
+        torch::stack(dones)
     };
 }
 
@@ -79,7 +79,7 @@ SAC::SAC(dim_type state_dim, dim_type action_dim,
 
 tensor_t SAC::select_action(const tensor_t& state) {
     torch::NoGradGuard no_grad;
-    auto state_device = state.to(device_);
+    auto state_device = state;
     auto [action, _] = actor_->sample(state_device);
     return action.cpu();
 }
@@ -91,11 +91,11 @@ void SAC::update() {
 
     auto [states, actions, rewards, next_states, dones] = memory_->sample();
 
-    states = states.to(device_);
-    actions = actions.to(device_);
-    rewards = rewards.to(device_);
-    next_states = next_states.to(device_);
-    dones = dones.to(device_);
+    states = states;
+    actions = actions;
+    rewards = rewards;
+    next_states = next_states;
+    dones = dones;
 
     tensor_t target_q;
     {

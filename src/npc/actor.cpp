@@ -47,8 +47,6 @@ void ActorImpl::initialize_network() {
 void ActorImpl::to(torch::Device device) {
 	if (this->device() != device) {
 		BaseNetwork::to(device);
-		min_action_ = min_action_.to(device);
-		max_action_ = max_action_.to(device);
 	}
 }
 

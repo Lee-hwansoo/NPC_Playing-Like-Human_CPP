@@ -2,7 +2,6 @@
 
 #include "utils/types.hpp"
 #include "utils/constants.hpp"
-#include "utils/utils.hpp"
 #include "npc/sac.hpp"
 #include "npc/object.hpp"
 #include <SDL.h>
@@ -27,13 +26,12 @@ public:
 	virtual void render(SDL_Renderer* renderer) const {}
 
 	virtual tensor_t get_observation_space() const {
-		return torch::full({ observation_dim_ }, std::numeric_limits<real_t>::infinity(),
-			torch::TensorOptions().dtype(get_tensor_dtype()).device(device_));
+		return torch::full({ observation_dim_ }, std::numeric_limits<real_t>::infinity());
 	}
 
 	virtual std::pair<tensor_t, tensor_t> get_action_space() const {
-		auto min_action = torch::tensor({ (constants::Agent::VELOCITY_LIMITS.a / constants::Agent::VELOCITY_LIMITS.b), -(constants::Agent::YAW_CHANGE_LIMIT / constants::Agent::YAW_CHANGE_LIMIT) }, torch::TensorOptions().dtype(get_tensor_dtype()).device(device_));
-		auto max_action = torch::tensor({ (constants::Agent::VELOCITY_LIMITS.b / constants::Agent::VELOCITY_LIMITS.b), (constants::Agent::YAW_CHANGE_LIMIT / constants::Agent::YAW_CHANGE_LIMIT) }, torch::TensorOptions().dtype(get_tensor_dtype()).device(device_));
+		auto min_action = torch::tensor({ (constants::Agent::VELOCITY_LIMITS.a / constants::Agent::VELOCITY_LIMITS.b), -(constants::Agent::YAW_CHANGE_LIMIT / constants::Agent::YAW_CHANGE_LIMIT) });
+		auto max_action = torch::tensor({ (constants::Agent::VELOCITY_LIMITS.b / constants::Agent::VELOCITY_LIMITS.b), (constants::Agent::YAW_CHANGE_LIMIT / constants::Agent::YAW_CHANGE_LIMIT) });
 		return { min_action, max_action };
 	}
 
@@ -99,10 +97,10 @@ protected:
 	bool check_obstacle_collision() const override;
 
 	tensor_t get_min_action() const override {
-		return torch::tensor({ constants::Agent::VELOCITY_LIMITS.a / constants::Agent::VELOCITY_LIMITS.b, -(constants::Agent::YAW_CHANGE_LIMIT / constants::Agent::YAW_CHANGE_LIMIT) }, get_tensor_dtype());
+		return torch::tensor({ constants::Agent::VELOCITY_LIMITS.a / constants::Agent::VELOCITY_LIMITS.b, -(constants::Agent::YAW_CHANGE_LIMIT / constants::Agent::YAW_CHANGE_LIMIT) });
 	}
 	tensor_t get_max_action() const override {
-		return torch::tensor({ constants::Agent::VELOCITY_LIMITS.b / constants::Agent::VELOCITY_LIMITS.b, (constants::Agent::YAW_CHANGE_LIMIT / constants::Agent::YAW_CHANGE_LIMIT) }, get_tensor_dtype());
+		return torch::tensor({ constants::Agent::VELOCITY_LIMITS.b / constants::Agent::VELOCITY_LIMITS.b, (constants::Agent::YAW_CHANGE_LIMIT / constants::Agent::YAW_CHANGE_LIMIT) });
 	}
 
 private:

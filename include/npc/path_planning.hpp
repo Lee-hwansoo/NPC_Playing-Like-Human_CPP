@@ -32,8 +32,7 @@ public:
         const Bounds2D& space,
         const tensor_t& circle_obstacles_state,
         const tensor_t& rectangle_obstacles_state,
-        const tensor_t& goal_state,
-        const torch::Device device = torch::kCPU);
+        const tensor_t& goal_state);
 
     void update(const tensor_t& start, const tensor_t& circle_obstacles_state, const tensor_t& rectangle_obstacles_state, const tensor_t& goal_state);
     tensor_t plan();
@@ -64,7 +63,6 @@ private:
     tensor_t circle_obstacles_state_;
     tensor_t rectangle_obstacles_state_;
     std::vector<std::shared_ptr<Node>> node_list_;
-    torch::Device device_;
 
     count_type max_iter_;
     real_t goal_sample_rate_;

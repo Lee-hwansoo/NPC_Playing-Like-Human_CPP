@@ -1,6 +1,5 @@
 ﻿#include "utils/types.hpp"
 #include "utils/constants.hpp"
-#include "utils/utils.hpp"
 #include "npc/actor.hpp"
 #include "npc/critic.hpp"
 #include "npc/sac.hpp"
@@ -146,7 +145,7 @@ void testIntegratedObjects(SDL_Renderer* renderer) {
         obs->reset();  // 초기 위치 설정
         circle_obstacles.push_back(std::move(obs));
     }
-    tensor_t circle_obstacles_state = torch::zeros({constants::CircleObstacle::COUNT, 3}, get_tensor_dtype());
+    tensor_t circle_obstacles_state = torch::zeros({constants::CircleObstacle::COUNT, 3});
     auto updateCircleObstaclesState = [&circle_obstacles, &circle_obstacles_state]() {
         for (size_t i = 0; i < circle_obstacles.size(); ++i) {
             circle_obstacles_state[i] = circle_obstacles[i]->get_state().squeeze(0);
@@ -162,7 +161,7 @@ void testIntegratedObjects(SDL_Renderer* renderer) {
         obs->reset();  // 초기 위치 설정
         rectangle_obstacles.push_back(std::move(obs));
     }
-    tensor_t rectangle_obstacles_state = torch::zeros({constants::RectangleObstacle::COUNT, 5}, get_tensor_dtype());
+    tensor_t rectangle_obstacles_state = torch::zeros({constants::RectangleObstacle::COUNT, 5});
     auto updateRectangleObstaclesState = [&rectangle_obstacles, &rectangle_obstacles_state]() {
         for (size_t i = 0; i < rectangle_obstacles.size(); ++i) {
             rectangle_obstacles_state[i] = rectangle_obstacles[i]->get_state().squeeze(0);
@@ -172,11 +171,11 @@ void testIntegratedObjects(SDL_Renderer* renderer) {
     rectangle_obstacles_state = updateRectangleObstaclesState();
 
     // 목표 생성 및 초기화
-    auto goal = std::make_unique<object::Goal>(std::nullopt, std::nullopt, constants::Goal::RADIUS, constants::Goal::SPAWN_BOUNDS, Display::to_sdl_color(Display::GREEN), false);
+    auto goal = std::make_unique<object::Goal>(500, std::nullopt, constants::Goal::RADIUS, constants::Goal::SPAWN_BOUNDS, Display::to_sdl_color(Display::GREEN), false);
     goal->reset();
 
     // 에이전트 생성 및 초기화
-    auto agent = std::make_unique<object::Agent>(std::nullopt, std::nullopt, constants::Agent::RADIUS, constants::Agent::SPAWN_BOUNDS, constants::Agent::MOVE_BOUNDS, Display::to_sdl_color(Display::BLUE), true, circle_obstacles_state, rectangle_obstacles_state, goal->get_state().squeeze(0));
+    auto agent = std::make_unique<object::Agent>(500, std::nullopt, constants::Agent::RADIUS, constants::Agent::SPAWN_BOUNDS, constants::Agent::MOVE_BOUNDS, Display::to_sdl_color(Display::BLUE), true, circle_obstacles_state, rectangle_obstacles_state, goal->get_state().squeeze(0));
 
     bool quit = false;
     SDL_Event event;
@@ -215,6 +214,9 @@ void testIntegratedObjects(SDL_Renderer* renderer) {
 
         updateCircleObstaclesState();
         agent->update(dt, forward_action, circle_obstacles_state, goal->get_state().squeeze(0));
+
+        agent->is_goal();
+        // std::cout << agent->is_goal() << std::endl;
 
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
