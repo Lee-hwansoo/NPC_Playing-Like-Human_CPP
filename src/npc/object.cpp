@@ -493,7 +493,7 @@ std::tuple<Vector2, real_t> Agent::get_frenet_d() {
 
         tensor_t cross_product = torch::cross(x_vec_3d, n_vec_3d, 0);
 
-		if (cross_product[2].item<double>() > 0) {
+		if (cross_product[2].item<real_t>() > 0) {
 			frenet_d = -frenet_d;
 		}
 

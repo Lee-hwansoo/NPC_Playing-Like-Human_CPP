@@ -101,8 +101,10 @@ std::tuple<tensor_t, tensor_t, bool, bool> TrainEnvironment::step(const tensor_t
 
 	if (terminated_ || truncated_) {
 		tensor_t current_state = get_observation();
+		bool is_terminated = terminated_;
+		bool is_truncated = truncated_;
 		reset();
-		return std::make_tuple(current_state, reward, terminated_, truncated_);
+		return std::make_tuple(current_state, reward, is_terminated, is_truncated);
 	}
 
 	step_count_++;
@@ -170,68 +172,62 @@ void TrainEnvironment::load(const std::string& timestamp, dim_type episode) {
 
 std::vector<real_t> TrainEnvironment::train(const dim_type episodes, bool render) {
 	sac_->train();
-
+	SDL_Event event;
     std::vector<real_t> reward_history;
     reward_history.reserve(static_cast<size_t>(episodes));
 
-	bool quit = false;
     for (dim_type episode = start_episode_; episode < start_episode_+ episodes; ++episode) {
-		if (!quit) {
-			real_t episode_return = 0.0f;
-			tensor_t state = reset();
-			bool done = false;
+		real_t episode_return = 0.0f;
+		tensor_t state = reset();
+		bool done = false;
 
-			while (!done && !quit) {
-				tensor_t action = sac_->select_action(state);
-				auto [next_state, reward, terminated, truncated] = step(action);
+		while (!done) {
+			tensor_t action = sac_->select_action(state);
+			auto [next_state, reward, terminated, truncated] = step(action);
 
-				done = terminated || truncated;
-				sac_->add(state, action, reward, next_state, torch::tensor(done, get_tensor_dtype()));
-				sac_->update();
+			done = terminated || truncated;
+			sac_->add(state, action, reward, next_state, torch::tensor(done, get_tensor_dtype()));
+			sac_->update();
 
-				episode_return += reward.item<real_t>();
-				state = next_state;
+			episode_return += reward.item<real_t>();
+			state = next_state;
 
-				if (render) {
-					SDL_Event event;
-					while (SDL_PollEvent(&event)) {
-						if (event.type == SDL_QUIT ||
-							(event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
-							quit = true;
-							break;
-						}
+			if (render) {
+				while (SDL_PollEvent(&event)) {
+					if (event.type == SDL_QUIT ||
+						(event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
+						return reward_history;;
 					}
-
-					SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
-					SDL_RenderClear(renderer_);
-
-					auto color = Display::to_sdl_color(Display::GREEN);
-					SDL_SetRenderDrawColor(renderer_, color.r, color.g, color.b, color.a);
-					SDL_RenderDrawLine(renderer_, 0, Section::GOAL_LINE, Display::WIDTH, Section::GOAL_LINE);
-					SDL_RenderDrawLine(renderer_, 0, Section::START_LINE, Display::WIDTH, Section::START_LINE);
-
-					for (auto& obs : circle_obstacles_) {
-						obs->draw(renderer_);
-					}
-					for (auto& obs : rectangle_obstacles_) {
-						obs->draw(renderer_);
-					}
-					goal_->draw(renderer_);
-					agent_->draw(renderer_);
-
-					std::cout << "\rEpisode: " << episode + 1 << "/" << episodes
-						<< " | Step: " << step_count_ << std::flush;
-
-					SDL_RenderPresent(renderer_);
 				}
+
+				SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
+				SDL_RenderClear(renderer_);
+
+				auto color = Display::to_sdl_color(Display::GREEN);
+				SDL_SetRenderDrawColor(renderer_, color.r, color.g, color.b, color.a);
+				SDL_RenderDrawLine(renderer_, 0, Section::GOAL_LINE, Display::WIDTH, Section::GOAL_LINE);
+				SDL_RenderDrawLine(renderer_, 0, Section::START_LINE, Display::WIDTH, Section::START_LINE);
+
+				for (auto& obs : circle_obstacles_) {
+					obs->draw(renderer_);
+				}
+				for (auto& obs : rectangle_obstacles_) {
+					obs->draw(renderer_);
+				}
+				goal_->draw(renderer_);
+				agent_->draw(renderer_);
+
+				SDL_RenderPresent(renderer_);
 			}
 
-			reward_history.push_back(episode_return);
+			std::cout << "\rEpisode: " << episode + 1 << "/" << episodes << " | Step: " << step_count_ << " " << std::flush;
+		}
 
-			if (episode + 1 % constants::NETWORK::INTERVAL == 0) {
-				log_statistics(reward_history, episode);
-				save(episode + 1);
-			}
+		reward_history.push_back(episode_return);
+
+		if ((episode + 1) % constants::NETWORK::INTERVAL == 0) {
+			log_statistics(reward_history, episode);
+			save(episode + 1);
 		}
     }
 

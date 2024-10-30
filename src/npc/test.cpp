@@ -63,7 +63,7 @@ public:
         SDL_SetHint(SDL_HINT_RENDER_BATCHING, "1");       // 배치 렌더링 활성화
 
         window_ = SDL_CreateWindow(
-            "GPU Accelerated Object Test",
+            "Pearl Abyss",
             SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
             Display::WIDTH, Display::HEIGHT,
             SDL_WINDOW_SHOWN
@@ -113,10 +113,10 @@ public:
         SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_BLEND);
 
         // Windows에서 추가 성능 최적화
-#ifdef _WIN32
+    #ifdef _WIN32
         // DPI 인식 비활성화로 스케일링 오버헤드 감소
         SDL_SetHint(SDL_HINT_WINDOWS_DPI_AWARENESS, "0");
-#endif
+    #endif
     }
 
     ~RenderWindow() {
@@ -132,128 +132,10 @@ private:
     SDL_Renderer* renderer_ = nullptr;
 };
 
-void testIntegratedObjects(SDL_Renderer* renderer) {
-    std::cout << "Starting simple object display test...\n";
-
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-    SDL_RenderClear(renderer);
-
-    std::vector<std::unique_ptr<object::CircleObstacle>> circle_obstacles;
-    circle_obstacles.reserve(constants::CircleObstacle::COUNT);
-    for (size_t i = 0; i < constants::CircleObstacle::COUNT; i++) {
-        auto obs = std::make_unique<object::CircleObstacle>(std::nullopt, std::nullopt, constants::CircleObstacle::RADIUS, constants::CircleObstacle::SPAWN_BOUNDS, Display::to_sdl_color(Display::ORANGE), true);
-        obs->reset();  // 초기 위치 설정
-        circle_obstacles.push_back(std::move(obs));
-    }
-    tensor_t circle_obstacles_state = torch::zeros({constants::CircleObstacle::COUNT, 3});
-    auto updateCircleObstaclesState = [&circle_obstacles, &circle_obstacles_state]() {
-        for (size_t i = 0; i < circle_obstacles.size(); ++i) {
-            circle_obstacles_state[i] = circle_obstacles[i]->get_state();
-        }
-        return circle_obstacles_state;
-    };
-    circle_obstacles_state = updateCircleObstaclesState();
-
-    std::vector<std::unique_ptr<object::RectangleObstacle>> rectangle_obstacles;
-    rectangle_obstacles.reserve(constants::RectangleObstacle::COUNT);
-    for (size_t i = 0; i < constants::RectangleObstacle::COUNT; i++) {
-        auto obs = std::make_unique<object::RectangleObstacle>(std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, constants::RectangleObstacle::SPAWN_BOUNDS, Display::to_sdl_color(Display::ORANGE), false);
-        obs->reset();  // 초기 위치 설정
-        rectangle_obstacles.push_back(std::move(obs));
-    }
-    tensor_t rectangle_obstacles_state = torch::zeros({constants::RectangleObstacle::COUNT, 5});
-    auto updateRectangleObstaclesState = [&rectangle_obstacles, &rectangle_obstacles_state]() {
-        for (size_t i = 0; i < rectangle_obstacles.size(); ++i) {
-            rectangle_obstacles_state[i] = rectangle_obstacles[i]->get_state();
-        }
-        return rectangle_obstacles_state;
-    };
-    rectangle_obstacles_state = updateRectangleObstaclesState();
-
-    // 목표 생성 및 초기화
-    auto goal = std::make_unique<object::Goal>(500.0f, 50.0f, constants::Goal::RADIUS, constants::Goal::SPAWN_BOUNDS, Display::to_sdl_color(Display::GREEN), false);
-    goal->reset();
-
-    // 에이전트 생성 및 초기화
-    auto agent = std::make_unique<object::Agent>(500.0f, 950.0f, constants::Agent::RADIUS, constants::Agent::SPAWN_BOUNDS, constants::Agent::MOVE_BOUNDS, Display::to_sdl_color(Display::BLUE), true, circle_obstacles_state, rectangle_obstacles_state, goal->get_state());
-
-    std::cout << agent->get_state() << std::endl;
-
-    bool quit = false;
-    SDL_Event event;
-
-    const real_t dt = 1.0f / Display::FPS;
-
-    const tensor_t forward_action = torch::tensor({0.6f, 0.0f});
-
-    Uint32 frameCount = 0;
-    Uint32 lastTime = SDL_GetTicks();
-    Uint32 currentTime;
-    while (!quit) {
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT ||
-                (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
-                quit = true;
-            }
-            else if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_r) {
-                for (auto& obs : circle_obstacles) {
-                    obs->reset();
-                }
-                for (auto& obs : rectangle_obstacles) {
-                    obs->reset();
-                }
-                goal->reset(500.0f, 50.0f);
-                updateCircleObstaclesState();
-                updateRectangleObstaclesState();
-                agent->reset(500.0f, 950.0f, circle_obstacles_state, rectangle_obstacles_state, goal->get_state());
-            }
-        }
-
-        // 장애물 업데이트 - 고정된 dt로 시뮬레이션
-        for (auto& obs : circle_obstacles) {
-            obs->update(dt);
-        }
-
-        updateCircleObstaclesState();
-        agent->update(dt, forward_action, circle_obstacles_state);
-
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_RenderClear(renderer);
-
-        auto color = Display::to_sdl_color(Display::GREEN);
-        SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
-        SDL_RenderDrawLine(renderer, 0, Section::GOAL_LINE, Display::WIDTH, Section::GOAL_LINE);
-        SDL_RenderDrawLine(renderer, 0, Section::START_LINE, Display::WIDTH, Section::START_LINE);
-
-        for (const auto& obs : circle_obstacles) {
-            obs->draw(renderer);
-        }
-
-        for (const auto& obs : rectangle_obstacles) {
-            obs->draw(renderer);
-        }
-
-        goal->draw(renderer);
-
-        agent->draw(renderer);
-
-        SDL_RenderPresent(renderer);
-
-        frameCount++;
-        currentTime = SDL_GetTicks();
-        if (currentTime > lastTime + 1000) {
-            std::cout << "FPS: " << frameCount << std::endl;
-            frameCount = 0;
-            lastTime = currentTime;
-        }
-    }
-
-    std::cout << "Display test completed.\n";
-}
-
 void testBasicTrainEnvironmnet(SDL_Renderer* renderer) {
     environment::TrainEnvironment env(constants::Display::WIDTH, constants::Display::HEIGHT);
     env.set_render(renderer);
+    // env.load("20241030_235546", 100);
     env.train(100, true);
 }
 
@@ -262,7 +144,6 @@ int main(int argc, char* argv[]) {
         SDLWrapper sdl;
         RenderWindow window;
 
-        // testIntegratedObjects(window.getRenderer());
         testBasicTrainEnvironmnet(window.getRenderer());
         return 0;
 
