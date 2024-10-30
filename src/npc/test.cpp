@@ -148,7 +148,7 @@ void testIntegratedObjects(SDL_Renderer* renderer) {
     tensor_t circle_obstacles_state = torch::zeros({constants::CircleObstacle::COUNT, 3});
     auto updateCircleObstaclesState = [&circle_obstacles, &circle_obstacles_state]() {
         for (size_t i = 0; i < circle_obstacles.size(); ++i) {
-            circle_obstacles_state[i] = circle_obstacles[i]->get_state().squeeze(0);
+            circle_obstacles_state[i] = circle_obstacles[i]->get_state();
         }
         return circle_obstacles_state;
     };
@@ -164,7 +164,7 @@ void testIntegratedObjects(SDL_Renderer* renderer) {
     tensor_t rectangle_obstacles_state = torch::zeros({constants::RectangleObstacle::COUNT, 5});
     auto updateRectangleObstaclesState = [&rectangle_obstacles, &rectangle_obstacles_state]() {
         for (size_t i = 0; i < rectangle_obstacles.size(); ++i) {
-            rectangle_obstacles_state[i] = rectangle_obstacles[i]->get_state().squeeze(0);
+            rectangle_obstacles_state[i] = rectangle_obstacles[i]->get_state();
         }
         return rectangle_obstacles_state;
     };

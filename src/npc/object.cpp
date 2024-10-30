@@ -75,7 +75,7 @@ tensor_t CircleObstacle::get_state() const {
 			position_[1].item<real_t>(),
 			radius_
 		});
-    return state.unsqueeze(0);
+    return state;
 }
 
 void CircleObstacle::draw(SDL_Renderer* renderer) {
@@ -153,7 +153,7 @@ tensor_t RectangleObstacle::get_state() const {
             height_,                      // 높이
             yaw_                          // 회전각
         });
-    return state.unsqueeze(0);
+    return state;
 }
 
 std::array<tensor_t, 4> RectangleObstacle::get_corners() const {
@@ -576,7 +576,7 @@ tensor_t Agent::get_state() const {
         normalized_frenet_d
     });
 
-    return state.unsqueeze(0);
+    return state;
 };
 
 tensor_t Agent::get_raw_state() const {
