@@ -69,10 +69,10 @@ public:
 
     tensor_t select_action(const tensor_t& state);
     void update();
-    void save_network_parameters(dim_type episode) {
-        actor_->save_network_parameters(episode);
-		critic1_->save_network_parameters(episode);
-		critic2_->save_network_parameters(episode);
+    void save_network_parameters(dim_type episode, bool print = true) {
+        actor_->save_network_parameters(episode, print);
+		critic1_->save_network_parameters(episode, print);
+		critic2_->save_network_parameters(episode, print);
     }
     void load_network_parameters(const std::string& timestamp, dim_type episode){
         actor_->load_network_parameters(timestamp, episode);

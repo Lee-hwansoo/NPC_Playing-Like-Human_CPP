@@ -84,7 +84,7 @@ public:
 
 	tensor_t reset() override;
 	std::tuple<tensor_t, tensor_t, bool, bool> step(const tensor_t& action) override;
-	void save(dim_type episode);
+	void save(dim_type episode, bool print);
 	void load(const std::string& timestamp, dim_type episode);
 	std::vector<real_t> train(const dim_type episodes, bool render = false);
 	std::vector<real_t> test(const dim_type episodes, bool render = false);

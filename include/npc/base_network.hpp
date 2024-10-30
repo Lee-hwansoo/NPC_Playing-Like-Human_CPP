@@ -83,7 +83,7 @@ public:
         std::cout << "\nSuccessfully Loaded " << network_name_ << " network parameters" << std::endl;
     }
 
-    void save_network_parameters(dim_type episode) {
+    void save_network_parameters(dim_type episode, bool print = true) {
         try {
             this->to(torch::kCPU);
             std::string timestamp = get_current_timestamp();
@@ -95,23 +95,26 @@ public:
 
             torch::serialize::OutputArchive archive;
 
-            std::cout << "\nSaving parameters:" << std::endl;
-            for (const auto& pair : this->named_parameters()) {
-                std::cout << "Saving parameter: " << pair.key()
-                         << " with size " << pair.value().sizes()
-                         << " requires_grad: " << pair.value().requires_grad() << std::endl;
-                archive.write(pair.key(), pair.value().cpu());
-            }
+            if (print){
+                std::cout << "\nSaving parameters:" << std::endl;
+                for (const auto& pair : this->named_parameters()) {
+                    std::cout << "Saving parameter: " << pair.key()
+                            << " with size " << pair.value().sizes()
+                            << " requires_grad: " << pair.value().requires_grad() << std::endl;
+                    archive.write(pair.key(), pair.value().cpu());
+                }
 
-            for (const auto& pair : this->named_buffers()) {
-                std::cout << "Saving buffer: " << pair.key()
-                         << " with size " << pair.value().sizes() << std::endl;
-                archive.write(pair.key(), pair.value().cpu());
+                for (const auto& pair : this->named_buffers()) {
+                    std::cout << "Saving buffer: " << pair.key()
+                            << " with size " << pair.value().sizes() << std::endl;
+                    archive.write(pair.key(), pair.value().cpu());
+                }
+
+                std::cout << "\nSuccessfully saved " << network_name_ << " network parameters to: " << filepath << std::endl;
             }
 
             archive.save_to(filepath.string());
             this->to(device_);
-            std::cout << "\nSuccessfully saved " << network_name_ << " network parameters to: " << filepath << std::endl;
         }
         catch (const std::exception& e) {
             std::cerr << "Error saving network parameters: " << e.what() << std::endl;
