@@ -189,6 +189,15 @@ std::vector<real_t> TrainEnvironment::train(const dim_type episodes, bool render
             // 렌더링 수행
             if (render) {
                 std::cout << "render" << std::endl;
+
+				SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
+				SDL_RenderClear(renderer_);
+
+				auto color = Display::to_sdl_color(Display::GREEN);
+				SDL_SetRenderDrawColor(renderer_, color.r, color.g, color.b, color.a);
+				SDL_RenderDrawLine(renderer_, 0, Section::GOAL_LINE, Display::WIDTH, Section::GOAL_LINE);
+				SDL_RenderDrawLine(renderer_, 0, Section::START_LINE, Display::WIDTH, Section::START_LINE);
+
 				for (auto& obs : circle_obstacles_) {
 					obs->draw(renderer_);
 				}
