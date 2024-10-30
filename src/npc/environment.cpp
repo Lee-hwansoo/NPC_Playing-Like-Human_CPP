@@ -4,7 +4,7 @@
 
 TrainEnvironment::TrainEnvironment(count_type width, count_type height, torch::Device device)
 	: BaseEnvironment(width, height, device) {
-	set_observation_dim(constants::Agent::FOV::RAY_COUNT + 10);
+	set_observation_dim(constants::Agent::FOV::RAY_COUNT + 9);
 	set_action_dim(2);
 
 	std::cout << "Environment initialized, device: " << device << std::endl;
@@ -13,8 +13,8 @@ TrainEnvironment::TrainEnvironment(count_type width, count_type height, torch::D
 	sac_ = std::make_unique<SAC>(
 		get_observation_dim(),
 		get_action_dim(),
-		std::vector<real_t>(min_action.data_ptr<real_t>(), min_action.data_ptr<real_t>() + min_action.numel()),
-		std::vector<real_t>(max_action.data_ptr<real_t>(), max_action.data_ptr<real_t>() + max_action.numel()),
+		torch::tensor({ 0.6f, -1.0f }, torch::TensorOptions().dtype(get_tensor_dtype()).device(device)),
+		torch::tensor({ 1.0f, 1.0f }, torch::TensorOptions().dtype(get_tensor_dtype()).device(device)),
 		device_
 		);
 

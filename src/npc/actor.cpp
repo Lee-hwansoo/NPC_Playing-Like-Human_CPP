@@ -4,15 +4,15 @@
 ActorImpl::ActorImpl(const std::string& network_name,
 					dim_type state_dim,
 	                dim_type action_dim,
-	                std::vector<real_t> min_action,
-	                std::vector<real_t> max_action,
+	                tensor_t min_action,
+					tensor_t max_action,
 					torch::Device device)
 		: BaseNetwork(network_name, device),
 		  state_dim_(state_dim),
-		  action_dim_(action_dim) {
+		  action_dim_(action_dim),
+		  min_action_(min_action),
+		  max_action_(max_action) {
 
-	min_action_ = torch::tensor(min_action).to(device);
-	max_action_ = torch::tensor(max_action).to(device);
 	initialize_network();
 }
 
@@ -40,6 +40,8 @@ void ActorImpl::initialize_network() {
 				<< linear->weight.size(0) << ")" << std::endl;
 		}
 	}
+
+	to(this->device());
 }
 
 void ActorImpl::to(torch::Device device) {

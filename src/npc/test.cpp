@@ -48,8 +48,8 @@ void test_actor(){
 
         const dim_type state_dim = 159;
         const dim_type action_dim = 2;
-        std::vector<real_t> min_action = {0.6f, -1.0f};
-        std::vector<real_t> max_action = {1.0f, 1.0f};
+		tensor_t min_action = torch::tensor({ 0.6f, -1.0f }, torch::TensorOptions().dtype(get_tensor_dtype()));
+		tensor_t max_action = torch::tensor({ 1.0f, 1.0f }, torch::TensorOptions().dtype(get_tensor_dtype()));
 
         std::cout << "Creating Actor network..." << std::endl;
         Actor actor("actor", state_dim, action_dim, min_action, max_action);
@@ -119,13 +119,14 @@ bool is_done(const tensor_t& state) {
 void test_sac(){
     try{
         std::cout << "\nStarting test..." << std::endl;
-        torch::Device device = get_device();
+        // torch::Device device = get_device();
+        torch::Device device = torch::kCPU;
         std::cout << "Device initialized" << std::endl;
 
         const dim_type state_dim = 159;
         const dim_type action_dim = 2;
-        std::vector<real_t> min_action = {0.6f, -1.0f};
-        std::vector<real_t> max_action = {1.0f, 1.0f};
+        tensor_t min_action = torch::tensor({0.6f, -1.0f}, torch::TensorOptions().dtype(get_tensor_dtype()));
+        tensor_t max_action = torch::tensor({ 1.0f, 1.0f }, torch::TensorOptions().dtype(get_tensor_dtype()));
 
         SAC sac(state_dim, action_dim, min_action, max_action, device);
 
@@ -648,7 +649,7 @@ void test_training_mode(bool render = false) {
 
     try {
         // CUDA 사용 가능한 경우 GPU 사용, 아니면 CPU 사용
-        torch::Device device = get_device();
+        torch::Device device = torch::kCPU;
         // 학습 환경 생성
         TrainEnvironment env(constants::Display::WIDTH, constants::Display::HEIGHT, device);
         if (render) {
@@ -690,10 +691,10 @@ void test_training_mode(bool render = false) {
 int main(int argc, char* argv[]){
     // test_actor();
     // test_critic();
-    // test_sac();
+     test_sac();
     // test_frenet();
     // test_sdl_object();
     // test_rrt_visualization();
-    test_training_mode(true);
+    // test_training_mode(true);
     return 0;
 }

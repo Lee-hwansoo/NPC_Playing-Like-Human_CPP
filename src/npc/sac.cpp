@@ -51,12 +51,12 @@ std::tuple<tensor_t, tensor_t, tensor_t, tensor_t, tensor_t> ReplayBuffer::sampl
 }
 
 SAC::SAC(dim_type state_dim, dim_type action_dim,
-        std::vector<real_t> min_action,
-        std::vector<real_t> max_action,
+        tensor_t min_action,
+        tensor_t max_action,
         torch::Device device)
     : actor_("actor", state_dim, action_dim, min_action, max_action, device)
     , critic1_("critic1", state_dim, action_dim, device)
-    , critic2_("critic2", state_dim, action_dim)
+    , critic2_("critic2", state_dim, action_dim, device)
     , critic1_target_("critic1_target", state_dim, action_dim, device)
     , critic2_target_("critic2_target", state_dim, action_dim, device)
     , actor_optimizer_(actor_->parameters(), constants::NETWORK::LEARNING_RATE)

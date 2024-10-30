@@ -35,6 +35,8 @@ void CriticImpl::initialize_network() {
 				<< linear->weight.size(0) << ")" << std::endl;
 		}
 	}
+
+	to(this->device());
 }
 
 void CriticImpl::to(torch::Device device) {
