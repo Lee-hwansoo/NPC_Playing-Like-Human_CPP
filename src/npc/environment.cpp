@@ -194,6 +194,13 @@ std::vector<real_t> TrainEnvironment::train(const dim_type episodes, bool render
 
             // 렌더링 수행
             if (render) {
+				SDL_Event event;
+				while (SDL_PollEvent(&event)) {
+					if (event.type == SDL_QUIT ||
+						(event.key.keysym.sym == SDLK_ESCAPE)) {
+						break;
+					}
+				}
 				SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
 				SDL_RenderClear(renderer_);
 
@@ -210,6 +217,8 @@ std::vector<real_t> TrainEnvironment::train(const dim_type episodes, bool render
 				}
 				goal_->draw(renderer_);
 				agent_->draw(renderer_);
+
+				SDL_RenderPresent(renderer_);
             }
         }
 
