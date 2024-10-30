@@ -109,7 +109,7 @@ std::tuple<tensor_t, tensor_t, bool, bool> TrainEnvironment::step(const tensor_t
 
 	update_circle_obstacles_state();
 
-	state_ = agent_->update(fixed_dt_, action, circle_obstacles_state_, goal_->get_state());
+	state_ = agent_->update(fixed_dt_, action, circle_obstacles_state_);
 
 	return std::make_tuple(state_, reward, terminated_, truncated_);
 }

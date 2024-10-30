@@ -18,8 +18,7 @@ public:
     Object(real_t x, real_t y,
            const Bounds2D& spawn_limit,
            const SDL_Color& color,
-           bool type,
-           torch::Device device = torch::kCPU)
+           bool type)
         : position_(torch::tensor({x, y}))
         , spawn_limit_(spawn_limit)
         , color_(color)
@@ -119,14 +118,10 @@ public:
           const tensor_t& goal_state = torch::tensor({}));
 
     tensor_t reset(std::optional<real_t> x = std::nullopt, std::optional<real_t> y = std::nullopt, const tensor_t& circle_obstacles_state = torch::tensor({}), const tensor_t& rectangle_obstacles_state = torch::tensor({}), const tensor_t& goal_state = torch::tensor({}));
-    tensor_t update(const real_t dt, const tensor_t& scaled_action, const tensor_t& circle_obstacles_state, const tensor_t& goal_state);
+    tensor_t update(const real_t dt, const tensor_t& scaled_action, const tensor_t& circle_obstacles_state);
     tensor_t get_state() const override;
     tensor_t get_raw_state() const;
-	bool is_goal() const {
-        // std::cout << goal_state_ << std::endl;
-        return false;
-        // return goal_state_.numel() == 0 ? false : (position_ - goal_state_[0].slice(0, 0, 2)).norm().item<real_t>() <= (radius_ + goal_state_[0][2].item<real_t>());
-    }
+	bool is_goal() const { return goal_state_.numel() == 0 ? false : (position_ - goal_state_.slice(0, 0, 2)).norm().item<real_t>() <= (radius_ + goal_state_[2].item<real_t>()); };
     bool is_collison() const { return is_collison_; }
 	bool is_out() const { return move_limit_.is_outside(position_[0].item<real_t>(), position_[1].item<real_t>()); }
     bool check_bounds(const tensor_t& new_position) override { return move_limit_.is_outside(new_position[0].item<real_t>(), new_position[1].item<real_t>()); }
@@ -137,9 +132,10 @@ private:
     tensor_t velocity_;
     real_t yaw_;
     Bounds2D move_limit_;
-    const tensor_t& circle_obstacles_state_;
-    const tensor_t& rectangle_obstacles_state_;
-    const tensor_t& goal_state_;
+
+    tensor_t circle_obstacles_state_;
+    tensor_t rectangle_obstacles_state_;
+    tensor_t goal_state_;
 
     tensor_t trajectory_;
 

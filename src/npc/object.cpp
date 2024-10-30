@@ -228,7 +228,7 @@ tensor_t Goal::get_state() const {
             position_[1].item<real_t>(),
             radius_
         });
-    return state.unsqueeze(0);
+    return state;
 }
 
 void Goal::draw(SDL_Renderer* renderer) {
@@ -520,16 +520,20 @@ tensor_t Agent::reset(std::optional<real_t> x, std::optional<real_t> y, const te
     yaw_ = -0.5f * constants::PI;
     trajectory_ = torch::stack({position_});;
 
-    std::tie(fov_points_, fov_distances_, goal_distance_, angle_to_goal_, is_goal_in_fov_, is_collison_) = calculate_fov(position_, yaw_, circle_obstacles_state, rectangle_obstacles_state, goal_state);
+    circle_obstacles_state_ = circle_obstacles_state;
+    rectangle_obstacles_state_ = rectangle_obstacles_state;
+    goal_state_ = goal_state;
 
-	path_planner_->update(position_, circle_obstacles_state, rectangle_obstacles_state, goal_state);
+    std::tie(fov_points_, fov_distances_, goal_distance_, angle_to_goal_, is_goal_in_fov_, is_collison_) = calculate_fov(position_, yaw_, circle_obstacles_state_, rectangle_obstacles_state_, goal_state_);
+
+	path_planner_->update(position_, circle_obstacles_state_, rectangle_obstacles_state_, goal_state_);
 	initial_path_ = path_planner_->plan();
 	std::tie(frenet_point_, frenet_d_) = get_frenet_d();
 
     return get_state();
 }
 
-tensor_t Agent::update(const real_t dt, const tensor_t& scaled_action, const tensor_t& circle_obstacles_state, const tensor_t& goal_state){
+tensor_t Agent::update(const real_t dt, const tensor_t& scaled_action, const tensor_t& circle_obstacles_state){
     real_t force = scaled_action[0].item<real_t>() * constants::Agent::VELOCITY_LIMITS.b;
     real_t yaw_change = scaled_action[1].item<real_t>() * constants::Agent::YAW_CHANGE_LIMIT;
 
@@ -541,9 +545,11 @@ tensor_t Agent::update(const real_t dt, const tensor_t& scaled_action, const ten
 
     position_ = position_ + velocity_;
     yaw_ = std::atan2(velocity_[1].item<real_t>(), velocity_[0].item<real_t>());
-    trajectory_ = torch::cat({trajectory_, position_.unsqueeze(0)});;
+    trajectory_ = torch::cat({trajectory_, position_.unsqueeze(0)});
 
-    std::tie(fov_points_, fov_distances_, goal_distance_, angle_to_goal_, is_goal_in_fov_, is_collison_) = calculate_fov(position_, yaw_, circle_obstacles_state, rectangle_obstacles_state_, goal_state);
+    circle_obstacles_state_ = circle_obstacles_state;
+
+    std::tie(fov_points_, fov_distances_, goal_distance_, angle_to_goal_, is_goal_in_fov_, is_collison_) = calculate_fov(position_, yaw_, circle_obstacles_state_, rectangle_obstacles_state_, goal_state_);
 
     std::tie(frenet_point_, frenet_d_) = get_frenet_d();
     return get_state();

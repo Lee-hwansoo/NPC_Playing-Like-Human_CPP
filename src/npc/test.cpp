@@ -171,11 +171,11 @@ void testIntegratedObjects(SDL_Renderer* renderer) {
     rectangle_obstacles_state = updateRectangleObstaclesState();
 
     // 목표 생성 및 초기화
-    auto goal = std::make_unique<object::Goal>(500, std::nullopt, constants::Goal::RADIUS, constants::Goal::SPAWN_BOUNDS, Display::to_sdl_color(Display::GREEN), false);
+    auto goal = std::make_unique<object::Goal>(500.0f, 50.0f, constants::Goal::RADIUS, constants::Goal::SPAWN_BOUNDS, Display::to_sdl_color(Display::GREEN), false);
     goal->reset();
 
     // 에이전트 생성 및 초기화
-    auto agent = std::make_unique<object::Agent>(500, std::nullopt, constants::Agent::RADIUS, constants::Agent::SPAWN_BOUNDS, constants::Agent::MOVE_BOUNDS, Display::to_sdl_color(Display::BLUE), true, circle_obstacles_state, rectangle_obstacles_state, goal->get_state().squeeze(0));
+    auto agent = std::make_unique<object::Agent>(500.0f, 950.0f, constants::Agent::RADIUS, constants::Agent::SPAWN_BOUNDS, constants::Agent::MOVE_BOUNDS, Display::to_sdl_color(Display::BLUE), true, circle_obstacles_state, rectangle_obstacles_state, goal->get_state());
 
     bool quit = false;
     SDL_Event event;
@@ -200,10 +200,10 @@ void testIntegratedObjects(SDL_Renderer* renderer) {
                 for (auto& obs : rectangle_obstacles) {
                     obs->reset();
                 }
-                goal->reset();
+                goal->reset(500.0f, 50.0f);
                 updateCircleObstaclesState();
                 updateRectangleObstaclesState();
-                agent->reset(std::nullopt, std::nullopt, circle_obstacles_state, rectangle_obstacles_state, goal->get_state().squeeze(0));
+                agent->reset(500.0f, 950.0f, circle_obstacles_state, rectangle_obstacles_state, goal->get_state());
             }
         }
 
@@ -213,10 +213,7 @@ void testIntegratedObjects(SDL_Renderer* renderer) {
         }
 
         updateCircleObstaclesState();
-        agent->update(dt, forward_action, circle_obstacles_state, goal->get_state().squeeze(0));
-
-        agent->is_goal();
-        // std::cout << agent->is_goal() << std::endl;
+        agent->update(dt, forward_action, circle_obstacles_state);
 
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
