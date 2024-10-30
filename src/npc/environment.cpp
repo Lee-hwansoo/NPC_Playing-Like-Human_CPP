@@ -182,11 +182,9 @@ std::vector<real_t> TrainEnvironment::train(const dim_type episodes, bool render
 			bool done = false;
 
 			while (!done && !quit) {
-				// 행동 선택 및 환경 스텝
 				tensor_t action = sac_->select_action(state);
 				auto [next_state, reward, terminated, truncated] = step(action);
 
-				// 경험 저장 및 학습
 				done = terminated || truncated;
 				sac_->add(state, action, reward, next_state, torch::tensor(done, get_tensor_dtype()));
 				sac_->update();
@@ -194,7 +192,6 @@ std::vector<real_t> TrainEnvironment::train(const dim_type episodes, bool render
 				episode_return += reward.item<real_t>();
 				state = next_state;
 
-				// 렌더링 수행
 				if (render) {
 					SDL_Event event;
 					while (SDL_PollEvent(&event)) {
