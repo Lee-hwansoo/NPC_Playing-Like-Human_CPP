@@ -65,8 +65,8 @@ std::tuple<tensor_t, tensor_t> ActorImpl::forward(const tensor_t& state) {
 	return std::make_tuple(mean, log_std);
 }
 
-std::tuple<tensor_t, tensor_t> ActorImpl::sample(const tensor_t& state) {
-	auto x = state.to(this->device());
+std::tuple<tensor_t, tensor_t> ActorImpl::sample(const tensor_t& batch_state) {
+	auto x = batch_state.to(this->device());
 
 	auto [mean, log_std] = forward(x);
 	auto std = torch::exp(log_std);
@@ -87,5 +87,5 @@ std::tuple<tensor_t, tensor_t> ActorImpl::sample(const tensor_t& state) {
 	log_prob = log_prob - torch::log(1.0 - action.pow(2) + 1e-6);
 	log_prob = log_prob.sum(1, true);
 
-	return std::make_tuple(action, log_prob);
+	return std::make_tuple(action * max_action_, log_prob);
 }

@@ -46,7 +46,6 @@ tensor_t RRT::plan() {
         node_list_.push_back(start_node_);
 
         for (count_type i = 0; i < max_iter_; ++i) {
-            std::cout << "Iteration " << i + 1 << std::endl;
             auto rand_node = get_random_node();
             auto nearest_node = find_nearest_node(node_list_, rand_node);
             real_t u = step_size_ * get_random_input(min_u_, max_u_);

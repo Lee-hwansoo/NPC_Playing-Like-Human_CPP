@@ -97,7 +97,7 @@ std::tuple<tensor_t, tensor_t, bool, bool> TrainEnvironment::step(const tensor_t
 	terminated_ = check_goal();
 	truncated_ = check_bounds() || check_obstacle_collision() || step_count_ >= constants::NETWORK::MAX_STEP;
 
-	tensor_t reward = torch::tensor(calculate_reward(state_, action),get_tensor_dtype());
+	tensor_t reward = torch::tensor(calculate_reward(state_, action));
 
 	if (terminated_ || truncated_) {
 		tensor_t current_state = get_observation();
@@ -119,10 +119,14 @@ std::tuple<tensor_t, tensor_t, bool, bool> TrainEnvironment::step(const tensor_t
 }
 
 real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t& action) {
-	real_t normalized_goal_dist = state[-4].item<real_t>();
-	real_t normalized_angle_diff = state[-3].item<real_t>();
-	real_t goal_in_fov = state[-2].item<real_t>();
-	real_t frenet_d = state[-1].item<real_t>();
+	std::cout << state << std::endl;
+
+	auto state_size = state.size(0);
+
+	real_t normalized_goal_dist = state[state_size-4].item<real_t>();
+	real_t normalized_angle_diff = state[state_size-3].item<real_t>();
+	real_t goal_in_fov = state[state_size-2].item<real_t>();
+	real_t frenet_d = state[state_size-1].item<real_t>();
 
 	real_t force = action[0].item<real_t>();
 	real_t yaw_change = action[1].item<real_t>();
@@ -184,7 +188,7 @@ std::vector<real_t> TrainEnvironment::train(const dim_type episodes, bool render
 
             // 경험 저장 및 학습
             done = terminated || truncated;
-            sac_->add(state, action, reward, next_state, torch::tensor(done));
+            sac_->add(state, action, reward, next_state, torch::tensor(done, get_tensor_dtype()));
             sac_->update();
 
             episode_return += reward.item<real_t>();
@@ -192,8 +196,6 @@ std::vector<real_t> TrainEnvironment::train(const dim_type episodes, bool render
 
             // 렌더링 수행
             if (render) {
-                std::cout << "render" << std::endl;
-
 				SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
 				SDL_RenderClear(renderer_);
 
@@ -246,7 +248,6 @@ std::vector<real_t> TrainEnvironment::test(const dim_type episodes, bool render)
 
 			// 렌더링 수행
             if (render) {
-                std::cout << "render" << std::endl;
 				for (auto& obs : circle_obstacles_) {
 					obs->draw(renderer_);
 				}

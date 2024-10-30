@@ -253,6 +253,8 @@ void testIntegratedObjects(SDL_Renderer* renderer) {
 
 void testBasicTrainEnvironmnet(SDL_Renderer* renderer) {
     environment::TrainEnvironment env(constants::Display::WIDTH, constants::Display::HEIGHT);
+    env.set_render(renderer);
+    env.train(100, true);
 }
 
 int main(int argc, char* argv[]) {

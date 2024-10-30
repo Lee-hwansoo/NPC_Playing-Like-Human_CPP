@@ -79,9 +79,9 @@ SAC::SAC(dim_type state_dim, dim_type action_dim,
 
 tensor_t SAC::select_action(const tensor_t& state) {
     torch::NoGradGuard no_grad;
-    auto state_device = state;
-    auto [action, _] = actor_->sample(state_device);
-    return action.cpu();
+    auto batch_state = state.unsqueeze(0);
+    auto [action, _] = actor_->sample(batch_state);
+    return action.cpu().squeeze(0);
 }
 
 void SAC::update() {
