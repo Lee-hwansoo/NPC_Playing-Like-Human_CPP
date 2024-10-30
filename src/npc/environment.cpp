@@ -119,8 +119,6 @@ std::tuple<tensor_t, tensor_t, bool, bool> TrainEnvironment::step(const tensor_t
 }
 
 real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t& action) {
-	std::cout << state << std::endl;
-
 	auto state_size = state.size(0);
 
 	real_t normalized_goal_dist = state[state_size-4].item<real_t>();
