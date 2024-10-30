@@ -7,6 +7,8 @@
 #include <SDL.h>
 #include <string>
 
+namespace environment {
+
 class BaseEnvironment {
 public:
 	explicit BaseEnvironment(count_type width = Display::WIDTH,
@@ -53,10 +55,11 @@ protected:
 	dim_type observation_dim_{ 0 };
 	dim_type action_dim_{ 0 };
 	real_t fixed_dt_{ 1.0f / static_cast<real_t>(Display::FPS) };
-	count_type step_count_{ 0 };
+
+	tensor_t state_;
 	bool terminated_{ false };
 	bool truncated_{ false };
-	tensor_t state_;
+	count_type step_count_{ 0 };
 
 	std::random_device rd_;
 	std::mt19937 gen_{ rd_() };
@@ -70,9 +73,6 @@ protected:
 	virtual bool check_goal() const = 0;
 	virtual bool check_bounds() const = 0;
 	virtual bool check_obstacle_collision() const = 0;
-
-	virtual tensor_t get_min_action() const = 0;
-	virtual tensor_t get_max_action() const = 0;
 };
 
 
@@ -96,13 +96,6 @@ protected:
 	bool check_bounds() const override;
 	bool check_obstacle_collision() const override;
 
-	tensor_t get_min_action() const override {
-		return torch::tensor({ constants::Agent::VELOCITY_LIMITS.a / constants::Agent::VELOCITY_LIMITS.b, -(constants::Agent::YAW_CHANGE_LIMIT / constants::Agent::YAW_CHANGE_LIMIT) });
-	}
-	tensor_t get_max_action() const override {
-		return torch::tensor({ constants::Agent::VELOCITY_LIMITS.b / constants::Agent::VELOCITY_LIMITS.b, (constants::Agent::YAW_CHANGE_LIMIT / constants::Agent::YAW_CHANGE_LIMIT) });
-	}
-
 private:
 	std::vector<std::unique_ptr<object::CircleObstacle>> circle_obstacles_;
 	std::vector<std::unique_ptr<object::RectangleObstacle>> rectangle_obstacles_;
@@ -120,3 +113,5 @@ private:
 	void update_rectangle_obstacles_state();
 	void log_statistics(const std::vector<real_t>& reward_history, dim_type episode) const;
 };
+
+}  // namespace environment

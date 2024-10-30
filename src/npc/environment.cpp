@@ -2,6 +2,8 @@
 #include "utils/constants.hpp"
 #include "utils/types.hpp"
 
+namespace environment {
+
 TrainEnvironment::TrainEnvironment(count_type width, count_type height, torch::Device device)
 	: BaseEnvironment(width, height, device) {
 	set_observation_dim(constants::Agent::FOV::RAY_COUNT + 9);
@@ -10,11 +12,13 @@ TrainEnvironment::TrainEnvironment(count_type width, count_type height, torch::D
 	std::cout << "Environment initialized, device: " << device << std::endl;
 
 	const auto [min_action, max_action] = get_action_space();
+	std::cout << "min_action: " << min_action << ", max_action: " << max_action << std::endl;
+
 	sac_ = std::make_unique<SAC>(
 		get_observation_dim(),
 		get_action_dim(),
-		torch::tensor({ 0.6f, -1.0f }),
-		torch::tensor({ 1.0f, 1.0f }),
+		min_action,
+		max_action,
 		device_
 		);
 
@@ -283,3 +287,5 @@ void TrainEnvironment::log_statistics(const std::vector<real_t>& reward_history,
 			<< ", Median Reward: " << median_reward
 			<< ", std: " << std_dev << std::endl;
 }
+
+} // namespace environment

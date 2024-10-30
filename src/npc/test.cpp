@@ -177,6 +177,8 @@ void testIntegratedObjects(SDL_Renderer* renderer) {
     // 에이전트 생성 및 초기화
     auto agent = std::make_unique<object::Agent>(500.0f, 950.0f, constants::Agent::RADIUS, constants::Agent::SPAWN_BOUNDS, constants::Agent::MOVE_BOUNDS, Display::to_sdl_color(Display::BLUE), true, circle_obstacles_state, rectangle_obstacles_state, goal->get_state());
 
+    std::cout << agent->get_state() << std::endl;
+
     bool quit = false;
     SDL_Event event;
 
@@ -249,23 +251,21 @@ void testIntegratedObjects(SDL_Renderer* renderer) {
     std::cout << "Display test completed.\n";
 }
 
-int test_sdl_object(){
+void testBasicTrainEnvironmnet(SDL_Renderer* renderer) {
+    environment::TrainEnvironment env(constants::Display::WIDTH, constants::Display::HEIGHT);
+}
+
+int main(int argc, char* argv[]) {
     try {
         SDLWrapper sdl;
         RenderWindow window;
 
-        testIntegratedObjects(window.getRenderer());
+        // testIntegratedObjects(window.getRenderer());
+        testBasicTrainEnvironmnet(window.getRenderer());
         return 0;
 
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
         return 1;
     }
-}
-
-int main(int argc, char* argv[]) {
-
-    test_sdl_object();
-
-	return 0;
 }
