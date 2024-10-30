@@ -288,14 +288,14 @@ std::tuple<tensor_t, tensor_t, real_t, real_t, bool, bool> Agent::calculate_fov(
 
     // FOV를 이루는 ray들의 각도 계산 [num_rays]
     auto ray_angles = torch::linspace(agent_angle - constants::Agent::FOV::ANGLE / 2, agent_angle + constants::Agent::FOV::ANGLE / 2, constants::Agent::FOV::RAY_COUNT, get_tensor_dtype()).to(device_);
-    
+
     // ray들의 방향 벡터 계산 [num_rays, 2]
     auto ray_cos = torch::cos(ray_angles);
     auto ray_sin = torch::sin(ray_angles);
     auto ray_directions = torch::stack({ray_cos, ray_sin}, 1);
 
     // 목표와의 상대 위치, 거리, 각도 계산
-    auto goal_vector = goal_state[0].slice(0, 0, 2) - agent_pos;       // [2]
+    auto goal_vector = goal_state.slice(0, 0, 2) - agent_pos;       // [2]
     auto goal_distance = torch::norm(goal_vector).item<real_t>();
     auto goal_angle = torch::atan2(goal_vector[1], goal_vector[0]).item<real_t>();
     auto angle_diff = std::fmod(goal_angle - agent_angle + constants::PI, 2 * constants::PI) - constants::PI;
@@ -325,12 +325,14 @@ std::tuple<tensor_t, tensor_t, real_t, real_t, bool, bool> Agent::calculate_fov(
         auto diff = agent_pos.unsqueeze(0) - obstacles_pos;                             // [num_circles, 2]
 
 		// 충돌 검사
-		auto distances_squared = torch::sum(diff * diff, 1);                                  // [num_circles]
+		auto distances_squared = torch::sum(diff * diff, 1).to(device_);                                  // [num_circles]
 		auto radii = circle_obstacles_state.select(1, 2) + constants::Agent::RADIUS;         // [num_circles]
-		auto radii_squared = radii.pow(2);                                                   // [num_circles]
+		auto radii_squared = radii.pow(2).to(device_);                                                   // [num_circles]
 		if (torch::any(distances_squared <= radii_squared).item<bool>()) {
 			is_collision = true;
 		}
+
+        std::cout << "1" << std::endl;
 
         // 각 ray에 대한 벡터 확장
         auto oc = diff.unsqueeze(1).expand({-1, constants::Agent::FOV::RAY_COUNT, 2});  // [num_circles, num_rays, 2]

@@ -50,13 +50,13 @@ tensor_t TrainEnvironment::init_objects() {
 
 void TrainEnvironment::update_circle_obstacles_state() {
 	for (size_t i = 0; i < circle_obstacles_.size(); ++i) {
-		circle_obstacles_state_[i] = circle_obstacles_[i]->get_state().to(device_);
+		circle_obstacles_state_[i] = circle_obstacles_[i]->get_state().squeeze(0).to(device_);
 	}
 }
 
 void TrainEnvironment::update_rectangle_obstacles_state() {
 	for (size_t i = 0; i < rectangle_obstacles_.size(); ++i) {
-		rectangle_obstacles_state_[i] = rectangle_obstacles_[i]->get_state().to(device_);
+		rectangle_obstacles_state_[i] = rectangle_obstacles_[i]->get_state().squeeze(0).to(device_);
 	}
 }
 
