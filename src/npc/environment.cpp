@@ -157,9 +157,9 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 	return reward;
 }
 
-void TrainEnvironment::save(dim_type episode) {
+void TrainEnvironment::save(dim_type episode, bool print = true) {
 	if (sac_) {
-		sac_->save_network_parameters(episode);
+		sac_->save_network_parameters(episode, print);
 	}
 }
 
@@ -227,7 +227,7 @@ std::vector<real_t> TrainEnvironment::train(const dim_type episodes, bool render
 
 		if ((episode + 1) % constants::NETWORK::INTERVAL == 0) {
 			log_statistics(reward_history, episode);
-			save(episode + 1);
+			save(episode + 1, false);
 		}
     }
 
