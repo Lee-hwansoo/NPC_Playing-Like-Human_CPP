@@ -5,6 +5,10 @@
 #include <iostream>
 #include <chrono>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 // 디바이스 설정 함수
 torch::Device get_device() {
 	torch::Device device(torch::kCPU);

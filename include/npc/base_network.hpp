@@ -95,21 +95,31 @@ public:
 
             torch::serialize::OutputArchive archive;
 
+            auto named_params = this->named_parameters(true);
+            auto named_buffs = this->named_buffers(true);
+
             if (print){
                 std::cout << "\nSaving parameters:" << std::endl;
-                for (const auto& pair : this->named_parameters()) {
+            }
+
+            for (const auto& pair : named_params) {
+                archive.write(pair.key(), pair.value().detach().cpu());
+                if (print){
                     std::cout << "Saving parameter: " << pair.key()
                             << " with size " << pair.value().sizes()
                             << " requires_grad: " << pair.value().requires_grad() << std::endl;
-                    archive.write(pair.key(), pair.value().cpu());
                 }
+            }
 
-                for (const auto& pair : this->named_buffers()) {
+            for (const auto& pair : named_buffs) {
+                archive.write(pair.key(), pair.value().detach().cpu());
+                if (print){
                     std::cout << "Saving buffer: " << pair.key()
                             << " with size " << pair.value().sizes() << std::endl;
-                    archive.write(pair.key(), pair.value().cpu());
                 }
+            }
 
+            if (print){
                 std::cout << "\nSuccessfully saved " << network_name_ << " network parameters to: " << filepath << std::endl;
             }
 

@@ -1,4 +1,4 @@
-#include "npc/environment.hpp"
+﻿#include "npc/environment.hpp"
 #include "utils/constants.hpp"
 #include "utils/types.hpp"
 
@@ -227,7 +227,7 @@ std::vector<real_t> TrainEnvironment::train(const dim_type episodes, bool render
 
 		if ((episode + 1) % constants::NETWORK::INTERVAL == 0) {
 			log_statistics(reward_history, episode);
-			save(episode + 1, false);
+			save(episode + 1, true);
 		}
     }
 
