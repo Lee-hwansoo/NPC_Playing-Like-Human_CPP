@@ -19,11 +19,9 @@ void CriticImpl::initialize_network(torch::Device device) {
 	ln2 = register_module("ln2", torch::nn::LayerNorm(torch::nn::LayerNormOptions({256})));
 	fc3 = register_module("fc3", torch::nn::Linear(256, 256));
 	ln3 = register_module("ln3", torch::nn::LayerNorm(torch::nn::LayerNormOptions({256})));
-	fc4 = register_module("fc4", torch::nn::Linear(256, 256));
-	ln4 = register_module("ln4", torch::nn::LayerNorm(torch::nn::LayerNormOptions({256})));
-	fc5 = register_module("fc5", torch::nn::Linear(256, 128));
-	ln5 = register_module("ln5", torch::nn::LayerNorm(torch::nn::LayerNormOptions({128})));
-    fc6 = register_module("fc6", torch::nn::Linear(128, 1));
+	fc4 = register_module("fc4", torch::nn::Linear(256, 128));
+	ln4 = register_module("ln4", torch::nn::LayerNorm(torch::nn::LayerNormOptions({128})));
+    fc5 = register_module("fc5", torch::nn::Linear(128, 1));
 
 	std::cout << "\nInitializing "<< this->network_name() << " network" << std::endl;
 	count_type count = 0;
@@ -61,8 +59,7 @@ tensor_t CriticImpl::forward(const tensor_t& state, const tensor_t& action) {
     x = torch::leaky_relu(ln2->forward(fc2->forward(x)));
     x = torch::leaky_relu(ln3->forward(fc3->forward(x)));
     x = torch::leaky_relu(ln4->forward(fc4->forward(x)));
-    x = torch::leaky_relu(ln5->forward(fc5->forward(x)));
-    x = fc6->forward(x);
+    x = fc5->forward(x);
 
 	return x;
 }

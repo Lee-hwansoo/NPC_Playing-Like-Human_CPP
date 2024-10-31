@@ -13,7 +13,7 @@ ReplayBuffer::ReplayBuffer(dim_type state_dim, dim_type action_dim, count_type b
 }
 
 void ReplayBuffer::preallocate_tensors() {
-    auto options = torch::TensorOptions().dtype(types::get_tensor_dtype()).device(device_).pinned_memory(true);
+    auto options = torch::TensorOptions().dtype(types::get_tensor_dtype()).device(device_);
 
     states_batch_ = torch::zeros({batch_size_, state_dim_}, options);
     actions_batch_ = torch::zeros({batch_size_, action_dim_}, options);
@@ -44,17 +44,11 @@ std::tuple<tensor_t, tensor_t, tensor_t, tensor_t, tensor_t> ReplayBuffer::sampl
 
     for (dim_type i = 0; i < batch_size_; ++i) {
         const auto& [s, a, r, ns, d] = buffer_[indices_[i].item<dim_type>()];
-        states_batch_[i].copy_(s, true);
-        actions_batch_[i].copy_(a, true);
-        rewards_batch_[i].copy_(r, true);
-        next_states_batch_[i].copy_(ns, true);
-        dones_batch_[i].copy_(d, true);
-    }
-
-    if (device_.is_cuda()) {
-        torch::cuda::synchronize();
-    } else if (device_.is_mps()) {
-        torch::mps::synchronize();
+        states_batch_[i].copy_(s);
+        actions_batch_[i].copy_(a);
+        rewards_batch_[i].copy_(r);
+        next_states_batch_[i].copy_(ns);
+        dones_batch_[i].copy_(d);
     }
 
     return std::make_tuple(
@@ -130,10 +124,11 @@ void SAC::update() {
     auto critic_loss2 = torch::mse_loss(current_q2, target_q.detach());
 
     critic1_optimizer_.zero_grad();
-    critic2_optimizer_.zero_grad();
     critic_loss1.backward();
-    critic_loss2.backward();
     critic1_optimizer_.step();
+
+    critic2_optimizer_.zero_grad();
+    critic_loss2.backward();
     critic2_optimizer_.step();
 
     auto [new_actions, log_pi] = actor_->sample(states);
@@ -154,15 +149,19 @@ void SAC::update() {
 void SAC::update_target_networks() {
     torch::NoGradGuard no_grad;
 
-    for (size_t i = 0; i < critic1_->parameters().size(); ++i) {
-        auto& target = critic1_target_->parameters()[i];
-        const auto& source = critic1_->parameters()[i];
-        target.data().copy_(tau_ * source.data() + (1 - tau_) * target.data());
+    auto params1 = critic1_->parameters();
+    auto target_params1 = critic1_target_->parameters();
+    for (size_t i = 0; i < params1.size(); ++i) {
+        auto& target = target_params1[i];
+        const auto& source = params1[i];
+        target.mul_(1 - tau_).add_(source, tau_);
     }
 
-    for (size_t i = 0; i < critic2_->parameters().size(); ++i) {
-        auto& target = critic2_target_->parameters()[i];
-        const auto& source = critic2_->parameters()[i];
-        target.data().copy_(tau_ * source.data() + (1 - tau_) * target.data());
+    auto params2 = critic2_->parameters();
+    auto target_params2 = critic2_target_->parameters();
+    for (size_t i = 0; i < params2.size(); ++i) {
+        auto& target = target_params2[i];
+        const auto& source = params2[i];
+        target.mul_(1 - tau_).add_(source, tau_);
     }
 }
