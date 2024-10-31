@@ -141,18 +141,19 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 	real_t yaw_change = action[1].item<real_t>();
 
 	real_t goal_reward = (1.0f - normalized_goal_dist);
-	real_t fov_reward = (1.0f - std::abs(normalized_angle_diff)) * goal_in_fov * 0.4f;
-	real_t angle_reward = (1.0f - std::abs(normalized_angle_diff)) * 0.4f;
-	real_t turn_penalty = -std::abs(yaw_change) * 0.2f;
-	real_t path_delta_penalty = -std::abs(frenet_d) * 0.5f;
-	real_t time_penalty = -0.0005f * static_cast<real_t>(step_count_);
+	real_t fov_reward = (1.0f - std::abs(normalized_angle_diff)) * goal_in_fov * 0.5f;
+	real_t angle_reward = (1.0f - std::abs(normalized_angle_diff)) * 0.5f;
+	real_t turn_penalty = -(std::abs(yaw_change) * 0.2f);
+	real_t path_delta_penalty = -(std::abs(frenet_d) * 0.5f);
+	real_t time_penalty = -(0.001f * static_cast<real_t>(step_count_));
 
 	real_t terminal_reward = 0.0f;
 	if (terminated_) {
-		terminal_reward = terminal_reward + 100.0f;
+		real_t speed_bonus = std::max(0.0f, (2000.0f - step_count_) * 0.5f);
+		terminal_reward = terminal_reward + 100.0f + speed_bonus;
 	}
 	if (truncated_) {
-		terminal_reward = terminal_reward -100.0f;
+		terminal_reward = terminal_reward - 100.0f;
 	}
 
 	real_t reward = goal_reward +
