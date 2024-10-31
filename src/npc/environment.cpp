@@ -236,7 +236,7 @@ std::vector<real_t> TrainEnvironment::train(const dim_type episodes, bool render
 
 std::vector<real_t> TrainEnvironment::test(const dim_type episodes, bool render) {
 	sac_->eval();
-
+	SDL_Event event;
 	std::vector<real_t> reward_history;
 	reward_history.reserve(static_cast<size_t>(episodes));
 
@@ -246,7 +246,13 @@ std::vector<real_t> TrainEnvironment::test(const dim_type episodes, bool render)
 		bool done = false;
 
 		while (!done) {
-			// 행동 선택 및 환경 스텝
+			while (SDL_PollEvent(&event)) {
+				if (event.type == SDL_QUIT ||
+					(event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
+					return reward_history;;
+				}
+			}
+
 			tensor_t action = sac_->select_action(state);
 			auto [next_state, reward, terminated, truncated] = step(action);
 
@@ -254,8 +260,15 @@ std::vector<real_t> TrainEnvironment::test(const dim_type episodes, bool render)
 			episode_return += reward.item<real_t>();
 			state = next_state;
 
-			// 렌더링 수행
             if (render) {
+				SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
+				SDL_RenderClear(renderer_);
+
+				auto color = Display::to_sdl_color(Display::GREEN);
+				SDL_SetRenderDrawColor(renderer_, color.r, color.g, color.b, color.a);
+				SDL_RenderDrawLine(renderer_, 0, Section::GOAL_LINE, Display::WIDTH, Section::GOAL_LINE);
+				SDL_RenderDrawLine(renderer_, 0, Section::START_LINE, Display::WIDTH, Section::START_LINE);
+
 				for (auto& obs : circle_obstacles_) {
 					obs->draw(renderer_);
 				}
@@ -264,8 +277,12 @@ std::vector<real_t> TrainEnvironment::test(const dim_type episodes, bool render)
 				}
 				goal_->draw(renderer_);
 				agent_->draw(renderer_);
+
+				SDL_RenderPresent(renderer_);
             }
 		}
+
+		std::cout << "Episode: " << episode + 1 << "/" <<  episodes << " | Reward: " << episode_return << " " << std::endl;
 
 		reward_history.push_back(episode_return);
 	}
