@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "utils/types.hpp"
 #include "utils/constants.hpp"
