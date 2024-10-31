@@ -182,6 +182,13 @@ std::vector<real_t> TrainEnvironment::train(const dim_type episodes, bool render
 		bool done = false;
 
 		while (!done) {
+			while (SDL_PollEvent(&event)) {
+				if (event.type == SDL_QUIT ||
+					(event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
+					return reward_history;;
+				}
+			}
+
 			tensor_t action = sac_->select_action(state);
 			auto [next_state, reward, terminated, truncated] = step(action);
 
@@ -193,13 +200,6 @@ std::vector<real_t> TrainEnvironment::train(const dim_type episodes, bool render
 			state = next_state;
 
 			if (render) {
-				while (SDL_PollEvent(&event)) {
-					if (event.type == SDL_QUIT ||
-						(event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
-						return reward_history;;
-					}
-				}
-
 				SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
 				SDL_RenderClear(renderer_);
 

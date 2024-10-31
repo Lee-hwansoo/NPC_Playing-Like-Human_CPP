@@ -117,6 +117,11 @@ public:
         // 렌더러 최적화 설정
         SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_BLEND);
 
+        // 배경색을 검은색으로 설정하고 화면 클리어
+        SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
+        SDL_RenderClear(renderer_);
+        SDL_RenderPresent(renderer_);
+
         // 시스템 정보 출력
         printSystemInfo();
         initializePerformanceSettings();
