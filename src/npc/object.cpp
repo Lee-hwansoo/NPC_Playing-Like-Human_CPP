@@ -324,9 +324,9 @@ std::tuple<tensor_t, tensor_t, real_t, real_t, bool, bool> Agent::calculate_fov(
     // 각 ray와 화면 경계의 교차점까지의 거리 계산 [4, num_rays]
 	auto border_distances = torch::stack({
         (-agent_pos[0].item<real_t>()) / x_dirs,
-        (constants::Display::WIDTH - agent_pos[0].item<real_t>()) / x_dirs,
-        (-agent_pos[1].item<real_t>()) / y_dirs,
-        (constants::Display::HEIGHT - agent_pos[1].item<real_t>()) / y_dirs
+        (constants::Display::WIDTH - 1 - agent_pos[0].item<real_t>()) / x_dirs,
+        (-agent_pos[1].item<real_t>() + 1) / y_dirs,
+        (constants::Display::HEIGHT - 1 - agent_pos[1].item<real_t>()) / y_dirs
     });
 
     // 음수 거리(반대 방향)를 무한대로 설정
