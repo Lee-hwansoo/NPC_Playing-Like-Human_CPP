@@ -14,11 +14,13 @@ void ReplayBuffer::allocate_batch_tensors() {
    if (!buffer_.empty()) {
        const auto& [state, action, reward, next_state, done] = buffer_.front();
 
-       states_batch_ = torch::zeros({batch_size_, state.size(0)});
-       actions_batch_ = torch::zeros({batch_size_, action.size(0)});
-       rewards_batch_ = torch::zeros({batch_size_, 1});
-       next_states_batch_ = torch::zeros({batch_size_, next_state.size(0)});
-       dones_batch_ = torch::zeros({batch_size_, 1});
+       auto options = torch::TensorOptions().dtype(types::get_tensor_dtype()).device(device_);
+
+       states_batch_ = torch::zeros({batch_size_, state.size(0)}, options);
+       actions_batch_ = torch::zeros({batch_size_, action.size(0)}, options);
+       rewards_batch_ = torch::zeros({batch_size_, 1}, options);
+       next_states_batch_ = torch::zeros({batch_size_, next_state.size(0)}, options);
+       dones_batch_ = torch::zeros({batch_size_, 1}, options);
    }
 }
 
@@ -48,6 +50,14 @@ std::tuple<tensor_t, tensor_t, tensor_t, tensor_t, tensor_t> ReplayBuffer::sampl
         indices_[i] = dist(generator_);
         const auto& [s, a, r, ns, d] = buffer_[indices_[i]];
 
+        if(i == 0) {
+            states_batch_ = states_batch_.to(device_);
+            actions_batch_ = actions_batch_.to(device_);
+            rewards_batch_ = rewards_batch_.to(device_);
+            next_states_batch_ = next_states_batch_.to(device_);
+            dones_batch_ = dones_batch_.to(device_);
+        }
+
         states_batch_[i].copy_(s);
         actions_batch_[i].copy_(a);
         rewards_batch_[i].copy_(r.reshape({1}));
@@ -56,11 +66,11 @@ std::tuple<tensor_t, tensor_t, tensor_t, tensor_t, tensor_t> ReplayBuffer::sampl
     }
 
     return std::make_tuple(
-        states_batch_.to(device_),
-        actions_batch_.to(device_),
-        rewards_batch_.to(device_),
-        next_states_batch_.to(device_),
-        dones_batch_.to(device_)
+        states_batch_,
+        actions_batch_,
+        rewards_batch_,
+        next_states_batch_,
+        dones_batch_
     );
 }
 

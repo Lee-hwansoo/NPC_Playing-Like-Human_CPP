@@ -17,23 +17,20 @@ using namespace constants;
 
 struct BaseNetwork : torch::nn::Module {
 public:
-    explicit BaseNetwork(const std::string& network_name, torch::Device device = torch::kCPU)
-        : network_name_(network_name)
-        , device_(device) {
-        this->to(device_);
-    }
+    explicit BaseNetwork(const std::string& network_name)
+        : network_name_(network_name) {}
 
     virtual ~BaseNetwork() = default;
 
     BaseNetwork(const BaseNetwork&) = delete;
     BaseNetwork& operator=(const BaseNetwork&) = delete;
 
-    virtual void initialize_network() = 0;
+    virtual void initialize_network(torch::Device device) = 0;
 
     virtual void to(torch::Device device) {
         if (device_ != device) {
-            device_ = std::move(device);
-            torch::nn::Module::to(device);
+            device_ = device;
+            torch::nn::Module::to(device_);
         }
     }
 
@@ -85,6 +82,7 @@ public:
 
     void save_network_parameters(dim_type episode, bool print = true) {
         try {
+            auto original_device = device_;
             this->to(torch::kCPU);
             std::string timestamp = get_current_timestamp();
             std::string log_dir = get_log_directory();
@@ -124,7 +122,7 @@ public:
             }
 
             archive.save_to(filepath.string());
-            this->to(device_);
+            this->to(original_device);
         }
         catch (const std::exception& e) {
             std::cerr << "Error saving network parameters: " << e.what() << std::endl;

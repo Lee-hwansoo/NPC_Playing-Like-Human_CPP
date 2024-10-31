@@ -13,7 +13,7 @@ struct ActorImpl : public BaseNetwork {
 			tensor_t max_action,
 			torch::Device device = torch::kCPU);
 
-	void initialize_network() override;
+	void initialize_network(torch::Device device) override;
 	void to(torch::Device device) override;
 
 	std::tuple<tensor_t, tensor_t> forward(const tensor_t& state);

@@ -5,14 +5,14 @@ CriticImpl::CriticImpl(const std::string& network_name,
 					dim_type state_dim,
 	                dim_type action_dim,
 					torch::Device device)
-		: BaseNetwork(network_name, device),
+		: BaseNetwork(network_name),
 		  state_dim_(state_dim),
 		  action_dim_(action_dim) {
 
-	initialize_network();
+	initialize_network(device);
 }
 
-void CriticImpl::initialize_network() {
+void CriticImpl::initialize_network(torch::Device device) {
 	fc1 = register_module("fc1", torch::nn::Linear(state_dim_ + action_dim_, 128));
 	ln1 = register_module("ln1", torch::nn::LayerNorm(torch::nn::LayerNormOptions({128})));
 	fc2 = register_module("fc2", torch::nn::Linear(128, 256));
@@ -42,7 +42,7 @@ void CriticImpl::initialize_network() {
 		}
 	}
 
-	to(this->device());
+	to(device);
 }
 
 void CriticImpl::to(torch::Device device) {

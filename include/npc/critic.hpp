@@ -8,7 +8,7 @@ struct CriticImpl : public BaseNetwork {
 			dim_type action_dim,
 			torch::Device device = torch::kCPU);
 
-	void initialize_network() override;
+	void initialize_network(torch::Device device) override;
 	void to(torch::Device device) override;
 
 	tensor_t forward(const tensor_t& state, const tensor_t& action);

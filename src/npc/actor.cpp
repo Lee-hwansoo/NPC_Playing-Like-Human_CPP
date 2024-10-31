@@ -7,16 +7,16 @@ ActorImpl::ActorImpl(const std::string& network_name,
 	                tensor_t min_action,
 					tensor_t max_action,
 					torch::Device device)
-		: BaseNetwork(network_name, device),
+		: BaseNetwork(network_name),
 		  state_dim_(state_dim),
 		  action_dim_(action_dim),
 		  min_action_(min_action),
 		  max_action_(max_action) {
 
-	initialize_network();
+	initialize_network(device);
 }
 
-void ActorImpl::initialize_network() {
+void ActorImpl::initialize_network(torch::Device device) {
 	fc1 = register_module("fc1", torch::nn::Linear(state_dim_, 128));
 	ln1 = register_module("ln1", torch::nn::LayerNorm(torch::nn::LayerNormOptions({128})));
 	fc2 = register_module("fc2", torch::nn::Linear(128, 256));
@@ -47,12 +47,14 @@ void ActorImpl::initialize_network() {
 		}
 	}
 
-	to(this->device());
+	to(device);
 }
 
 void ActorImpl::to(torch::Device device) {
 	if (this->device() != device) {
 		BaseNetwork::to(device);
+		min_action_ = min_action_.to(device);
+		max_action_ = max_action_.to(device);
 	}
 }
 
