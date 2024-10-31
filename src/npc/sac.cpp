@@ -1,7 +1,7 @@
 ﻿#include "npc/sac.hpp"
 #include <iostream>
 
-ReplayBuffer::ReplayBuffer(size_type buffer_size, size_type batch_size, torch::Device device)
+ReplayBuffer::ReplayBuffer(dim_type buffer_size, index_type batch_size, torch::Device device)
     : buffer_size_(buffer_size)
     , batch_size_(batch_size)
     , device_(device)

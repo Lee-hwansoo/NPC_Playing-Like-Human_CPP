@@ -10,7 +10,7 @@
 
 class ReplayBuffer {
 public:
-    explicit ReplayBuffer(size_type buffer_size, size_type batch_size, torch::Device device);
+    explicit ReplayBuffer(dim_type buffer_size, index_type batch_size, torch::Device device);
 
     virtual ~ReplayBuffer() = default;
 
@@ -28,8 +28,8 @@ public:
 
 private:
     std::deque<std::tuple<tensor_t, tensor_t, tensor_t, tensor_t, tensor_t>> buffer_;
-    size_type buffer_size_;
-    size_type batch_size_;
+    dim_type buffer_size_;
+    index_type batch_size_;
     torch::Device device_;
     std::mt19937 generator_;
 
