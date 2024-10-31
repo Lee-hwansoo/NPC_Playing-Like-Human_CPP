@@ -1,12 +1,14 @@
 ﻿#include "npc/path_planning.hpp"
 #include "utils/constants.hpp"
+#include "utils/types.hpp"
 #include <cmath>
 #include <iostream>
 
 namespace path_planning {
 
 RRT::RRT()
-    : max_iter_(constants::RRT::MAX_ITER)
+    : space_(Bounds2D(0.0f, 1.0f, 0.0f, 1.0f))
+    , max_iter_(constants::RRT::MAX_ITER)
     , goal_sample_rate_(constants::RRT::GOAL_SAMPLE_RATE)
     , min_u_(constants::RRT::MIN_U)
     , max_u_(constants::RRT::MAX_U)
