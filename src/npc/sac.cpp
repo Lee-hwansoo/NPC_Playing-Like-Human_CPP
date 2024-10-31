@@ -1,7 +1,8 @@
 ﻿#include "npc/sac.hpp"
+#include "utils/types.hpp"
 #include <iostream>
 
-ReplayBuffer::ReplayBuffer(dim_type state_dim, dim_type action_dim, dim_type buffer_size, index_type batch_size, torch::Device device)
+ReplayBuffer::ReplayBuffer(dim_type state_dim, dim_type action_dim, count_type buffer_size, index_type batch_size, torch::Device device)
     : state_dim_(state_dim)
     , action_dim_(action_dim)
     , buffer_size_(buffer_size)
@@ -51,7 +52,7 @@ std::tuple<tensor_t, tensor_t, tensor_t, tensor_t, tensor_t> ReplayBuffer::sampl
     }
 
     if (device_.is_cuda()) {
-        torch::cuda::synchronize(device_);
+        torch::cuda::synchronize();
     } else if (device_.is_mps()) {
         torch::mps::synchronize();
     }
