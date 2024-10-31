@@ -44,7 +44,7 @@ public:
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
         SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);  // 기본적인 더블 버퍼링만 유지
-        
+
         // 고성능 설정들 제거
         // SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);         // 제거
         // SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);  // 안티앨리어싱 비활성화
@@ -53,7 +53,7 @@ public:
         // 최소 성능 설정
         SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");           // VSync 활성화로 GPU 부하 감소
         SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");   // 최근접 필터링 유지
-        // SDL_SetHint(SDL_HINT_RENDER_BATCHING, "1");     // 제거 
+        // SDL_SetHint(SDL_HINT_RENDER_BATCHING, "1");     // 제거
 
         std::cout << "SDL initialization completed\n";
     }
@@ -122,7 +122,7 @@ private:
 
 void testBasicTrainEnvironmnet(SDL_Renderer* renderer) {
     torch::Device device = get_device();
-    environment::TrainEnvironment env(constants::Display::WIDTH, constants::Display::HEIGHT, torch::kCPU);
+    environment::TrainEnvironment env(constants::Display::WIDTH, constants::Display::HEIGHT, device);
     env.set_render(renderer);
     // env.load("20241031_123839", 420);
     env.train(2000, true);

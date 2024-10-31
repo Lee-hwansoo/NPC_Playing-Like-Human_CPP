@@ -2,61 +2,60 @@
 #include "utils/types.hpp"
 #include <iostream>
 
-ReplayBuffer::ReplayBuffer(dim_type state_dim, dim_type action_dim, count_type buffer_size, index_type batch_size, torch::Device device)
+ReplayBuffer::ReplayBuffer(dim_type state_dim, dim_type action_dim,
+                         count_type buffer_size, index_type batch_size,
+                         torch::Device device)
     : state_dim_(state_dim)
     , action_dim_(action_dim)
     , buffer_size_(buffer_size)
     , batch_size_(batch_size)
+    , current_size_(0)
+    , position_(0)
     , device_(device) {
 
     preallocate_tensors();
 }
 
 void ReplayBuffer::preallocate_tensors() {
-    auto options = torch::TensorOptions().dtype(types::get_tensor_dtype()).device(device_);
+    auto options = torch::TensorOptions()
+                      .dtype(types::get_tensor_dtype())
+                      .device(device_);
 
-    states_batch_ = torch::zeros({batch_size_, state_dim_}, options);
-    actions_batch_ = torch::zeros({batch_size_, action_dim_}, options);
-    rewards_batch_ = torch::zeros({batch_size_, 1}, options);
-    next_states_batch_ = torch::zeros({batch_size_, state_dim_}, options);
-    dones_batch_ = torch::zeros({batch_size_, 1}, options);
+    states_ = torch::zeros({buffer_size_, state_dim_}, options);
+    actions_ = torch::zeros({buffer_size_, action_dim_}, options);
+    rewards_ = torch::zeros({buffer_size_, 1}, options);
+    next_states_ = torch::zeros({buffer_size_, state_dim_}, options);
+    dones_ = torch::zeros({buffer_size_, 1}, options);
+
+    indices_ = torch::zeros({batch_size_},
+                            torch::TensorOptions()
+                                .dtype(torch::kInt64)
+                                .device(device_));
 }
 
-void ReplayBuffer::add(const tensor_t& state, const tensor_t& action, const tensor_t& reward, const tensor_t& next_state, const tensor_t& done) {
-    if (buffer_.size() >= buffer_size_) {
-        buffer_.pop_front();
-    }
+void ReplayBuffer::add(const tensor_t& state, const tensor_t& action,
+                      const tensor_t& reward, const tensor_t& next_state,
+                      const tensor_t& done) {
 
-    auto cpu_tensors = std::make_tuple(
-        state.cpu(),
-        action.cpu(),
-        reward.cpu(),
-        next_state.cpu(),
-        done.cpu()
-    );
-    buffer_.emplace_back(std::move(cpu_tensors));
+    states_[position_].copy_(state);
+    actions_[position_].copy_(action);
+    rewards_[position_].copy_(reward);
+    next_states_[position_].copy_(next_state);
+    dones_[position_].copy_(done);
+
+    position_ = (position_ + 1) % buffer_size_;
+    current_size_ = std::min(current_size_ + 1, buffer_size_);
 }
 
 std::tuple<tensor_t, tensor_t, tensor_t, tensor_t, tensor_t> ReplayBuffer::sample() {
-    torch::NoGradGuard no_grad;
-
-    indices_ = torch::randint(0, buffer_.size(), {batch_size_}, torch::TensorOptions().device(torch::kCPU));
-
-    for (dim_type i = 0; i < batch_size_; ++i) {
-        const auto& [s, a, r, ns, d] = buffer_[indices_[i].item<dim_type>()];
-        states_batch_[i].copy_(s);
-        actions_batch_[i].copy_(a);
-        rewards_batch_[i].copy_(r);
-        next_states_batch_[i].copy_(ns);
-        dones_batch_[i].copy_(d);
-    }
+    indices_.random_(0, current_size_);
 
     return std::make_tuple(
-        states_batch_,
-        actions_batch_,
-        rewards_batch_,
-        next_states_batch_,
-        dones_batch_
+        states_.index_select(0, indices_),
+        actions_.index_select(0, indices_),
+        rewards_.index_select(0, indices_),
+        next_states_.index_select(0, indices_),
+        dones_.index_select(0, indices_)
     );
 }
 
@@ -96,7 +95,7 @@ tensor_t SAC::select_action(const tensor_t& state) {
     torch::NoGradGuard no_grad;
     auto batch_state = state.unsqueeze(0);
     auto [action, _] = actor_->sample(batch_state);
-    return action.cpu().squeeze(0);
+    return action.squeeze(0);
 }
 
 void SAC::update() {
@@ -151,17 +150,16 @@ void SAC::update_target_networks() {
 
     auto params1 = critic1_->parameters();
     auto target_params1 = critic1_target_->parameters();
-    for (size_t i = 0; i < params1.size(); ++i) {
-        auto& target = target_params1[i];
-        const auto& source = params1[i];
-        target.mul_(1 - tau_).add_(source, tau_);
-    }
-
     auto params2 = critic2_->parameters();
     auto target_params2 = critic2_target_->parameters();
-    for (size_t i = 0; i < params2.size(); ++i) {
-        auto& target = target_params2[i];
-        const auto& source = params2[i];
-        target.mul_(1 - tau_).add_(source, tau_);
+
+    for (size_t i = 0; i < params1.size(); ++i) {
+        auto& target1 = target_params1[i];
+        const auto& source1 = params1[i];
+        target1.mul_(1 - tau_).add_(source1, tau_);
+
+        auto& target2 = target_params2[i];
+        const auto& source2 = params2[i];
+        target2.mul_(1 - tau_).add_(source2, tau_);
     }
 }

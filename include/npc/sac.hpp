@@ -3,14 +3,14 @@
 #include "npc/actor.hpp"
 #include "npc/critic.hpp"
 #include <torch/torch.h>
-#include <deque>
-#include <random>
 #include <tuple>
 #include <memory>
 
 class ReplayBuffer {
 public:
-    explicit ReplayBuffer(dim_type state_dim, dim_type action_dim, count_type buffer_size, index_type batch_size, torch::Device device);
+    explicit ReplayBuffer(dim_type state_dim, dim_type action_dim,
+                        count_type buffer_size, index_type batch_size,
+                        torch::Device device);
 
     virtual ~ReplayBuffer() = default;
 
@@ -23,21 +23,19 @@ public:
 
     std::tuple<tensor_t, tensor_t, tensor_t, tensor_t, tensor_t> sample();
 
-    size_type size() const { return buffer_.size(); }
+    size_type size() const { return current_size_; }
     size_type batch_size() const { return batch_size_; }
+    torch::Device device() const { return device_; }
 
 private:
-    std::deque<std::tuple<tensor_t, tensor_t, tensor_t, tensor_t, tensor_t>> buffer_;
+    tensor_t states_, actions_, rewards_, next_states_, dones_;
+
     dim_type state_dim_, action_dim_;
     count_type buffer_size_;
     index_type batch_size_;
+    count_type current_size_;
+    index_type position_;
     torch::Device device_;
-
-    tensor_t states_batch_;
-    tensor_t actions_batch_;
-    tensor_t rewards_batch_;
-    tensor_t next_states_batch_;
-    tensor_t dones_batch_;
 
     tensor_t indices_;
 
