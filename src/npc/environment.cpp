@@ -19,6 +19,8 @@ TrainEnvironment::TrainEnvironment(count_type width, count_type height, torch::D
 	state_ = init_objects();
 
 	memory_ = std::make_unique<ReplayBuffer>(
+		get_observation_dim(),
+		get_action_dim(),
 		constants::NETWORK::BUFFER_SIZE,
 		constants::NETWORK::BATCH_SIZE,
 		device_

@@ -10,7 +10,7 @@
 
 class ReplayBuffer {
 public:
-    explicit ReplayBuffer(dim_type buffer_size, index_type batch_size, torch::Device device);
+    explicit ReplayBuffer(dim_type state_dim, dim_type action_dim, count_type buffer_size, index_type batch_size, torch::Device device);
 
     virtual ~ReplayBuffer() = default;
 
@@ -28,20 +28,20 @@ public:
 
 private:
     std::deque<std::tuple<tensor_t, tensor_t, tensor_t, tensor_t, tensor_t>> buffer_;
-    dim_type buffer_size_;
+    dim_type state_dim_, action_dim_;
+    count_type buffer_size_;
     index_type batch_size_;
     torch::Device device_;
-    std::mt19937 generator_;
 
-   tensor_t states_batch_;
-   tensor_t actions_batch_;
-   tensor_t rewards_batch_;
-   tensor_t next_states_batch_;
-   tensor_t dones_batch_;
+    tensor_t states_batch_;
+    tensor_t actions_batch_;
+    tensor_t rewards_batch_;
+    tensor_t next_states_batch_;
+    tensor_t dones_batch_;
 
-   std::vector<size_type> indices_;
+    tensor_t indices_;
 
-   void allocate_batch_tensors();
+    void preallocate_tensors();
 };
 
 class SAC {

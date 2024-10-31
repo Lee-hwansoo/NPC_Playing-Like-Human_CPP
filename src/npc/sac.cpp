@@ -1,27 +1,24 @@
 ﻿#include "npc/sac.hpp"
 #include <iostream>
 
-ReplayBuffer::ReplayBuffer(dim_type buffer_size, index_type batch_size, torch::Device device)
-    : buffer_size_(buffer_size)
+ReplayBuffer::ReplayBuffer(dim_type state_dim, dim_type action_dim, dim_type buffer_size, index_type batch_size, torch::Device device)
+    : state_dim_(state_dim)
+    , action_dim_(action_dim)
+    , buffer_size_(buffer_size)
     , batch_size_(batch_size)
-    , device_(device)
-    , generator_(std::random_device{}())
-    , indices_(batch_size) {
-    allocate_batch_tensors();
+    , device_(device) {
+
+    preallocate_tensors();
 }
 
-void ReplayBuffer::allocate_batch_tensors() {
-   if (!buffer_.empty()) {
-       const auto& [state, action, reward, next_state, done] = buffer_.front();
+void ReplayBuffer::preallocate_tensors() {
+    auto options = torch::TensorOptions().dtype(types::get_tensor_dtype()).device(device_).pinned_memory(true);
 
-       auto options = torch::TensorOptions().dtype(types::get_tensor_dtype()).device(device_);
-
-       states_batch_ = torch::zeros({batch_size_, state.size(0)}, options);
-       actions_batch_ = torch::zeros({batch_size_, action.size(0)}, options);
-       rewards_batch_ = torch::zeros({batch_size_, 1}, options);
-       next_states_batch_ = torch::zeros({batch_size_, next_state.size(0)}, options);
-       dones_batch_ = torch::zeros({batch_size_, 1}, options);
-   }
+    states_batch_ = torch::zeros({batch_size_, state_dim_}, options);
+    actions_batch_ = torch::zeros({batch_size_, action_dim_}, options);
+    rewards_batch_ = torch::zeros({batch_size_, 1}, options);
+    next_states_batch_ = torch::zeros({batch_size_, state_dim_}, options);
+    dones_batch_ = torch::zeros({batch_size_, 1}, options);
 }
 
 void ReplayBuffer::add(const tensor_t& state, const tensor_t& action, const tensor_t& reward, const tensor_t& next_state, const tensor_t& done) {
@@ -37,32 +34,26 @@ void ReplayBuffer::add(const tensor_t& state, const tensor_t& action, const tens
         done.cpu()
     );
     buffer_.emplace_back(std::move(cpu_tensors));
-
-    if (buffer_.size() == 1) {
-        allocate_batch_tensors();
-    }
 }
 
 std::tuple<tensor_t, tensor_t, tensor_t, tensor_t, tensor_t> ReplayBuffer::sample() {
-    std::uniform_int_distribution<size_type> dist(0, buffer_.size() - 1);
+    torch::NoGradGuard no_grad;
 
-    for (size_type i = 0; i < batch_size_; ++i) {
-        indices_[i] = dist(generator_);
-        const auto& [s, a, r, ns, d] = buffer_[indices_[i]];
+    indices_ = torch::randint(0, buffer_.size(), {batch_size_}, torch::TensorOptions().device(torch::kCPU));
 
-        if(i == 0) {
-            states_batch_ = states_batch_.to(device_);
-            actions_batch_ = actions_batch_.to(device_);
-            rewards_batch_ = rewards_batch_.to(device_);
-            next_states_batch_ = next_states_batch_.to(device_);
-            dones_batch_ = dones_batch_.to(device_);
-        }
+    for (dim_type i = 0; i < batch_size_; ++i) {
+        const auto& [s, a, r, ns, d] = buffer_[indices_[i].item<dim_type>()];
+        states_batch_[i].copy_(s, true);
+        actions_batch_[i].copy_(a, true);
+        rewards_batch_[i].copy_(r, true);
+        next_states_batch_[i].copy_(ns, true);
+        dones_batch_[i].copy_(d, true);
+    }
 
-        states_batch_[i].copy_(s);
-        actions_batch_[i].copy_(a);
-        rewards_batch_[i].copy_(r.reshape({1}));
-        next_states_batch_[i].copy_(ns);
-        dones_batch_[i].copy_(d.reshape({1}));
+    if (device_.is_cuda()) {
+        torch::cuda::synchronize(device_);
+    } else if (device_.is_mps()) {
+        torch::mps::synchronize();
     }
 
     return std::make_tuple(
@@ -124,30 +115,31 @@ void SAC::update() {
     {
         torch::NoGradGuard no_grad;
         auto [next_actions, next_log_pi] = actor_->sample(next_states);
-        auto target_q1 = critic1_target_->forward(next_states, next_actions);
-        auto target_q2 = critic2_target_->forward(next_states, next_actions);
-        target_q = torch::min(target_q1, target_q2) - alpha_ * next_log_pi;
-        target_q = rewards + (1 - dones) * gamma_ * target_q;
+        target_q = torch::min(
+            critic1_target_->forward(next_states, next_actions),
+            critic2_target_->forward(next_states, next_actions)
+        );
+        target_q = rewards + (1 - dones) * gamma_ * (target_q - alpha_ * next_log_pi);
     }
 
     auto current_q1 = critic1_->forward(states, actions);
     auto current_q2 = critic2_->forward(states, actions);
 
-    auto critic_loss1 = torch::mse_loss(current_q1, target_q);
-    auto critic_loss2 = torch::mse_loss(current_q2, target_q);
+    auto critic_loss1 = torch::mse_loss(current_q1, target_q.detach());
+    auto critic_loss2 = torch::mse_loss(current_q2, target_q.detach());
 
     critic1_optimizer_.zero_grad();
-    critic_loss1.backward();
-    critic1_optimizer_.step();
-
     critic2_optimizer_.zero_grad();
+    critic_loss1.backward();
     critic_loss2.backward();
+    critic1_optimizer_.step();
     critic2_optimizer_.step();
 
     auto [new_actions, log_pi] = actor_->sample(states);
-    auto q1 = critic1_->forward(states, new_actions);
-    auto q2 = critic2_->forward(states, new_actions);
-    auto q = torch::min(q1, q2);
+    auto q = torch::min(
+        critic1_->forward(states, new_actions),
+        critic2_->forward(states, new_actions)
+    );
 
     auto actor_loss = (alpha_ * log_pi - q).mean();
 
@@ -160,25 +152,16 @@ void SAC::update() {
 
 void SAC::update_target_networks() {
     torch::NoGradGuard no_grad;
-    auto params1 = critic1_->parameters();
-    auto target_params1 = critic1_target_->parameters();
-    auto params2 = critic2_->parameters();
-    auto target_params2 = critic2_target_->parameters();
 
-    auto param_it1 = params1.begin();
-    auto target_it1 = target_params1.begin();
-    auto param_it2 = params2.begin();
-    auto target_it2 = target_params2.begin();
-
-    while (param_it1 != params1.end()) {
-        target_it1->data().copy_(tau_ * param_it1->data() + (1 - tau_) * target_it1->data());
-        ++param_it1;
-        ++target_it1;
+    for (size_t i = 0; i < critic1_->parameters().size(); ++i) {
+        auto& target = critic1_target_->parameters()[i];
+        const auto& source = critic1_->parameters()[i];
+        target.data().copy_(tau_ * source.data() + (1 - tau_) * target.data());
     }
 
-    while (param_it2 != params2.end()) {
-        target_it2->data().copy_(tau_ * param_it2->data() + (1 - tau_) * target_it2->data());
-        ++param_it2;
-        ++target_it2;
+    for (size_t i = 0; i < critic2_->parameters().size(); ++i) {
+        auto& target = critic2_target_->parameters()[i];
+        const auto& source = critic2_->parameters()[i];
+        target.data().copy_(tau_ * source.data() + (1 - tau_) * target.data());
     }
 }
