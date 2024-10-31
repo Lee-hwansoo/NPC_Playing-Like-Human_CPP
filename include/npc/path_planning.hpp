@@ -28,19 +28,15 @@ private:
 
 class RRT {
 public:
-    RRT(const tensor_t& start,
-        const Bounds2D& space,
-        const tensor_t& circle_obstacles_state,
-        const tensor_t& rectangle_obstacles_state,
-        const tensor_t& goal_state);
+    RRT();
 
-    void update(const tensor_t& start, const tensor_t& circle_obstacles_state, const tensor_t& rectangle_obstacles_state, const tensor_t& goal_state);
-    tensor_t plan();
+    tensor_t plan(const tensor_t& start, const Bounds2D& space, const tensor_t& circle_obstacles_state, const tensor_t& rectangle_obstacles_state, const tensor_t& goal_state);
     const std::vector<std::shared_ptr<Node>>& get_node_list() const {
         return node_list_;
     }
 
 private:
+    void update(const tensor_t& start, const Bounds2D& space, const tensor_t& circle_obstacles_state, const tensor_t& rectangle_obstacles_state, const tensor_t& goal_state);
     std::shared_ptr<Node> get_random_node();
     std::shared_ptr<Node> find_nearest_node(const std::vector<std::shared_ptr<Node>>& node_list,
                                           const std::shared_ptr<Node>& rand_node) const;
@@ -59,10 +55,11 @@ private:
 private:
     std::shared_ptr<Node> start_node_;
     std::shared_ptr<Node> goal_node_;
+    std::vector<std::shared_ptr<Node>> node_list_;
+
     Bounds2D space_;
     tensor_t circle_obstacles_state_;
     tensor_t rectangle_obstacles_state_;
-    std::vector<std::shared_ptr<Node>> node_list_;
 
     count_type max_iter_;
     real_t goal_sample_rate_;

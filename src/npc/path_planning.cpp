@@ -5,15 +5,8 @@
 
 namespace path_planning {
 
-RRT::RRT(const tensor_t& start,
-         const types::Bounds2D& space,
-	     const tensor_t& circle_obstacles_state,
-	     const tensor_t& rectangle_obstacles_state,
-         const tensor_t& goal_state)
-    : space_(space)
-    , circle_obstacles_state_(circle_obstacles_state)
-    , rectangle_obstacles_state_(rectangle_obstacles_state)
-    , max_iter_(constants::RRT::MAX_ITER)
+RRT::RRT()
+    : max_iter_(constants::RRT::MAX_ITER)
     , goal_sample_rate_(constants::RRT::GOAL_SAMPLE_RATE)
     , min_u_(constants::RRT::MIN_U)
     , max_u_(constants::RRT::MAX_U)
@@ -21,22 +14,26 @@ RRT::RRT(const tensor_t& start,
     , collision_check_step_(constants::RRT::COLLISION_CHECK_STEP)
     , step_size_(constants::RRT::STEP_SIZE)
     , gen_(std::random_device{}())
-    , unit_dist_(0.0f, 1.0f)
-{
-    start_node_ = std::make_shared<Node>(start[0].item<real_t>(), start[1].item<real_t>());
-    goal_node_ = std::make_shared<Node>(goal_state[0].item<real_t>(), goal_state[1].item<real_t>());
+    , unit_dist_(0.0f, 1.0f) {
 
     node_list_.reserve(max_iter_);
 }
 
-void RRT::update(const tensor_t& start, const tensor_t& circle_obstacles_state, const tensor_t& rectangle_obstacles_state, const tensor_t& goal_state) {
+void RRT::update(const tensor_t& start, const Bounds2D& space, const tensor_t& circle_obstacles_state, const tensor_t& rectangle_obstacles_state, const tensor_t& goal_state) {
     start_node_ = std::make_shared<Node>(start[0].item<real_t>(), start[1].item<real_t>());
     goal_node_ = std::make_shared<Node>(goal_state[0].item<real_t>(), goal_state[1].item<real_t>());
+    space_ = space;
     circle_obstacles_state_ = circle_obstacles_state;
     rectangle_obstacles_state_ = rectangle_obstacles_state;
+    node_list_.clear();
+
+    step_size_ = constants::RRT::STEP_SIZE;
+    success_dist_threshold_ = constants::RRT::SUCCESS_DIST_THRESHOLD;
 }
 
-tensor_t RRT::plan() {
+tensor_t RRT::plan(const tensor_t& start, const Bounds2D& space, const tensor_t& circle_obstacles_state, const tensor_t& rectangle_obstacles_state, const tensor_t& goal_state) {
+    update(start, space, circle_obstacles_state, rectangle_obstacles_state, goal_state);
+
     count_type attempt = 0;
     while (attempt < constants::RRT::MAX_ATTEMPTS) {
         bool path_found = false;

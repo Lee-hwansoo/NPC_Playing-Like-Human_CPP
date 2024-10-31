@@ -280,7 +280,8 @@ Agent::Agent(std::optional<real_t> x,
             bool type,
             const tensor_t& circle_obstacles_state,
             const tensor_t& rectangle_obstacles_state,
-            const tensor_t& goal_state)
+            const tensor_t& goal_state,
+            path_planning::RRT* path_planner)
     : Object(x.value_or(0.0f), y.value_or(0.0f), spawn_limit, color, type)
     , radius_(radius)
     , velocity_(torch::tensor({0.0f, 0.0f}))
@@ -289,7 +290,12 @@ Agent::Agent(std::optional<real_t> x,
     , circle_obstacles_state_(circle_obstacles_state)
     , rectangle_obstacles_state_(rectangle_obstacles_state)
     , goal_state_(goal_state)
-    , path_planner_(std::make_unique<path_planning::RRT>(position_, move_limit, circle_obstacles_state, rectangle_obstacles_state, goal_state)) {
+    , path_planner_(path_planner) {
+
+    if (!path_planner_) {
+        throw std::runtime_error("Path planner pointer is null");
+    }
+
     reset(x, y, circle_obstacles_state, rectangle_obstacles_state, goal_state);
 }
 
@@ -526,8 +532,7 @@ tensor_t Agent::reset(std::optional<real_t> x, std::optional<real_t> y, const te
 
     std::tie(fov_points_, fov_distances_, goal_distance_, angle_to_goal_, is_goal_in_fov_, is_collison_) = calculate_fov(position_, yaw_, circle_obstacles_state_, rectangle_obstacles_state_, goal_state_);
 
-	path_planner_->update(position_, circle_obstacles_state_, rectangle_obstacles_state_, goal_state_);
-	initial_path_ = path_planner_->plan();
+	initial_path_ = path_planner_->plan(position_, move_limit_, circle_obstacles_state_, rectangle_obstacles_state_, goal_state_);
 	std::tie(frenet_point_, frenet_d_) = get_frenet_d();
 
     return get_state();

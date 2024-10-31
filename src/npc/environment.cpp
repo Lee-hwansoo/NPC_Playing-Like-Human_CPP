@@ -9,20 +9,29 @@ TrainEnvironment::TrainEnvironment(count_type width, count_type height, torch::D
 	set_observation_dim(constants::Agent::FOV::RAY_COUNT + 9);
 	set_action_dim(2);
 
-	std::cout << "Environment initialized, device: " << device << std::endl;
+	std::cout << "Environment initialized, device: " << device_ << std::endl;
 
 	const auto [min_action, max_action] = get_action_space();
 	std::cout << "min_action: " << min_action << ", max_action: " << max_action << std::endl;
+
+	path_planner_ = std::make_unique<path_planning::RRT>();
+
+	state_ = init_objects();
+
+	memory_ = std::make_unique<ReplayBuffer>(
+		constants::NETWORK::BUFFER_SIZE,
+		constants::NETWORK::BATCH_SIZE,
+		device_
+	);
 
 	sac_ = std::make_unique<SAC>(
 		get_observation_dim(),
 		get_action_dim(),
 		min_action,
 		max_action,
+		memory_.get(),
 		device_
-		);
-
-	state_ = init_objects();
+	);
 
 	std::cout << "Finished Environment initialized" << std::endl;
 }
@@ -47,7 +56,7 @@ tensor_t TrainEnvironment::init_objects() {
 	update_rectangle_obstacles_state();
 
 	goal_ = std::make_unique<object::Goal>(std::nullopt, std::nullopt, constants::Goal::RADIUS, constants::Goal::SPAWN_BOUNDS, Display::to_sdl_color(Display::GREEN), false);
-	agent_ = std::make_unique<object::Agent>(std::nullopt, std::nullopt, constants::Agent::RADIUS, constants::Agent::SPAWN_BOUNDS, constants::Agent::MOVE_BOUNDS, Display::to_sdl_color(Display::BLUE), true, circle_obstacles_state_, rectangle_obstacles_state_, goal_->get_state());
+	agent_ = std::make_unique<object::Agent>(std::nullopt, std::nullopt, constants::Agent::RADIUS, constants::Agent::SPAWN_BOUNDS, constants::Agent::MOVE_BOUNDS, Display::to_sdl_color(Display::BLUE), true, circle_obstacles_state_, rectangle_obstacles_state_, goal_->get_state(), path_planner_.get());
 
 	return get_observation();
 }

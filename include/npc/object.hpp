@@ -115,7 +115,8 @@ public:
           bool type = true,
           const tensor_t& circle_obstacles_state = torch::tensor({}),
           const tensor_t& rectangle_obstacles_state = torch::tensor({}),
-          const tensor_t& goal_state = torch::tensor({}));
+          const tensor_t& goal_state = torch::tensor({}),
+          path_planning::RRT* path_planner = nullptr);
 
     tensor_t reset(std::optional<real_t> x = std::nullopt, std::optional<real_t> y = std::nullopt, const tensor_t& circle_obstacles_state = torch::tensor({}), const tensor_t& rectangle_obstacles_state = torch::tensor({}), const tensor_t& goal_state = torch::tensor({}));
     tensor_t update(const real_t dt, const tensor_t& scaled_action, const tensor_t& circle_obstacles_state);
@@ -139,7 +140,7 @@ private:
 
     tensor_t trajectory_;
 
-    std::unique_ptr<path_planning::RRT> path_planner_;
+    path_planning::RRT* path_planner_;
     tensor_t initial_path_;
     Vector2 frenet_point_;
     real_t frenet_d_;

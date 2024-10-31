@@ -53,6 +53,7 @@ std::tuple<tensor_t, tensor_t, tensor_t, tensor_t, tensor_t> ReplayBuffer::sampl
 SAC::SAC(dim_type state_dim, dim_type action_dim,
         tensor_t min_action,
         tensor_t max_action,
+        ReplayBuffer* memory,
         torch::Device device)
     : actor_("actor", state_dim, action_dim, min_action, max_action, device)
     , critic1_("critic1", state_dim, action_dim, device)
@@ -62,7 +63,7 @@ SAC::SAC(dim_type state_dim, dim_type action_dim,
     , actor_optimizer_(actor_->parameters(), constants::NETWORK::LEARNING_RATE)
     , critic1_optimizer_(critic1_->parameters(), constants::NETWORK::LEARNING_RATE)
     , critic2_optimizer_(critic2_->parameters(), constants::NETWORK::LEARNING_RATE)
-    , memory_(std::make_unique<ReplayBuffer>(constants::NETWORK::BUFFER_SIZE, constants::NETWORK::BATCH_SIZE, device))
+    , memory_(memory)
     , device_(device)
     , state_dim_(state_dim)
     , action_dim_(action_dim)
@@ -71,6 +72,10 @@ SAC::SAC(dim_type state_dim, dim_type action_dim,
     , gamma_(constants::NETWORK::GAMMA)
     , tau_(constants::NETWORK::TAU)
     , alpha_(constants::NETWORK::ALPHA) {
+
+    if (!memory_) {
+        throw std::runtime_error("Memory buffer pointer is null");
+    }
 
     critic1_target_->load_state_dict(critic1_->state_dict());
     critic2_target_->load_state_dict(critic2_->state_dict());

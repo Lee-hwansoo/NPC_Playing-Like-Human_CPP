@@ -39,6 +39,7 @@ public:
     explicit SAC(dim_type state_dim, dim_type action_dim,
                 tensor_t min_action,
                 tensor_t max_action,
+                ReplayBuffer* memory,
                 torch::Device device);
 
     virtual ~SAC() = default;
@@ -98,7 +99,7 @@ private:
     Actor actor_{nullptr};
     Critic critic1_{nullptr}, critic2_{nullptr}, critic1_target_{nullptr}, critic2_target_{nullptr};
     torch::optim::Adam actor_optimizer_, critic1_optimizer_, critic2_optimizer_;
-    std::unique_ptr<ReplayBuffer> memory_;
+    ReplayBuffer* memory_;
 
     dim_type state_dim_, action_dim_;
     tensor_t min_action_, max_action_;

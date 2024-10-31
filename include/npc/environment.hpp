@@ -101,9 +101,13 @@ private:
 	std::vector<std::unique_ptr<object::RectangleObstacle>> rectangle_obstacles_;
 	tensor_t circle_obstacles_state_;
 	tensor_t rectangle_obstacles_state_;
+
 	std::unique_ptr<object::Goal> goal_;
+
+	std::unique_ptr<path_planning::RRT> path_planner_;
 	std::unique_ptr<object::Agent> agent_;
 
+	std::unique_ptr<ReplayBuffer> memory_;
 	std::unique_ptr<SAC> sac_;
 
 	dim_type start_episode_{ 0 };
