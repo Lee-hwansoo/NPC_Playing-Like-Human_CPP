@@ -32,6 +32,16 @@ private:
     size_type batch_size_;
     torch::Device device_;
     std::mt19937 generator_;
+
+   tensor_t states_batch_;
+   tensor_t actions_batch_;
+   tensor_t rewards_batch_;
+   tensor_t next_states_batch_;
+   tensor_t dones_batch_;
+
+   std::vector<size_type> indices_;
+
+   void allocate_batch_tensors();
 };
 
 class SAC {

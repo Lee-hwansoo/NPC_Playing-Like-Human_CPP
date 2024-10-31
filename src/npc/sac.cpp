@@ -5,49 +5,63 @@ ReplayBuffer::ReplayBuffer(size_type buffer_size, size_type batch_size, torch::D
     : buffer_size_(buffer_size)
     , batch_size_(batch_size)
     , device_(device)
-    , generator_(std::random_device{}()) {}
+    , generator_(std::random_device{}())
+    , indices_(batch_size) {
+    allocate_batch_tensors();
+}
+
+void ReplayBuffer::allocate_batch_tensors() {
+   if (!buffer_.empty()) {
+       const auto& [state, action, reward, next_state, done] = buffer_.front();
+
+       states_batch_ = torch::zeros({batch_size_, state.size(0)});
+       actions_batch_ = torch::zeros({batch_size_, action.size(0)});
+       rewards_batch_ = torch::zeros({batch_size_, 1});
+       next_states_batch_ = torch::zeros({batch_size_, next_state.size(0)});
+       dones_batch_ = torch::zeros({batch_size_, 1});
+   }
+}
 
 void ReplayBuffer::add(const tensor_t& state, const tensor_t& action, const tensor_t& reward, const tensor_t& next_state, const tensor_t& done) {
     if (buffer_.size() >= buffer_size_) {
         buffer_.pop_front();
     }
-    buffer_.emplace_back(
+
+    auto cpu_tensors = std::make_tuple(
         state.cpu(),
         action.cpu(),
         reward.cpu(),
         next_state.cpu(),
         done.cpu()
     );
+    buffer_.emplace_back(std::move(cpu_tensors));
+
+    if (buffer_.size() == 1) {
+        allocate_batch_tensors();
+    }
 }
 
 std::tuple<tensor_t, tensor_t, tensor_t, tensor_t, tensor_t> ReplayBuffer::sample() {
-    std::vector<size_type> indices(batch_size_);
-    std::vector<tensor_t> states, actions, rewards, next_states, dones;
-    states.reserve(batch_size_);
-    actions.reserve(batch_size_);
-    rewards.reserve(batch_size_);
-    next_states.reserve(batch_size_);
-    dones.reserve(batch_size_);
+    std::uniform_int_distribution<size_type> dist(0, buffer_.size() - 1);
 
     for (size_type i = 0; i < batch_size_; ++i) {
-        std::uniform_int_distribution<size_type> dist(0, buffer_.size() - 1);
-        indices[i] = dist(generator_);
+        indices_[i] = dist(generator_);
+        const auto& [s, a, r, ns, d] = buffer_[indices_[i]];
 
-        const auto& [s, a, r, ns, d] = buffer_[indices[i]];
-        states.push_back(s);
-        actions.push_back(a);
-        rewards.push_back(r.reshape({ 1 }));
-        next_states.push_back(ns);
-        dones.push_back(d.reshape({ 1 }));
+        states_batch_[i].copy_(s);
+        actions_batch_[i].copy_(a);
+        rewards_batch_[i].copy_(r.reshape({1}));
+        next_states_batch_[i].copy_(ns);
+        dones_batch_[i].copy_(d.reshape({1}));
     }
 
-    return {
-        torch::stack(states),
-        torch::stack(actions),
-        torch::stack(rewards),
-        torch::stack(next_states),
-        torch::stack(dones)
-    };
+    return std::make_tuple(
+        states_batch_.to(device_),
+        actions_batch_.to(device_),
+        rewards_batch_.to(device_),
+        next_states_batch_.to(device_),
+        dones_batch_.to(device_)
+    );
 }
 
 SAC::SAC(dim_type state_dim, dim_type action_dim,
