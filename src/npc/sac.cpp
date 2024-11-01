@@ -101,8 +101,6 @@ SAC::SAC(dim_type state_dim, dim_type action_dim,
 
 
 void SAC::warmup() {
-	torch::NoGradGuard no_grad;  // 실제 그래디언트는 필요없음
-
 	// 더미 데이터 생성
 	auto batch_size = memory_->batch_size();
 	auto dummy_states = torch::zeros({ batch_size, state_dim_ }, device_);
@@ -150,11 +148,24 @@ void SAC::warmup() {
 	}
 
 	// Target networks warmup
-	auto [next_actions, next_log_pi] = actor_->sample(dummy_next_states);
-	auto target_q = torch::min(
-		critic1_target_->forward(dummy_next_states, next_actions),
-		critic2_target_->forward(dummy_next_states, next_actions)
-	);
+    {
+        torch::NoGradGuard no_grad;
+
+		auto [next_actions, next_log_pi] = actor_->sample(dummy_next_states);
+		auto target_q = torch::min(
+			critic1_target_->forward(dummy_next_states, next_actions),
+			critic2_target_->forward(dummy_next_states, next_actions)
+		);
+    }
+
+	// unsqueeze/squeeze 연산 웜업
+	{
+        torch::NoGradGuard no_grad;
+
+		auto single_state = torch::zeros({ state_dim_ }, device_);
+		single_state.unsqueeze(0);  // unsqueeze 웜업
+		dummy_states.squeeze(0);    // squeeze 웜업
+	}
 
 }
 
