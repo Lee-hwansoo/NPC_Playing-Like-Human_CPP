@@ -251,7 +251,9 @@ std::vector<real_t> TrainEnvironment::test(const dim_type episodes, bool render)
 	sac_->eval();
 	SDL_Event event;
 	std::vector<real_t> reward_history;
+	std::vector<real_real_t> action_times;
 	reward_history.reserve(static_cast<size_t>(episodes));
+	action_times.reserve(static_cast<size_t>(episodes) * 2000);
 
 	for (dim_type episode = 0; episode < episodes; ++episode) {
 		real_t episode_return = 0.0f;
@@ -266,7 +268,13 @@ std::vector<real_t> TrainEnvironment::test(const dim_type episodes, bool render)
 				}
 			}
 
+			auto start_time = std::chrono::high_resolution_clock::now();
 			tensor_t action = sac_->select_action(state);
+			auto end_time = std::chrono::high_resolution_clock::now();
+
+			std::chrono::duration<real_real_t, std::milli> duration = end_time - start_time;
+			action_times.push_back(duration.count());
+
 			auto [next_state, reward, terminated, truncated] = step(action);
 
 			done = terminated || truncated;
@@ -299,6 +307,38 @@ std::vector<real_t> TrainEnvironment::test(const dim_type episodes, bool render)
 
 		reward_history.push_back(episode_return);
 	}
+
+	double min_time = *std::min_element(action_times.begin(), action_times.end());
+	double max_time = *std::max_element(action_times.begin(), action_times.end());
+	double avg_time = std::accumulate(action_times.begin(), action_times.end(), 0.0) / action_times.size();
+
+	double min_time_no_first = *std::min_element(action_times.begin() + 1, action_times.end());
+	double max_time_no_first = *std::max_element(action_times.begin() + 1, action_times.end());
+	double avg_time_no_first = std::accumulate(action_times.begin() + 1, action_times.end(), 0.0) /
+		(action_times.size() - 1);
+
+	std::cout << "\nAll Action Selection Times (ms):" << std::endl;
+	std::cout << std::fixed << std::setprecision(4);
+	for (size_t i = 0; i < action_times.size(); ++i) {
+		std::cout << action_times[i];
+		if (i < action_times.size() - 1) {
+			std::cout << ", ";
+		}
+		if ((i + 1) % 20 == 0) {
+			std::cout << std::endl;
+		}
+	}
+
+	std::cout << "\nAction Selection Time Statistics (ms):" << std::endl;
+	std::cout << "First action time: " << action_times[0] << std::endl;
+	std::cout << "Including first action:" << std::endl;
+	std::cout << "  Minimum: " << min_time << std::endl;
+	std::cout << "  Maximum: " << max_time << std::endl;
+	std::cout << "  Average: " << avg_time << std::endl;
+	std::cout << "Excluding first action:" << std::endl;
+	std::cout << "  Minimum: " << min_time_no_first << std::endl;
+	std::cout << "  Maximum: " << max_time_no_first << std::endl;
+	std::cout << "  Average: " << avg_time_no_first << std::endl;
 
 	return reward_history;
 }
