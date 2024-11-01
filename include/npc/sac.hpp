@@ -23,8 +23,8 @@ public:
 
     std::tuple<tensor_t, tensor_t, tensor_t, tensor_t, tensor_t> sample();
 
-    size_type size() const { return current_size_; }
-    size_type batch_size() const { return batch_size_; }
+    count_type size() const { return current_size_; }
+    index_type batch_size() const { return batch_size_; }
     torch::Device device() const { return device_; }
 
 private:
@@ -40,6 +40,7 @@ private:
     tensor_t indices_;
 
     void preallocate_tensors();
+    void warmup();
 };
 
 class SAC {
@@ -103,6 +104,7 @@ public:
 
 private:
     void update_target_networks();
+    void warmup();
 
     Actor actor_{nullptr};
     Critic critic1_{nullptr}, critic2_{nullptr}, critic1_target_{nullptr}, critic2_target_{nullptr};

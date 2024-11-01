@@ -14,6 +14,7 @@ ReplayBuffer::ReplayBuffer(dim_type state_dim, dim_type action_dim,
     , device_(device) {
 
     preallocate_tensors();
+    warmup();
 }
 
 void ReplayBuffer::preallocate_tensors() {
@@ -31,6 +32,11 @@ void ReplayBuffer::preallocate_tensors() {
                             torch::TensorOptions()
                                 .dtype(torch::kInt64)
                                 .device(device_));
+}
+
+void ReplayBuffer::warmup() {
+	indices_.random_(0, 1);  // random_ 커널 초기화
+	states_.index_select(0, indices_);  // index_select 커널 초기화
 }
 
 void ReplayBuffer::add(const tensor_t& state, const tensor_t& action,
@@ -86,9 +92,70 @@ SAC::SAC(dim_type state_dim, dim_type action_dim,
         throw std::runtime_error("Memory buffer pointer is null");
     }
 
+    warmup();
+
     critic1_target_->load_state_dict(critic1_->state_dict());
     critic2_target_->load_state_dict(critic2_->state_dict());
     std::cout << "Successfully created SAC network" << std::endl;
+}
+
+
+void SAC::warmup() {
+	torch::NoGradGuard no_grad;  // 실제 그래디언트는 필요없음
+
+	// 더미 데이터 생성
+	auto batch_size = memory_->batch_size();
+	auto dummy_states = torch::zeros({ batch_size, state_dim_ }, device_);
+	auto dummy_actions = torch::zeros({ batch_size, action_dim_ }, device_);
+	auto dummy_rewards = torch::zeros({ batch_size, 1 }, device_);
+	auto dummy_next_states = torch::zeros({ batch_size, state_dim_ }, device_);
+	auto dummy_dones = torch::zeros({ batch_size, 1 }, device_);
+
+	// Critic networks warmup
+	{
+		torch::autograd::GradMode::set_enabled(true);  // 그래디언트 연산 활성화
+
+		// Critic forward & backward
+		auto current_q1 = critic1_->forward(dummy_states, dummy_actions);
+		auto current_q2 = critic2_->forward(dummy_states, dummy_actions);
+
+		auto dummy_target = torch::zeros_like(current_q1);
+		auto critic_loss1 = torch::mse_loss(current_q1, dummy_target);
+		auto critic_loss2 = torch::mse_loss(current_q2, dummy_target);
+
+		critic1_optimizer_.zero_grad();
+		critic_loss1.backward();
+		critic1_optimizer_.zero_grad();  // 실제 파라미터 업데이트는 하지 않음
+
+		critic2_optimizer_.zero_grad();
+		critic_loss2.backward();
+		critic2_optimizer_.zero_grad();
+	}
+
+	// Actor network warmup
+	{
+		torch::autograd::GradMode::set_enabled(true);
+
+		// Actor forward & backward
+		auto [actions, log_pi] = actor_->sample(dummy_states);
+		auto q = torch::min(
+			critic1_->forward(dummy_states, actions),
+			critic2_->forward(dummy_states, actions)
+		);
+		auto actor_loss = (alpha_ * log_pi - q).mean();
+
+		actor_optimizer_.zero_grad();
+		actor_loss.backward();
+		actor_optimizer_.zero_grad();
+	}
+
+	// Target networks warmup
+	auto [next_actions, next_log_pi] = actor_->sample(dummy_next_states);
+	auto target_q = torch::min(
+		critic1_target_->forward(dummy_next_states, next_actions),
+		critic2_target_->forward(dummy_next_states, next_actions)
+	);
+
 }
 
 tensor_t SAC::select_action(const tensor_t& state) {
