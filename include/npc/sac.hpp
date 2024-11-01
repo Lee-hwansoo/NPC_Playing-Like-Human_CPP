@@ -77,7 +77,7 @@ public:
     }
 
     tensor_t select_action(const tensor_t& state);
-    void update();
+    void update(bool debug = false);
     void save_network_parameters(dim_type episode, bool print = true) {
         actor_->save_network_parameters(episode, print);
 		critic1_->save_network_parameters(episode, print);

@@ -183,7 +183,7 @@ void TrainEnvironment::load(const std::string& timestamp, dim_type episode) {
 	}
 }
 
-std::vector<real_t> TrainEnvironment::train(const dim_type episodes, bool render) {
+std::vector<real_t> TrainEnvironment::train(const dim_type episodes, bool render, bool debug) {
 	sac_->train();
 	SDL_Event event;
     std::vector<real_t> reward_history;
@@ -207,7 +207,7 @@ std::vector<real_t> TrainEnvironment::train(const dim_type episodes, bool render
 
 			done = terminated || truncated;
 			sac_->add(state, action, reward, next_state, torch::tensor(done, get_tensor_dtype()));
-			sac_->update();
+			sac_->update(debug);
 
 			episode_return += reward.item<real_t>();
 			state = next_state;

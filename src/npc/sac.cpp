@@ -98,17 +98,33 @@ tensor_t SAC::select_action(const tensor_t& state) {
     return action.squeeze(0);
 }
 
-void SAC::update() {
+void SAC::update(bool debug) {
     if (memory_->size() < memory_->batch_size()) {
         return;
     }
 
+	std::chrono::duration<double, std::milli> memory_sample_time;
+	std::chrono::duration<double, std::milli> actor_sample_time;
+	std::chrono::duration<double, std::milli> critic_forward_time;
+	std::chrono::duration<double, std::milli> critic_backward_time;
+	std::chrono::duration<double, std::milli> actor_forward_time;
+	std::chrono::duration<double, std::milli> actor_backward_time;
+	std::chrono::duration<double, std::milli> target_update_time;
+
+    auto start = std::chrono::high_resolution_clock::now();
     auto [states, actions, rewards, next_states, dones] = memory_->sample();
+    auto end = std::chrono::high_resolution_clock::now();
+    memory_sample_time = end - start;
 
     tensor_t target_q;
     {
         torch::NoGradGuard no_grad;
+
+        start = std::chrono::high_resolution_clock::now();
         auto [next_actions, next_log_pi] = actor_->sample(next_states);
+		end = std::chrono::high_resolution_clock::now();
+		actor_sample_time = end - start;
+
         target_q = torch::min(
             critic1_target_->forward(next_states, next_actions),
             critic2_target_->forward(next_states, next_actions)
@@ -116,21 +132,31 @@ void SAC::update() {
         target_q = rewards + (1 - dones) * gamma_ * (target_q - alpha_ * next_log_pi);
     }
 
+    start = std::chrono::high_resolution_clock::now();
     auto current_q1 = critic1_->forward(states, actions);
+    end = std::chrono::high_resolution_clock::now();
+    critic_forward_time = end - start;
+
     auto current_q2 = critic2_->forward(states, actions);
 
     auto critic_loss1 = torch::mse_loss(current_q1, target_q.detach());
     auto critic_loss2 = torch::mse_loss(current_q2, target_q.detach());
 
+    start = std::chrono::high_resolution_clock::now();
     critic1_optimizer_.zero_grad();
     critic_loss1.backward();
     critic1_optimizer_.step();
+    end = std::chrono::high_resolution_clock::now();
+    critic_backward_time = end - start;
 
     critic2_optimizer_.zero_grad();
     critic_loss2.backward();
     critic2_optimizer_.step();
 
+    start = std::chrono::high_resolution_clock::now();
     auto [new_actions, log_pi] = actor_->sample(states);
+    end = std::chrono::high_resolution_clock::now();
+    actor_forward_time = end - start;
     auto q = torch::min(
         critic1_->forward(states, new_actions),
         critic2_->forward(states, new_actions)
@@ -138,11 +164,35 @@ void SAC::update() {
 
     auto actor_loss = (alpha_ * log_pi - q).mean();
 
+    start = std::chrono::high_resolution_clock::now();
     actor_optimizer_.zero_grad();
     actor_loss.backward();
     actor_optimizer_.step();
+	end = std::chrono::high_resolution_clock::now();
+	actor_backward_time = end - start;
 
+    start = std::chrono::high_resolution_clock::now();
     update_target_networks();
+	end = std::chrono::high_resolution_clock::now();
+	target_update_time = end - start;
+
+    if (debug) {
+	    std::cout << "\nSAC Update Timing (ms):" << std::endl;
+	    std::cout << std::fixed << std::setprecision(4);
+	    std::cout << "Memory Sampling: " << memory_sample_time.count() << std::endl;
+	    std::cout << "Actor Sampling: " << actor_sample_time.count() << std::endl;
+	    std::cout << "Critic Forward: " << critic_forward_time.count() << std::endl;
+	    std::cout << "Critic Backward: " << critic_backward_time.count() << std::endl;
+	    std::cout << "Actor Forward: " << actor_forward_time.count() << std::endl;
+	    std::cout << "Actor Backward: " << actor_backward_time.count() << std::endl;
+	    std::cout << "Target Update: " << target_update_time.count() << std::endl;
+
+	    double total_time = memory_sample_time.count() + actor_sample_time.count() +
+		    critic_forward_time.count() + critic_backward_time.count() +
+		    actor_forward_time.count() + actor_backward_time.count() +
+		    target_update_time.count();
+	    std::cout << "Total Update Time: " << total_time << std::endl;
+    }
 }
 
 void SAC::update_target_networks() {
