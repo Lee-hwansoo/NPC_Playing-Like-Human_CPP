@@ -163,8 +163,9 @@ void SAC::warmup() {
         torch::NoGradGuard no_grad;
 
 		auto single_state = torch::zeros({ state_dim_ }, device_);
-		single_state.unsqueeze(0);  // unsqueeze 웜업
-		dummy_states.squeeze(0);    // squeeze 웜업
+		auto batch_state = single_state.unsqueeze(0);
+		auto [action, _] = actor_->sample(batch_state);
+		action.squeeze(0);
 	}
 
 }
