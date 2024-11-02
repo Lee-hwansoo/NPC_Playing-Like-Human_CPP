@@ -134,13 +134,16 @@ std::tuple<tensor_t, tensor_t, bool, bool> TrainEnvironment::step(const tensor_t
 real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t& action) {
 	auto state_size = state.size(0);
 
-	real_t normalized_goal_dist = state[state_size-4].item<real_t>();
-	real_t normalized_angle_diff = state[state_size-3].item<real_t>();
-	real_t goal_in_fov = state[state_size-2].item<real_t>();
-	real_t frenet_d = state[state_size-1].item<real_t>();
+	auto required_state = state.slice(0, state_size-4, state_size).to(torch::kCPU);
+    auto required_action = action.to(torch::kCPU);
 
-	real_t force = action[0].item<real_t>();
-	real_t yaw_change = action[1].item<real_t>();
+    real_t normalized_goal_dist = required_state[0].item<real_t>();
+    real_t normalized_angle_diff = required_state[1].item<real_t>();
+    real_t goal_in_fov = required_state[2].item<real_t>();
+    real_t frenet_d = required_state[3].item<real_t>();
+
+    real_t force = required_action[0].item<real_t>();
+    real_t yaw_change = required_action[1].item<real_t>();
 
 	real_t goal_reward = (1.0f - normalized_goal_dist);
 	real_t fov_reward = (1.0f - std::abs(normalized_angle_diff)) * goal_in_fov * 0.3f;
@@ -213,24 +216,7 @@ std::vector<real_t> TrainEnvironment::train(const dim_type episodes, bool render
 			state = next_state;
 
 			if (render) {
-				SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
-				SDL_RenderClear(renderer_);
-
-				auto color = Display::to_sdl_color(Display::GREEN);
-				SDL_SetRenderDrawColor(renderer_, color.r, color.g, color.b, color.a);
-				SDL_RenderDrawLine(renderer_, 0, Section::GOAL_LINE, Display::WIDTH, Section::GOAL_LINE);
-				SDL_RenderDrawLine(renderer_, 0, Section::START_LINE, Display::WIDTH, Section::START_LINE);
-
-				for (auto& obs : circle_obstacles_) {
-					obs->draw(renderer_);
-				}
-				for (auto& obs : rectangle_obstacles_) {
-					obs->draw(renderer_);
-				}
-				goal_->draw(renderer_);
-				agent_->draw(renderer_);
-
-				SDL_RenderPresent(renderer_);
+				render_scene();
 			}
 
 			std::cout << "\rEpisode: " << episode + 1 << "/" << start_episode_+ episodes << " | Step: " << step_count_ << " " << std::flush;
@@ -282,24 +268,7 @@ std::vector<real_t> TrainEnvironment::test(const dim_type episodes, bool render)
 			state = next_state;
 
             if (render) {
-				SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
-				SDL_RenderClear(renderer_);
-
-				auto color = Display::to_sdl_color(Display::GREEN);
-				SDL_SetRenderDrawColor(renderer_, color.r, color.g, color.b, color.a);
-				SDL_RenderDrawLine(renderer_, 0, Section::GOAL_LINE, Display::WIDTH, Section::GOAL_LINE);
-				SDL_RenderDrawLine(renderer_, 0, Section::START_LINE, Display::WIDTH, Section::START_LINE);
-
-				for (auto& obs : circle_obstacles_) {
-					obs->draw(renderer_);
-				}
-				for (auto& obs : rectangle_obstacles_) {
-					obs->draw(renderer_);
-				}
-				goal_->draw(renderer_);
-				agent_->draw(renderer_);
-
-				SDL_RenderPresent(renderer_);
+				render_scene();
             }
 		}
 
@@ -343,28 +312,58 @@ std::vector<real_t> TrainEnvironment::test(const dim_type episodes, bool render)
 	return reward_history;
 }
 
+void TrainEnvironment::render_scene() {
+    if (!renderer_) return;
+
+    SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
+    SDL_RenderClear(renderer_);
+
+    auto color = Display::to_sdl_color(Display::GREEN);
+    SDL_SetRenderDrawColor(renderer_, color.r, color.g, color.b, color.a);
+    SDL_RenderDrawLine(renderer_, 0, Section::GOAL_LINE, Display::WIDTH, Section::GOAL_LINE);
+    SDL_RenderDrawLine(renderer_, 0, Section::START_LINE, Display::WIDTH, Section::START_LINE);
+
+    for (const auto& obs : circle_obstacles_) obs->draw(renderer_);
+    for (const auto& obs : rectangle_obstacles_) obs->draw(renderer_);
+
+    goal_->draw(renderer_);
+    agent_->draw(renderer_);
+
+    SDL_RenderPresent(renderer_);
+}
+
 void TrainEnvironment::log_statistics(const std::vector<real_t>& reward_history, dim_type episode) const {
 	// 최근 10개 에피소드의 보상 통계 계산
-	size_t start_idx = std::max(0, static_cast<int>(reward_history.size()) - 10);
-	std::vector<real_t> recent_rewards(reward_history.begin() + start_idx, reward_history.end());
+    size_t start_idx = std::max(0, static_cast<int>(reward_history.size()) - 10);
+    auto begin = reward_history.begin() + start_idx;
+    auto end = reward_history.end();
 
-	// 평균, 중앙값, 표준편차 계산
-	real_t mean_reward = std::accumulate(recent_rewards.begin(), recent_rewards.end(), 0.0f) / recent_rewards.size();
+	// Welford's online algorithm
+    real_t mean = 0.0f;
+    real_t M2 = 0.0f;  // 이차 중심적률
+    size_t n = 0;
 
-	std::vector<real_t> sorted_rewards = recent_rewards;
-	std::sort(sorted_rewards.begin(), sorted_rewards.end());
-	real_t median_reward = sorted_rewards[sorted_rewards.size() / 2];
+    for (auto it = begin; it != end; ++it) {
+        n += 1;
+        real_t delta = *it - mean;
+        mean += delta / n;
+        real_t delta2 = *it - mean;
+        M2 += delta * delta2;
+    }
 
-	real_t variance = 0.0f;
-	for (const auto& reward : recent_rewards) {
-		variance += std::pow(reward - mean_reward, 2);
-	}
-	real_t std_dev = std::sqrt(variance / recent_rewards.size());
+    // n-1로 나누어 표본표준편차 계산
+    real_t variance = M2 / (n - 1);
+    real_t std = std::sqrt(variance);
+
+    std::vector<real_t> recent_rewards(begin, end);
+    size_t mid = n / 2;
+	std::nth_element(recent_rewards.begin(), recent_rewards.begin() + mid, recent_rewards.end());
+    real_t median = recent_rewards[mid];
 
 	std::cout << "Episode " << episode + 1
-			<< ", Average Reward: " << std::fixed << std::setprecision(2) << mean_reward
-			<< ", Median Reward: " << median_reward
-			<< ", std: " << std_dev << std::endl;
+			<< ", Average Reward: " << std::fixed << std::setprecision(2) << mean
+			<< ", Median Reward: " << median
+			<< ", std: " << std << std::endl;
 }
 
 } // namespace environment

@@ -115,6 +115,7 @@ private:
 	tensor_t init_objects();
 	void update_circle_obstacles_state();
 	void update_rectangle_obstacles_state();
+	void render_scene();
 	void log_statistics(const std::vector<real_t>& reward_history, dim_type episode) const;
 };
 
