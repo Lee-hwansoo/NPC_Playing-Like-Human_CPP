@@ -177,9 +177,10 @@ tensor_t SAC::select_action(const tensor_t& state) {
     return action.squeeze(0);
 }
 
-void SAC::update(bool debug) {
+SACMetrics SAC::update(bool debug) {
+    SACMetrics metrics{};
     if (memory_->size() < memory_->batch_size()) {
-        return;
+        return metrics;
     }
 
 	std::chrono::duration<double, std::milli> memory_sample_time;
@@ -220,6 +221,8 @@ void SAC::update(bool debug) {
 
     auto critic_loss1 = torch::mse_loss(current_q1, target_q.detach());
     auto critic_loss2 = torch::mse_loss(current_q2, target_q.detach());
+    metrics.critic_loss1 = critic_loss1.item<real_t>();
+    metrics.critic_loss2 = critic_loss2.item<real_t>();
 
     start = std::chrono::high_resolution_clock::now();
     critic1_optimizer_.zero_grad();
@@ -242,6 +245,9 @@ void SAC::update(bool debug) {
     );
 
     auto actor_loss = (alpha_ * log_pi - q).mean();
+    metrics.actor_loss = actor_loss.item<real_t>();
+    metrics.log_pi = log_pi.mean().item<real_t>();
+    metrics.q_value = q.mean().item<real_t>();
 
     start = std::chrono::high_resolution_clock::now();
     actor_optimizer_.zero_grad();
@@ -272,6 +278,10 @@ void SAC::update(bool debug) {
 		    target_update_time.count();
 	    std::cout << "Total Update Time: " << total_time << std::endl;
     }
+
+    metrics.is_vaild = true;
+
+    return metrics;
 }
 
 void SAC::update_target_networks() {

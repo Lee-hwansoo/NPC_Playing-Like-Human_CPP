@@ -43,6 +43,15 @@ private:
     void warmup();
 };
 
+struct SACMetrics {
+    real_t critic_loss1;
+    real_t critic_loss2;
+    real_t actor_loss;
+    real_t log_pi;
+    real_t q_value;
+    bool is_vaild = false;
+};
+
 class SAC {
 public:
     explicit SAC(dim_type state_dim, dim_type action_dim,
@@ -78,7 +87,7 @@ public:
     }
 
     tensor_t select_action(const tensor_t& state);
-    void update(bool debug = false);
+    SACMetrics update(bool debug = false);
     void save_network_parameters(dim_type episode, bool print = true) {
         actor_->save_network_parameters(episode, print);
 		critic1_->save_network_parameters(episode, print);
