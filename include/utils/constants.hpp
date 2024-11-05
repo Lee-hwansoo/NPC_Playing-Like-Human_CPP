@@ -13,6 +13,7 @@ namespace constants
     constexpr real_t EPSILON = 1e-6f;
 
     constexpr const char* LOG_DIR = "../../logs";
+    constexpr const char* HIS_DIR = "../../results";
 
     //--------------------------------------------------------------------------------
     // Display Settings

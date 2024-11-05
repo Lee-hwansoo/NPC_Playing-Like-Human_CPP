@@ -11,6 +11,8 @@ TrainEnvironment::TrainEnvironment(count_type width, count_type height, torch::D
 
 	std::cout << "Environment initialized, device: " << device_ << std::endl;
 
+	his_dir_ = get_history_directory();
+
 	const auto [min_action, max_action] = get_action_space();
 	std::cout << "min_action: " << min_action << ", max_action: " << max_action << std::endl;
 
@@ -231,9 +233,9 @@ TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, boo
 		}
 
 		reward_history.push_back(episode_return);
-
 		if ((episode + 1) % constants::NETWORK::LOG_INTERVAL == 0) {
 			log_statistics(reward_history, episode);
+			save_history(reward_history, metrics_history);
 			save(episode + 1, false);
 		}
     }
@@ -374,27 +376,44 @@ void TrainEnvironment::log_statistics(const std::vector<real_t>& reward_history,
 			<< ", std: " << std << std::endl;
 }
 
-void TrainEnvironment::save_training_data(const std::vector<real_t>& reward_history, const std::vector<SACMetrics>& metrics_history) const {
-    std::filesystem::create_directories("results");
+void TrainEnvironment::save_history(const std::vector<real_t>& reward_history, const std::vector<SACMetrics>& metrics_history) const {
+	try {
+		// 보상 데이터 저장
+		{
+			std::filesystem::path reward_path = std::filesystem::path(his_dir_) / "rewards.csv";
+			std::ofstream reward_file(reward_path);
+			if (!reward_file.is_open()) {
+				throw std::runtime_error("Could not open " + reward_path.string());
+			}
+			reward_file << "episode,reward\n";
+			for (size_t i = 0; i < reward_history.size(); ++i) {
+				reward_file << i << "," << reward_history[i] << "\n";
+			}
+		}
 
-    // 보상 데이터 저장
-    std::ofstream reward_file("results/rewards.csv");
-    reward_file << "episode,reward\n";  // 헤더 추가
-    for (size_t i = 0; i < reward_history.size(); ++i) {
-        reward_file << i << "," << reward_history[i] << "\n";
-    }
+		// 메트릭 데이터 저장
+		{
+			std::filesystem::path metrics_path = std::filesystem::path(his_dir_) / "metrics.csv";
+			std::ofstream metrics_file(metrics_path);
+			if (!metrics_file.is_open()) {
+				throw std::runtime_error("Could not open " + metrics_path.string());
+			}
+			metrics_file << "step,critic_loss1,critic_loss2,actor_loss,log_pi,q_value\n";
+			for (size_t i = 0; i < metrics_history.size(); ++i) {
+				metrics_file << i << ","
+					<< metrics_history[i].critic_loss1 << ","
+					<< metrics_history[i].critic_loss2 << ","
+					<< metrics_history[i].actor_loss << ","
+					<< metrics_history[i].log_pi << ","
+					<< metrics_history[i].q_value << "\n";
+			}
+		}
 
-    // 메트릭 데이터 저장
-    std::ofstream metrics_file("results/metrics.csv");
-    metrics_file << "step,critic_loss1,critic_loss2,actor_loss,log_pi,q_value\n";  // 헤더 추가
-    for (size_t i = 0; i < metrics_history.size(); ++i) {
-        metrics_file << i << ","
-                    << metrics_history[i].critic_loss1 << ","
-                    << metrics_history[i].critic_loss2 << ","
-                    << metrics_history[i].actor_loss << ","
-                    << metrics_history[i].log_pi << ","
-                    << metrics_history[i].q_value << "\n";
-    }
+		std::cout << "Successfully saved history to results/*.csv" << std::endl;
+	}
+	catch (const std::exception& e) {
+		std::cerr << "Error saving history: " << e.what() << std::endl;
+	}
 
 }
 

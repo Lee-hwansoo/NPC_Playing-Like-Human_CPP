@@ -116,12 +116,23 @@ private:
 
 	dim_type start_episode_{ 0 };
 
+	std::string his_dir_;
+
 	tensor_t init_objects();
 	void update_circle_obstacles_state();
 	void update_rectangle_obstacles_state();
 	void render_scene();
 	void log_statistics(const std::vector<real_t>& reward_history, dim_type episode) const;
-	void save_training_data(const std::vector<real_t>& reward_history, const std::vector<SACMetrics>& metrics_history) const;
+	void save_history(const std::vector<real_t>& reward_history, const std::vector<SACMetrics>& metrics_history) const;
+	std::string get_history_directory() const {
+		std::filesystem::path script_path(__FILE__);
+		std::filesystem::path script_dir = script_path.parent_path();
+		std::filesystem::path script_name = script_path.stem();
+		std::filesystem::path his_dir = script_dir / constants::HIS_DIR / script_name;
+		his_dir = std::filesystem::absolute(his_dir).lexically_normal();
+		std::filesystem::create_directories(his_dir);
+		return his_dir.string();
+	}
 };
 
 }  // namespace environment
