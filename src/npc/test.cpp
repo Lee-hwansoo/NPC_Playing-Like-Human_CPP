@@ -120,7 +120,7 @@ private:
     SDL_Renderer* renderer_ = nullptr;
 };
 
-void testBasicTrainEnvironmnet(SDL_Renderer* renderer) {
+void testBasicTrainEnvironment(SDL_Renderer* renderer) {
     torch::Device device = get_device();
     environment::TrainEnvironment env(constants::Display::WIDTH, constants::Display::HEIGHT, device);
     env.set_render(renderer);
@@ -129,7 +129,7 @@ void testBasicTrainEnvironmnet(SDL_Renderer* renderer) {
     //env.test(30, true);
 }
 
-void testMazeEnvironmnet(SDL_Renderer* renderer) {
+void testMazeEnvironment(SDL_Renderer* renderer) {
 	torch::Device device = get_device();
 	environment::MazeEnvironment env(constants::Display::WIDTH, constants::Display::HEIGHT, torch::kCPU);
 	env.set_render(renderer);
@@ -142,8 +142,8 @@ int main(int argc, char* argv[]) {
         SDLWrapper sdl;
         RenderWindow window;
 
-        testBasicTrainEnvironmnet(window.getRenderer());
-        //testMazeEnvironmnet(window.getRenderer());
+        testBasicTrainEnvironment(window.getRenderer());
+        //testMazeEnvironment(window.getRenderer());
         return 0;
 
     } catch (const std::exception& e) {
