@@ -15,11 +15,13 @@ using namespace constants;
 
 class Object {
 public:
-    Object(real_t x, real_t y,
+    Object(count_type id,
+           real_t x, real_t y,
            const Bounds2D& spawn_limit,
            const SDL_Color& color,
            bool type)
-        : position_(torch::tensor({x, y}))
+        : id_(id)
+        , position_(torch::tensor({x, y}))
         , spawn_limit_(spawn_limit)
         , color_(color)
         , type_(type) {}
@@ -32,9 +34,11 @@ public:
     virtual void draw(SDL_Renderer* renderer) = 0;
 
     virtual tensor_t get_state() const { return position_.unsqueeze(0); }
+    count_type get_id() const { return id_; }
     bool is_dynamic() const { return type_; }
 
 protected:
+    count_type id_;
     tensor_t position_;
     Bounds2D spawn_limit_;
     SDL_Color color_;
@@ -43,7 +47,8 @@ protected:
 
 class CircleObstacle : public Object {
 public:
-    CircleObstacle(std::optional<real_t> x = std::nullopt,
+    CircleObstacle(count_type id,
+                   std::optional<real_t> x = std::nullopt,
                    std::optional<real_t> y = std::nullopt,
                    real_t radius = constants::CircleObstacle::RADIUS,
                    const Bounds2D& spawn_limit = constants::CircleObstacle::SPAWN_BOUNDS,
@@ -66,7 +71,8 @@ private:
 
 class RectangleObstacle : public Object {
 public:
-    RectangleObstacle(std::optional<real_t> x = std::nullopt,
+    RectangleObstacle(count_type id,
+                   std::optional<real_t> x = std::nullopt,
                    std::optional<real_t> y = std::nullopt,
                    std::optional<real_t> width = std::nullopt,
                    std::optional<real_t> height = std::nullopt,
@@ -89,7 +95,8 @@ private:
 
 class Goal : public Object {
 public:
-    Goal(std::optional<real_t> x = std::nullopt,
+    Goal(count_type id,
+         std::optional<real_t> x = std::nullopt,
          std::optional<real_t> y = std::nullopt,
          real_t radius = constants::Goal::RADIUS,
          const Bounds2D& spawn_limit = constants::Goal::SPAWN_BOUNDS,
@@ -106,7 +113,8 @@ private:
 
 class Agent : public Object {
 public:
-    Agent(std::optional<real_t> x = std::nullopt,
+    Agent(count_type id,
+          std::optional<real_t> x = std::nullopt,
           std::optional<real_t> y = std::nullopt,
           real_t radius = constants::Agent::RADIUS,
           const Bounds2D& spawn_limit = constants::Agent::SPAWN_BOUNDS,

@@ -4,13 +4,14 @@
 
 namespace object {
 
-CircleObstacle::CircleObstacle(std::optional<real_t> x,
+CircleObstacle::CircleObstacle(count_type id,
+                            std::optional<real_t> x,
                             std::optional<real_t> y,
                             real_t radius,
                             const Bounds2D& spawn_limit,
                             const SDL_Color& color,
                             bool type)
-    : Object(x.value_or(0.0f), y.value_or(0.0f), spawn_limit, color, type)
+    : Object(id, x.value_or(0.0f), y.value_or(0.0f), spawn_limit, color, type)
     , radius_(radius)
     , force_(0.0f)
     , yaw_(0.0f)
@@ -115,7 +116,8 @@ void CircleObstacle::draw(SDL_Renderer* renderer) {
     }
 }
 
-RectangleObstacle::RectangleObstacle(std::optional<real_t> x,
+RectangleObstacle::RectangleObstacle(count_type id,
+                                    std::optional<real_t> x,
                                     std::optional<real_t> y,
                                     std::optional<real_t> width,
                                     std::optional<real_t> height,
@@ -123,7 +125,7 @@ RectangleObstacle::RectangleObstacle(std::optional<real_t> x,
                                     const Bounds2D& spawn_limit,
                                     const SDL_Color& color,
                                     bool type)
-    : Object(x.value_or(0.0f), y.value_or(0.0f), spawn_limit, color, type)
+    : Object(id, x.value_or(0.0f), y.value_or(0.0f), spawn_limit, color, type)
     , width_(width.value_or(0.0f))
     , height_(height.value_or(0.0f))
     , yaw_(yaw.value_or(0.0f)) {
@@ -200,13 +202,14 @@ void RectangleObstacle::draw(SDL_Renderer* renderer) {
     SDL_RenderDrawLines(renderer, points.data(), 5);
 }
 
-Goal::Goal(std::optional<real_t> x,
+Goal::Goal(count_type id,
+        std::optional<real_t> x,
         std::optional<real_t> y,
         real_t radius,
         const Bounds2D& spawn_limit,
         const SDL_Color& color,
         bool type)
-    : Object(x.value_or(0.0f), y.value_or(0.0f), spawn_limit, color, type)
+    : Object(id, x.value_or(0.0f), y.value_or(0.0f), spawn_limit, color, type)
     , radius_(radius) {
     reset(x, y);
 }
@@ -271,7 +274,8 @@ void Goal::draw(SDL_Renderer* renderer) {
     }
 }
 
-Agent::Agent(std::optional<real_t> x,
+Agent::Agent(count_type id,
+            std::optional<real_t> x,
             std::optional<real_t> y,
             real_t radius,
             const Bounds2D& spawn_limit,
@@ -282,7 +286,7 @@ Agent::Agent(std::optional<real_t> x,
             const tensor_t& rectangle_obstacles_state,
             const tensor_t& goal_state,
             path_planning::RRT* path_planner)
-    : Object(x.value_or(0.0f), y.value_or(0.0f), spawn_limit, color, type)
+    : Object(id, x.value_or(0.0f), y.value_or(0.0f), spawn_limit, color, type)
     , radius_(radius)
     , velocity_(torch::tensor({0.0f, 0.0f}))
     , yaw_(0.0f)
