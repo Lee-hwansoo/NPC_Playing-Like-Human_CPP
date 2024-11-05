@@ -124,8 +124,8 @@ void testBasicTrainEnvironmnet(SDL_Renderer* renderer) {
     torch::Device device = get_device();
     environment::TrainEnvironment env(constants::Display::WIDTH, constants::Display::HEIGHT, device);
     env.set_render(renderer);
-    env.load("20241105_135951", 4000);
-    env.train(100, false, false);
+    //env.load("20241105_135951", 4000);
+    env.train(300, true, false);
     //env.test(30, true);
 }
 
@@ -142,8 +142,8 @@ int main(int argc, char* argv[]) {
         SDLWrapper sdl;
         RenderWindow window;
 
-        //testBasicTrainEnvironmnet(window.getRenderer());
-        testMazeEnvironmnet(window.getRenderer());
+        testBasicTrainEnvironmnet(window.getRenderer());
+        //testMazeEnvironmnet(window.getRenderer());
         return 0;
 
     } catch (const std::exception& e) {
