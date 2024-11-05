@@ -41,13 +41,13 @@ TrainEnvironment::TrainEnvironment(count_type width, count_type height, torch::D
 tensor_t TrainEnvironment::init_objects() {
 	circle_obstacles_.reserve(constants::CircleObstacle::COUNT);
 	for (count_type i = 0; i < constants::CircleObstacle::COUNT; ++i) {
-		auto obs = std::make_unique<object::CircleObstacle>(std::nullopt, std::nullopt, constants::CircleObstacle::RADIUS, constants::CircleObstacle::SPAWN_BOUNDS, Display::to_sdl_color(Display::ORANGE), true);
+		auto obs = std::make_unique<object::CircleObstacle>(i, std::nullopt, std::nullopt, constants::CircleObstacle::RADIUS, constants::CircleObstacle::SPAWN_BOUNDS, Display::to_sdl_color(Display::ORANGE), true);
 		circle_obstacles_.push_back(std::move(obs));
 	}
 
 	rectangle_obstacles_.reserve(constants::RectangleObstacle::COUNT);
 	for (count_type i = 0; i < constants::RectangleObstacle::COUNT; ++i) {
-		auto obs = std::make_unique<object::RectangleObstacle>(std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, constants::RectangleObstacle::SPAWN_BOUNDS, Display::to_sdl_color(Display::ORANGE), false);
+		auto obs = std::make_unique<object::RectangleObstacle>(i, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, constants::RectangleObstacle::SPAWN_BOUNDS, Display::to_sdl_color(Display::ORANGE), false);
 		rectangle_obstacles_.push_back(std::move(obs));
 	}
 
@@ -57,8 +57,8 @@ tensor_t TrainEnvironment::init_objects() {
 	update_circle_obstacles_state();
 	update_rectangle_obstacles_state();
 
-	goal_ = std::make_unique<object::Goal>(std::nullopt, std::nullopt, constants::Goal::RADIUS, constants::Goal::SPAWN_BOUNDS, Display::to_sdl_color(Display::GREEN), false);
-	agent_ = std::make_unique<object::Agent>(std::nullopt, std::nullopt, constants::Agent::RADIUS, constants::Agent::SPAWN_BOUNDS, constants::Agent::MOVE_BOUNDS, Display::to_sdl_color(Display::BLUE), true, circle_obstacles_state_, rectangle_obstacles_state_, goal_->get_state(), path_planner_.get());
+	goal_ = std::make_unique<object::Goal>(0, std::nullopt, std::nullopt, constants::Goal::RADIUS, constants::Goal::SPAWN_BOUNDS, Display::to_sdl_color(Display::GREEN), false);
+	agent_ = std::make_unique<object::Agent>(0, std::nullopt, std::nullopt, constants::Agent::RADIUS, constants::Agent::SPAWN_BOUNDS, constants::Agent::MOVE_BOUNDS, Display::to_sdl_color(Display::BLUE), true, circle_obstacles_state_, rectangle_obstacles_state_, goal_->get_state(), path_planner_.get());
 
 	return get_observation();
 }
@@ -186,11 +186,13 @@ void TrainEnvironment::load(const std::string& timestamp, dim_type episode) {
 	}
 }
 
-std::vector<real_t> TrainEnvironment::train(const dim_type episodes, bool render, bool debug) {
+TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, bool debug) {
 	sac_->train();
 	SDL_Event event;
     std::vector<real_t> reward_history;
+	std::vector<SACMetrics> metrics_history;
     reward_history.reserve(static_cast<size_t>(episodes));
+	metrics_history.reserve(static_cast<size_t>(episodes * constants::NETWORK::MAX_STEP / constants::NETWORK::UPDATE_INTERVAL));
 
     for (dim_type episode = start_episode_; episode < start_episode_+ episodes; ++episode) {
 		real_t episode_return = 0.0f;
@@ -201,7 +203,7 @@ std::vector<real_t> TrainEnvironment::train(const dim_type episodes, bool render
 			while (SDL_PollEvent(&event)) {
 				if (event.type == SDL_QUIT ||
 					(event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
-					return reward_history;;
+					return { reward_history, metrics_history };
 				}
 			}
 
@@ -212,7 +214,10 @@ std::vector<real_t> TrainEnvironment::train(const dim_type episodes, bool render
 			sac_->add(state, action, reward, next_state, torch::tensor(done, get_tensor_dtype()));
 
 			if (step_count_ % constants::NETWORK::UPDATE_INTERVAL == 0) {
-				sac_->update(debug);
+				auto metrics = sac_->update(debug);
+				if (metrics.is_vaild){
+					metrics_history.push_back(metrics);
+				}
 			}
 
 			episode_return += reward.item<real_t>();
@@ -233,7 +238,7 @@ std::vector<real_t> TrainEnvironment::train(const dim_type episodes, bool render
 		}
     }
 
-    return reward_history;
+    return {reward_history, metrics_history};
 }
 
 std::vector<real_t> TrainEnvironment::test(const dim_type episodes, bool render) {
@@ -367,6 +372,30 @@ void TrainEnvironment::log_statistics(const std::vector<real_t>& reward_history,
 			<< ", Average Reward: " << std::fixed << std::setprecision(2) << mean
 			<< ", Median Reward: " << median
 			<< ", std: " << std << std::endl;
+}
+
+void TrainEnvironment::save_training_data(const std::vector<real_t>& reward_history, const std::vector<SACMetrics>& metrics_history) const {
+    std::filesystem::create_directories("results");
+
+    // 보상 데이터 저장
+    std::ofstream reward_file("results/rewards.csv");
+    reward_file << "episode,reward\n";  // 헤더 추가
+    for (size_t i = 0; i < reward_history.size(); ++i) {
+        reward_file << i << "," << reward_history[i] << "\n";
+    }
+
+    // 메트릭 데이터 저장
+    std::ofstream metrics_file("results/metrics.csv");
+    metrics_file << "step,critic_loss1,critic_loss2,actor_loss,log_pi,q_value\n";  // 헤더 추가
+    for (size_t i = 0; i < metrics_history.size(); ++i) {
+        metrics_file << i << ","
+                    << metrics_history[i].critic_loss1 << ","
+                    << metrics_history[i].critic_loss2 << ","
+                    << metrics_history[i].actor_loss << ","
+                    << metrics_history[i].log_pi << ","
+                    << metrics_history[i].q_value << "\n";
+    }
+
 }
 
 } // namespace environment

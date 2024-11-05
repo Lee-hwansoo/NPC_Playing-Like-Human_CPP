@@ -75,6 +75,10 @@ protected:
 	virtual bool check_obstacle_collision() const = 0;
 };
 
+struct TrainingResult {
+    std::vector<real_t> rewards;
+    std::vector<SACMetrics> metrics;
+};
 
 class TrainEnvironment : public BaseEnvironment {
 public:
@@ -86,7 +90,7 @@ public:
 	std::tuple<tensor_t, tensor_t, bool, bool> step(const tensor_t& action) override;
 	void save(dim_type episode, bool print);
 	void load(const std::string& timestamp, dim_type episode);
-	std::vector<real_t> train(const dim_type episodes, bool render = false, bool debug = false);
+	TrainingResult train(const dim_type episodes, bool render = false, bool debug = false);
 	std::vector<real_t> test(const dim_type episodes, bool render = false);
 
 protected:
@@ -117,6 +121,7 @@ private:
 	void update_rectangle_obstacles_state();
 	void render_scene();
 	void log_statistics(const std::vector<real_t>& reward_history, dim_type episode) const;
+	void save_training_data(const std::vector<real_t>& reward_history, const std::vector<SACMetrics>& metrics_history) const;
 };
 
 }  // namespace environment
