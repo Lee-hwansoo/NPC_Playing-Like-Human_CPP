@@ -408,8 +408,6 @@ void TrainEnvironment::save_history(const std::vector<real_t>& reward_history, c
 					<< metrics_history[i].q_value << "\n";
 			}
 		}
-
-		std::cout << "Successfully saved history to results/*.csv" << std::endl;
 	}
 	catch (const std::exception& e) {
 		std::cerr << "Error saving history: " << e.what() << std::endl;
