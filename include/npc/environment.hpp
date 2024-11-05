@@ -75,11 +75,6 @@ protected:
 	virtual bool check_obstacle_collision() const = 0;
 };
 
-struct TrainingResult {
-    std::vector<real_t> rewards;
-    std::vector<SACMetrics> metrics;
-};
-
 class TrainEnvironment : public BaseEnvironment {
 public:
 	TrainEnvironment(count_type width = Display::WIDTH,

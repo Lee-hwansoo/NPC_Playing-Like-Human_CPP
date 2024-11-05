@@ -43,15 +43,6 @@ private:
     void warmup();
 };
 
-struct SACMetrics {
-    real_t critic_loss1;
-    real_t critic_loss2;
-    real_t actor_loss;
-    real_t log_pi;
-    real_t q_value;
-    bool is_vaild = false;
-};
-
 class SAC {
 public:
     explicit SAC(dim_type state_dim, dim_type action_dim,

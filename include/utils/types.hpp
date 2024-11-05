@@ -63,4 +63,17 @@ namespace types {
         }
     };
 
+	struct SACMetrics {
+		real_t critic_loss1;
+		real_t critic_loss2;
+		real_t actor_loss;
+		real_t log_pi;
+		real_t q_value;
+		bool is_vaild = false;
+	};
+
+	struct TrainingResult {
+		std::vector<real_t> rewards;
+		std::vector<SACMetrics> metrics;
+	};
 }
