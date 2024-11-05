@@ -549,7 +549,7 @@ tensor_t Agent::update(const real_t dt, const tensor_t& scaled_action, const ten
     yaw_ += std::clamp(yaw_change, -constants::Agent::YAW_CHANGE_LIMIT, constants::Agent::YAW_CHANGE_LIMIT) * dt;
     yaw_ = std::fmod(yaw_ + constants::PI, 2 * constants::PI) - constants::PI;
 
-    force = std::clamp(force, 1.0f, 50.0f);
+    force = std::clamp(force, 0.0f, 50.0f);
     velocity_ = force * torch::tensor({std::cos(yaw_), std::sin(yaw_)}) * dt;
 
     position_ = position_ + velocity_;

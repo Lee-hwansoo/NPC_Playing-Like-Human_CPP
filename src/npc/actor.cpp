@@ -20,9 +20,7 @@ void ActorImpl::initialize_network(torch::Device device) {
 	fc1 = register_module("fc1", torch::nn::Linear(state_dim_, 128));
 	ln1 = register_module("ln1", torch::nn::LayerNorm(torch::nn::LayerNormOptions({128})));
 	fc2 = register_module("fc2", torch::nn::Linear(128, 256));
-	ln2 = register_module("ln2", torch::nn::LayerNorm(torch::nn::LayerNormOptions({256})));
 	fc3 = register_module("fc3", torch::nn::Linear(256, 256));
-	ln3 = register_module("ln3", torch::nn::LayerNorm(torch::nn::LayerNormOptions({256})));
 	fc4 = register_module("fc4", torch::nn::Linear(256, 128));
 	ln4 = register_module("ln4", torch::nn::LayerNorm(torch::nn::LayerNormOptions({128})));
 	fc_mean = register_module("fc_mean", torch::nn::Linear(128, action_dim_));
@@ -60,8 +58,8 @@ std::tuple<tensor_t, tensor_t> ActorImpl::forward(const tensor_t& state) {
 	auto x = state.to(this->device());
 
     x = torch::leaky_relu(ln1->forward(fc1->forward(x)));
-    x = torch::leaky_relu(ln2->forward(fc2->forward(x)));
-    x = torch::leaky_relu(ln3->forward(fc3->forward(x)));
+    x = torch::leaky_relu(fc2->forward(x));
+    x = torch::leaky_relu(fc3->forward(x));
     x = torch::leaky_relu(ln4->forward(fc4->forward(x)));
 
 	auto mean = fc_mean->forward(x);
