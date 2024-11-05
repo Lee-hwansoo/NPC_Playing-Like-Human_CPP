@@ -73,52 +73,6 @@ protected:
 	virtual bool check_goal() const = 0;
 	virtual bool check_bounds() const = 0;
 	virtual bool check_obstacle_collision() const = 0;
-};
-
-class TrainEnvironment : public BaseEnvironment {
-public:
-	TrainEnvironment(count_type width = Display::WIDTH,
-					 count_type height = Display::HEIGHT,
-					 torch::Device device = torch::kCPU);
-
-	tensor_t reset() override;
-	std::tuple<tensor_t, tensor_t, bool, bool> step(const tensor_t& action) override;
-	void save(dim_type episode, bool print);
-	void load(const std::string& timestamp, dim_type episode);
-	TrainingResult train(const dim_type episodes, bool render = false, bool debug = false);
-	std::vector<real_t> test(const dim_type episodes, bool render = false);
-
-protected:
-	tensor_t get_observation() const override;
-	real_t calculate_reward(const tensor_t& state, const tensor_t& action);
-	bool check_goal() const override;
-	bool check_bounds() const override;
-	bool check_obstacle_collision() const override;
-
-private:
-	std::vector<std::unique_ptr<object::CircleObstacle>> circle_obstacles_;
-	std::vector<std::unique_ptr<object::RectangleObstacle>> rectangle_obstacles_;
-	tensor_t circle_obstacles_state_;
-	tensor_t rectangle_obstacles_state_;
-
-	std::unique_ptr<object::Goal> goal_;
-
-	std::unique_ptr<path_planning::RRT> path_planner_;
-	std::unique_ptr<object::Agent> agent_;
-
-	std::unique_ptr<ReplayBuffer> memory_;
-	std::unique_ptr<SAC> sac_;
-
-	dim_type start_episode_{ 0 };
-
-	std::string his_dir_;
-
-	tensor_t init_objects();
-	void update_circle_obstacles_state();
-	void update_rectangle_obstacles_state();
-	void render_scene();
-	void log_statistics(const std::vector<real_t>& reward_history, dim_type episode) const;
-	void save_history(const std::vector<real_t>& reward_history, const std::vector<SACMetrics>& metrics_history) const;
 	std::string get_history_directory() const {
 		std::filesystem::path script_path(__FILE__);
 		std::filesystem::path script_dir = script_path.parent_path();
@@ -128,6 +82,70 @@ private:
 		std::filesystem::create_directories(his_dir);
 		return his_dir.string();
 	}
+};
+
+class TrainEnvironment : public BaseEnvironment {
+public:
+	TrainEnvironment(count_type width = Display::WIDTH,
+					 count_type height = Display::HEIGHT,
+					 torch::Device device = torch::kCPU,
+					 bool init = true);
+
+	virtual tensor_t reset() override;
+	std::tuple<tensor_t, tensor_t, bool, bool> step(const tensor_t& action) override;
+	void save(dim_type episode, bool print);
+	void load(const std::string& timestamp, dim_type episode);
+	TrainingResult train(const dim_type episodes, bool render = false, bool debug = false);
+	std::vector<real_t> test(const dim_type episodes, bool render = false);
+
+protected:
+	std::vector<std::unique_ptr<object::CircleObstacle>> circle_obstacles_;
+	std::vector<std::unique_ptr<object::RectangleObstacle>> rectangle_obstacles_;
+	tensor_t circle_obstacles_state_;
+	tensor_t rectangle_obstacles_state_;
+
+	std::unique_ptr<object::Goal> goal_;
+	std::unique_ptr<object::Agent> agent_;
+	std::unique_ptr<path_planning::RRT> path_planner_;
+
+	std::unique_ptr<ReplayBuffer> memory_;
+	std::unique_ptr<SAC> sac_;
+
+	dim_type start_episode_{ 0 };
+
+	tensor_t get_observation() const override;
+	real_t calculate_reward(const tensor_t& state, const tensor_t& action);
+	bool check_goal() const override;
+	bool check_bounds() const override;
+	bool check_obstacle_collision() const override;
+
+	virtual tensor_t init_objects();
+	void update_circle_obstacles_state();
+	void update_rectangle_obstacles_state();
+	virtual void render_scene() const;
+
+private:
+	std::string his_dir_;
+
+	void log_statistics(const std::vector<real_t>& reward_history, dim_type episode) const;
+	void save_history(const std::vector<real_t>& reward_history, const std::vector<SACMetrics>& metrics_history) const;
+};
+
+class MazeEnvironment : public TrainEnvironment {
+public:
+	MazeEnvironment(count_type width = Display::WIDTH,
+					count_type height = Display::HEIGHT,
+					torch::Device device = torch::kCPU);
+
+	tensor_t reset() override;
+	std::vector<real_t> test(const dim_type episodes, bool render = false);
+
+protected:
+	tensor_t init_objects() override;
+	void render_scene() const override;
+
+private:
+
 };
 
 }  // namespace environment

@@ -4,7 +4,7 @@
 
 namespace environment {
 
-TrainEnvironment::TrainEnvironment(count_type width, count_type height, torch::Device device)
+TrainEnvironment::TrainEnvironment(count_type width, count_type height, torch::Device device, bool init)
 	: BaseEnvironment(width, height, device) {
 	set_observation_dim(constants::Agent::FOV::RAY_COUNT + 9);
 	set_action_dim(2);
@@ -13,31 +13,33 @@ TrainEnvironment::TrainEnvironment(count_type width, count_type height, torch::D
 
 	his_dir_ = get_history_directory();
 
-	const auto [min_action, max_action] = get_action_space();
-	std::cout << "min_action: " << min_action << ", max_action: " << max_action << std::endl;
-
 	path_planner_ = std::make_unique<path_planning::RRT>();
 
-	state_ = init_objects();
+	if (init) {
+		const auto [min_action, max_action] = get_action_space();
+		std::cout << "min_action: " << min_action << ", max_action: " << max_action << std::endl;
 
-	memory_ = std::make_unique<ReplayBuffer>(
-		get_observation_dim(),
-		get_action_dim(),
-		constants::NETWORK::BUFFER_SIZE,
-		constants::NETWORK::BATCH_SIZE,
-		device_
-	);
+		state_ = init_objects();
 
-	sac_ = std::make_unique<SAC>(
-		get_observation_dim(),
-		get_action_dim(),
-		min_action,
-		max_action,
-		memory_.get(),
-		device_
-	);
+		memory_ = std::make_unique<ReplayBuffer>(
+			get_observation_dim(),
+			get_action_dim(),
+			constants::NETWORK::BUFFER_SIZE,
+			constants::NETWORK::BATCH_SIZE,
+			device_
+		);
 
-	std::cout << "Finished Environment initialized" << std::endl;
+		sac_ = std::make_unique<SAC>(
+			get_observation_dim(),
+			get_action_dim(),
+			min_action,
+			max_action,
+			memory_.get(),
+			device_
+		);
+
+		std::cout << "Finished Environment initialized" << std::endl;
+	}
 }
 
 tensor_t TrainEnvironment::init_objects() {
@@ -322,7 +324,7 @@ std::vector<real_t> TrainEnvironment::test(const dim_type episodes, bool render)
 	return reward_history;
 }
 
-void TrainEnvironment::render_scene() {
+void TrainEnvironment::render_scene() const {
     if (!renderer_) return;
 
     SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
@@ -413,6 +415,100 @@ void TrainEnvironment::save_history(const std::vector<real_t>& reward_history, c
 		std::cerr << "Error saving history: " << e.what() << std::endl;
 	}
 
+}
+
+MazeEnvironment::MazeEnvironment(count_type width, count_type height, torch::Device device)
+	: TrainEnvironment(width, height, device, false) {
+
+	const auto [min_action, max_action] = get_action_space();
+	std::cout << "min_action: " << min_action << ", max_action: " << max_action << std::endl;
+
+	state_ = init_objects();
+
+	memory_ = std::make_unique<ReplayBuffer>(
+		get_observation_dim(),
+		get_action_dim(),
+		constants::NETWORK::BUFFER_SIZE,
+		constants::NETWORK::BATCH_SIZE,
+		device_
+		);
+
+	sac_ = std::make_unique<SAC>(
+		get_observation_dim(),
+		get_action_dim(),
+		min_action,
+		max_action,
+		memory_.get(),
+		device_
+		);
+
+
+	std::cout << "Finished Environment initialized" << std::endl;
+}
+
+tensor_t MazeEnvironment::reset() {
+	for (auto& obs : circle_obstacles_) {
+		obs->reset();
+	}
+	for (auto& obs : rectangle_obstacles_) {
+		obs->reset();
+	}
+
+	update_circle_obstacles_state();
+	update_rectangle_obstacles_state();
+
+	goal_->reset();
+	agent_->reset(std::nullopt, std::nullopt, circle_obstacles_state_, rectangle_obstacles_state_, goal_->get_state());
+
+	step_count_ = 0;
+	terminated_ = false;
+	truncated_ = false;
+
+	return get_observation();
+}
+
+tensor_t MazeEnvironment::init_objects() {
+	circle_obstacles_.reserve(0);
+	for (count_type i = 0; i < 0; ++i) {
+		auto obs = std::make_unique<object::CircleObstacle>(i, std::nullopt, std::nullopt, constants::CircleObstacle::RADIUS, constants::CircleObstacle::SPAWN_BOUNDS, Display::to_sdl_color(Display::ORANGE), true);
+		circle_obstacles_.push_back(std::move(obs));
+	}
+
+	rectangle_obstacles_.reserve(50);
+	for (count_type i = 0; i < 50; ++i) {
+		auto obs = std::make_unique<object::RectangleObstacle>(i, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, constants::RectangleObstacle::SPAWN_BOUNDS, Display::to_sdl_color(Display::ORANGE), false);
+		rectangle_obstacles_.push_back(std::move(obs));
+	}
+
+	circle_obstacles_state_ = torch::zeros({ 0, 3 });
+	rectangle_obstacles_state_ = torch::zeros({ 50, 5 });
+
+	update_circle_obstacles_state();
+	update_rectangle_obstacles_state();
+
+	goal_ = std::make_unique<object::Goal>(0, std::nullopt, std::nullopt, constants::Goal::RADIUS, constants::Goal::SPAWN_BOUNDS, Display::to_sdl_color(Display::GREEN), false);
+	agent_ = std::make_unique<object::Agent>(0, std::nullopt, std::nullopt, constants::Agent::RADIUS, constants::Agent::SPAWN_BOUNDS, constants::Agent::MOVE_BOUNDS, Display::to_sdl_color(Display::BLUE), true, circle_obstacles_state_, rectangle_obstacles_state_, goal_->get_state(), path_planner_.get());
+
+	return get_observation();
+}
+
+void MazeEnvironment::render_scene() const {
+	if (!renderer_) return;
+
+	SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
+	SDL_RenderClear(renderer_);
+
+	for (const auto& obs : circle_obstacles_) obs->draw(renderer_);
+	for (const auto& obs : rectangle_obstacles_) obs->draw(renderer_);
+
+	goal_->draw(renderer_);
+	agent_->draw(renderer_);
+
+	SDL_RenderPresent(renderer_);
+}
+
+std::vector<real_t> MazeEnvironment::test(const dim_type episodes, bool render) {
+	return TrainEnvironment::test(episodes, render);
 }
 
 } // namespace environment

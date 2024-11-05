@@ -129,12 +129,21 @@ void testBasicTrainEnvironmnet(SDL_Renderer* renderer) {
     //env.test(30, true);
 }
 
+void testMazeEnvironmnet(SDL_Renderer* renderer) {
+	torch::Device device = get_device();
+	environment::MazeEnvironment env(constants::Display::WIDTH, constants::Display::HEIGHT, torch::kCPU);
+	env.set_render(renderer);
+	env.load("20241105_135951", 4000);
+	env.test(10, true);
+}
+
 int main(int argc, char* argv[]) {
     try {
         SDLWrapper sdl;
         RenderWindow window;
 
-        testBasicTrainEnvironmnet(window.getRenderer());
+        //testBasicTrainEnvironmnet(window.getRenderer());
+        testMazeEnvironmnet(window.getRenderer());
         return 0;
 
     } catch (const std::exception& e) {
