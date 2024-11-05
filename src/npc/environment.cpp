@@ -153,7 +153,7 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 	real_t fov_reward = (1.0f - std::abs(normalized_angle_diff)) * goal_in_fov * 0.3f;
 	real_t angle_reward = (1.0f - std::abs(normalized_angle_diff)) * 0.8f;
 	real_t turn_penalty = -(std::abs(yaw_change) * 0.1f);
-	real_t path_delta_penalty = -(std::abs(frenet_d) * 0.5f);
+	real_t path_delta_penalty = -(std::abs(frenet_d) * 0.8f);
 	real_t time_penalty = -(0.001f * static_cast<real_t>(step_count_));
 
 	// 1800 step을 목표로 하여 보상과 페널티 설정
