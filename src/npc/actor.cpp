@@ -89,5 +89,5 @@ std::tuple<tensor_t, tensor_t> ActorImpl::sample(const tensor_t& batch_state) {
 	log_prob = log_prob - torch::log(1.0 - action.pow(2) + 1e-6);
 	log_prob = log_prob.sum(1, true);
 
-	return std::make_tuple(action * max_action_, log_prob);
+	return std::make_tuple(action, log_prob);
 }
