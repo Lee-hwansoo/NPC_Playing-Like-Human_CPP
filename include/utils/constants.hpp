@@ -88,8 +88,8 @@ namespace constants
 		);
 
         // Movement constraints
-        const Vector2 VELOCITY_LIMITS(0, 50.0f);  // Range: 0~5 m/s
-        constexpr real_t YAW_CHANGE_LIMIT = 80.0f * DEG_TO_RAD;  // 80 degrees/s
+        const Vector2 VELOCITY_LIMITS(10.0f, 50.0f);  // Range: 1~5 m/s
+        constexpr real_t YAW_CHANGE_LIMIT = 180.0f * DEG_TO_RAD;  // 180 degrees/s
 
         // Field of View (FOV) properties
         namespace FOV
@@ -105,7 +105,7 @@ namespace constants
     //--------------------------------------------------------------------------------
     namespace CircleObstacle
     {
-        constexpr count_type COUNT = 35;
+        constexpr count_type COUNT = 25;
         constexpr real_t RADIUS = 10.0f;
 
         // Movement boundaries
@@ -122,7 +122,7 @@ namespace constants
 
     namespace RectangleObstacle
     {
-        constexpr count_type COUNT = 10;
+        constexpr count_type COUNT = 15;
 
         const Vector2 WIDTH_LIMITS(5.0f, 120.0f);   // Range: 0.5~12m
         const Vector2 HEIGHT_LIMITS(5.0f, 120.0f);  // Range: 0.5~12m
