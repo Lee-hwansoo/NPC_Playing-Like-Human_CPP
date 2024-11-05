@@ -4,8 +4,8 @@ import os
 
 def plot_training_results(result_dir):
    # CSV 파일 로드
-   rewards_df = pd.read_csv(os.path.join(result_dir, 'rewards.csv'))
-   metrics_df = pd.read_csv(os.path.join(result_dir, 'metrics.csv'))
+   rewards_df = pd.read_csv(os.path.join(result_dir, 'train_rewards.csv'))
+   metrics_df = pd.read_csv(os.path.join(result_dir, 'train_metrics.csv'))
 
    fig = plt.figure(figsize=(15, 10))
 

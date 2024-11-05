@@ -380,7 +380,7 @@ void TrainEnvironment::save_history(const std::vector<real_t>& reward_history, c
 	try {
 		// 보상 데이터 저장
 		{
-			std::filesystem::path reward_path = std::filesystem::path(his_dir_) / "rewards.csv";
+			std::filesystem::path reward_path = std::filesystem::path(his_dir_) / "train_rewards.csv";
 			std::ofstream reward_file(reward_path);
 			if (!reward_file.is_open()) {
 				throw std::runtime_error("Could not open " + reward_path.string());
@@ -393,7 +393,7 @@ void TrainEnvironment::save_history(const std::vector<real_t>& reward_history, c
 
 		// 메트릭 데이터 저장
 		{
-			std::filesystem::path metrics_path = std::filesystem::path(his_dir_) / "metrics.csv";
+			std::filesystem::path metrics_path = std::filesystem::path(his_dir_) / "train_metrics.csv";
 			std::ofstream metrics_file(metrics_path);
 			if (!metrics_file.is_open()) {
 				throw std::runtime_error("Could not open " + metrics_path.string());
