@@ -163,6 +163,7 @@ namespace constants
 		constexpr real_t  ALPHA = 0.2f;
         constexpr real_t  LEARNING_RATE = 3e-4f;
 
-        constexpr count_type INTERVAL = 10;
+        constexpr count_type UPDATE_INTERVAL = 4;
+        constexpr count_type LOG_INTERVAL = 10;
     }
 }

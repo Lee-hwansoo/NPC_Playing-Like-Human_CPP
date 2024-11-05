@@ -210,7 +210,10 @@ std::vector<real_t> TrainEnvironment::train(const dim_type episodes, bool render
 
 			done = terminated || truncated;
 			sac_->add(state, action, reward, next_state, torch::tensor(done, get_tensor_dtype()));
-			sac_->update(debug);
+
+			if (step_count_ % constants::NETWORK::UPDATE_INTERVAL == 0) {
+				sac_->update(debug);
+			}
 
 			episode_return += reward.item<real_t>();
 			state = next_state;
@@ -224,7 +227,7 @@ std::vector<real_t> TrainEnvironment::train(const dim_type episodes, bool render
 
 		reward_history.push_back(episode_return);
 
-		if ((episode + 1) % constants::NETWORK::INTERVAL == 0) {
+		if ((episode + 1) % constants::NETWORK::LOG_INTERVAL == 0) {
 			log_statistics(reward_history, episode);
 			save(episode + 1, false);
 		}
