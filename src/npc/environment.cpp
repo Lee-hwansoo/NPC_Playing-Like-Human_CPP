@@ -4,8 +4,9 @@
 
 namespace environment {
 
-TrainEnvironment::TrainEnvironment(count_type width, count_type height, torch::Device device, bool init)
-	: BaseEnvironment(width, height, device) {
+TrainEnvironment::TrainEnvironment(count_type width, count_type height, torch::Device device, count_type agent_count, bool init)
+	: BaseEnvironment(width, height, device)
+	, agent_count_(agent_count) {
 	set_observation_dim(constants::Agent::FOV::RAY_COUNT + 9);
 	set_action_dim(2);
 
@@ -19,50 +20,92 @@ TrainEnvironment::TrainEnvironment(count_type width, count_type height, torch::D
 		const auto [min_action, max_action] = get_action_space();
 		std::cout << "min_action: " << min_action << ", max_action: " << max_action << std::endl;
 
-		state_ = init_objects();
+		circle_obstacles_num_ = constants::CircleObstacle::COUNT;
+		rectangle_obstacles_num_ = constants::RectangleObstacle::COUNT;
+		circle_obstacles_spawn_bounds_ = constants::CircleObstacle::SPAWN_BOUNDS;
+		rectangle_obstacles_spawn_bounds_ = constants::RectangleObstacle::SPAWN_BOUNDS;
+		goal_spawn_bounds_ = constants::Goal::SPAWN_BOUNDS;
+		agents_spawn_bounds_ = constants::Agent::SPAWN_BOUNDS;
+		agents_move_bounds_ = constants::Agent::MOVE_BOUNDS;
 
-		memory_ = std::make_unique<ReplayBuffer>(
-			get_observation_dim(),
-			get_action_dim(),
-			constants::NETWORK::BUFFER_SIZE,
-			constants::NETWORK::BATCH_SIZE,
-			device_
-		);
-
-		sac_ = std::make_unique<SAC>(
-			get_observation_dim(),
-			get_action_dim(),
-			min_action,
-			max_action,
-			memory_.get(),
-			device_
-		);
+		state_ = this->init(agent_count, min_action, max_action);
 
 		std::cout << "Finished Environment initialized" << std::endl;
 	}
 }
 
-tensor_t TrainEnvironment::init_objects() {
-	circle_obstacles_.reserve(constants::CircleObstacle::COUNT);
-	for (count_type i = 0; i < constants::CircleObstacle::COUNT; ++i) {
-		auto obs = std::make_unique<object::CircleObstacle>(i, std::nullopt, std::nullopt, constants::CircleObstacle::RADIUS, constants::CircleObstacle::SPAWN_BOUNDS, Display::to_sdl_color(Display::ORANGE), true);
+tensor_t TrainEnvironment::init(count_type agent_count, tensor_t min_action, tensor_t max_action) {
+	circle_obstacles_.reserve(circle_obstacles_num_);
+	for (count_type i = 0; i < circle_obstacles_num_; ++i) {
+		auto obs = std::make_unique<object::CircleObstacle>(i,
+			std::nullopt, std::nullopt,
+			constants::CircleObstacle::RADIUS,
+			circle_obstacles_spawn_bounds_,
+			Display::to_sdl_color(Display::ORANGE),
+			true);
 		circle_obstacles_.push_back(std::move(obs));
 	}
 
-	rectangle_obstacles_.reserve(constants::RectangleObstacle::COUNT);
-	for (count_type i = 0; i < constants::RectangleObstacle::COUNT; ++i) {
-		auto obs = std::make_unique<object::RectangleObstacle>(i, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, constants::RectangleObstacle::SPAWN_BOUNDS, Display::to_sdl_color(Display::ORANGE), false);
+	rectangle_obstacles_.reserve(rectangle_obstacles_num_);
+	for (count_type i = 0; i < rectangle_obstacles_num_; ++i) {
+		auto obs = std::make_unique<object::RectangleObstacle>(i,
+			std::nullopt, std::nullopt,
+			std::nullopt, std::nullopt, std::nullopt,
+			rectangle_obstacles_spawn_bounds_,
+			Display::to_sdl_color(Display::ORANGE),
+			false);
 		rectangle_obstacles_.push_back(std::move(obs));
 	}
 
-	circle_obstacles_state_ = torch::zeros({ constants::CircleObstacle::COUNT, 3 });
-	rectangle_obstacles_state_ = torch::zeros({ constants::RectangleObstacle::COUNT, 5 });
-
+	circle_obstacles_state_ = torch::zeros({ circle_obstacles_num_, 3 });
+	rectangle_obstacles_state_ = torch::zeros({ rectangle_obstacles_num_, 5 });
 	update_circle_obstacles_state();
 	update_rectangle_obstacles_state();
 
-	goal_ = std::make_unique<object::Goal>(0, std::nullopt, std::nullopt, constants::Goal::RADIUS, constants::Goal::SPAWN_BOUNDS, Display::to_sdl_color(Display::GREEN), false);
-	agent_ = std::make_unique<object::Agent>(0, std::nullopt, std::nullopt, constants::Agent::RADIUS, constants::Agent::SPAWN_BOUNDS, constants::Agent::MOVE_BOUNDS, Display::to_sdl_color(Display::BLUE), true, circle_obstacles_state_, rectangle_obstacles_state_, goal_->get_state(), path_planner_.get());
+	goals_.reserve(agent_count);
+	agents_.reserve(agent_count);
+	for (count_type i = 0; i < agent_count; ++i){
+		auto goal = std::make_unique<object::Goal>(i,
+			std::nullopt, std::nullopt,
+			constants::Goal::RADIUS,
+			goal_spawn_bounds_,
+			Display::to_sdl_color(Display::GREEN),
+			false);
+		goals_.push_back(std::move(goal));
+
+		auto agent = std::make_unique<object::Agent>(i,
+			std::nullopt, std::nullopt,
+			constants::Agent::RADIUS,
+			agents_spawn_bounds_,
+			agents_move_bounds_,
+			Display::to_sdl_color(Display::BLUE),
+			true,
+			circle_obstacles_state_,
+			rectangle_obstacles_state_,
+			goals_[i]->get_state(),
+			path_planner_.get());
+		agents_.push_back(std::move(agent));
+	}
+
+	agents_state_ = torch::zeros({ agent_count, 3 });
+	update_agents_state();
+
+	memory_ = std::make_unique<ReplayBuffer>(
+		get_observation_dim(),
+		get_action_dim(),
+		constants::NETWORK::BUFFER_SIZE,
+		constants::NETWORK::BATCH_SIZE,
+		device_
+	);
+
+	sac_ = std::make_unique<SAC>(
+		get_observation_dim(),
+		get_action_dim(),
+		min_action,
+		max_action,
+		memory_.get(),
+		device_
+	);
 
 	return get_observation();
 }
@@ -79,60 +122,39 @@ void TrainEnvironment::update_rectangle_obstacles_state() {
 	}
 }
 
+void TrainEnvironment::update_agents_state() {
+	for (size_t i = 0; i < agents_.size(); ++i) {
+		agents_state_[i] = agents_[i]->get_raw_state();
+	}
+}
+
+tensor_t TrainEnvironment::get_combined_obstacles_for_agent(size_t agent_idx) const {
+    if (agent_count_ == 1) {
+        return circle_obstacles_state_;
+    }
+
+    tensor_t other_agents = torch::cat({
+        agents_state_.slice(0, 0, agent_idx),
+        agents_state_.slice(0, agent_idx + 1)
+    });
+
+    return torch::cat({circle_obstacles_state_, other_agents});
+}
+
+void TrainEnvironment::reset_agent(size_t agent_idx) {
+	goals_[agent_idx]->reset();
+	agents_[agent_idx]->reset(std::nullopt, std::nullopt,
+		circle_obstacles_state_,
+		rectangle_obstacles_state_,
+		goals_[agent_idx]->get_state());
+}
+
 tensor_t TrainEnvironment::get_observation() const {
-	return agent_->get_state();
+	return agents_[0]->get_state();
 }
 
-bool TrainEnvironment::check_goal() const { return agent_->is_goal(); }
-bool TrainEnvironment::check_bounds() const { return agent_->is_out(); }
-bool TrainEnvironment::check_obstacle_collision() const { return agent_->is_collison(); }
-
-tensor_t TrainEnvironment::reset() {
-	for (auto& obs : circle_obstacles_) {
-		obs->reset();
-	}
-	for (auto& obs : rectangle_obstacles_) {
-		obs->reset();
-	}
-
-	update_circle_obstacles_state();
-	update_rectangle_obstacles_state();
-
-	goal_->reset();
-	agent_->reset(std::nullopt, std::nullopt, circle_obstacles_state_, rectangle_obstacles_state_, goal_->get_state());
-
-	step_count_ = 0;
-	terminated_ = false;
-	truncated_ = false;
-
-	return get_observation();
-}
-
-std::tuple<tensor_t, tensor_t, bool, bool> TrainEnvironment::step(const tensor_t& action) {
-	terminated_ = check_goal();
-	truncated_ = check_bounds() || check_obstacle_collision() || step_count_ >= constants::NETWORK::MAX_STEP;
-
-	tensor_t reward = torch::tensor(calculate_reward(state_, action));
-
-	if (terminated_ || truncated_) {
-		tensor_t current_state = get_observation();
-		bool is_terminated = terminated_;
-		bool is_truncated = truncated_;
-		reset();
-		return std::make_tuple(current_state, reward, is_terminated, is_truncated);
-	}
-
-	step_count_++;
-
-	for (auto& obstacle : circle_obstacles_) {
-		obstacle->update(fixed_dt_);
-	}
-
-	update_circle_obstacles_state();
-
-	state_ = agent_->update(fixed_dt_, action, circle_obstacles_state_);
-
-	return std::make_tuple(state_, reward, terminated_, truncated_);
+tensor_t TrainEnvironment::get_agent_observation(size_t agent_idx) const {
+    return agents_[agent_idx]->get_state();
 }
 
 real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t& action) {
@@ -177,6 +199,13 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 	return reward;
 }
 
+bool TrainEnvironment::check_goal() const { return agents_[0]->is_goal(); }
+bool TrainEnvironment::check_bounds() const { return agents_[0]->is_out(); }
+bool TrainEnvironment::check_obstacle_collision() const { return agents_[0]->is_collison(); }
+bool TrainEnvironment::check_agent_goal(size_t agent_idx) const { return agents_[agent_idx]->is_goal(); }
+bool TrainEnvironment::check_agent_bounds(size_t agent_idx) const { return agents_[agent_idx]->is_out(); }
+bool TrainEnvironment::check_agent_collision(size_t agent_idx) const { return agents_[agent_idx]->is_collison(); }
+
 void TrainEnvironment::save(dim_type episode, bool print = true) {
 	if (sac_) {
 		sac_->save_network_parameters(episode, print);
@@ -188,6 +217,63 @@ void TrainEnvironment::load(const std::string& timestamp, dim_type episode) {
 		sac_->load_network_parameters(timestamp, episode);
 		start_episode_ = episode;
 	}
+}
+
+tensor_t TrainEnvironment::reset() {
+	for (auto& obs : circle_obstacles_) {
+		obs->reset();
+	}
+	for (auto& obs : rectangle_obstacles_) {
+		obs->reset();
+	}
+
+	update_circle_obstacles_state();
+	update_rectangle_obstacles_state();
+
+    for (size_t i = 0; i < agent_count_; ++i) {
+        goals_[i]->reset();
+        agents_[i]->reset(std::nullopt, std::nullopt,
+            circle_obstacles_state_,
+            rectangle_obstacles_state_,
+            goals_[i]->get_state());
+    }
+
+	update_agents_state();
+
+	step_count_ = 0;
+	terminated_ = false;
+	truncated_ = false;
+
+	return get_observation();
+}
+
+std::tuple<tensor_t, tensor_t, bool, bool> TrainEnvironment::step(const tensor_t& action) {
+	terminated_ = check_goal();
+	truncated_ = check_bounds() || check_obstacle_collision() || step_count_ >= constants::NETWORK::MAX_STEP;
+
+	tensor_t reward = torch::tensor(calculate_reward(state_, action));
+
+	if (terminated_ || truncated_) {
+		tensor_t current_state = get_observation();
+		bool is_terminated = terminated_;
+		bool is_truncated = truncated_;
+		reset();
+		return std::make_tuple(current_state, reward, is_terminated, is_truncated);
+	}
+
+	step_count_++;
+
+	for (auto& obstacle : circle_obstacles_) {
+		obstacle->update(fixed_dt_);
+	}
+
+	update_circle_obstacles_state();
+
+	state_ = agents_[0]->update(fixed_dt_, action, circle_obstacles_state_);
+
+	update_agents_state();
+
+	return std::make_tuple(state_, reward, terminated_, truncated_);
 }
 
 TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, bool debug) {
@@ -338,8 +424,10 @@ void TrainEnvironment::render_scene() const {
     for (const auto& obs : circle_obstacles_) obs->draw(renderer_);
     for (const auto& obs : rectangle_obstacles_) obs->draw(renderer_);
 
-    goal_->draw(renderer_);
-    agent_->draw(renderer_);
+    for (size_t i = 0; i < agents_.size(); ++i) {
+        goals_[i]->draw(renderer_);
+        agents_[i]->draw(renderer_);
+    }
 
     SDL_RenderPresent(renderer_);
 }
@@ -417,82 +505,62 @@ void TrainEnvironment::save_history(const std::vector<real_t>& reward_history, c
 
 }
 
-MazeEnvironment::MazeEnvironment(count_type width, count_type height, torch::Device device)
-	: TrainEnvironment(width, height, device, false) {
+MultiAgentEnvironment::MultiAgentEnvironment(count_type width, count_type height, torch::Device device, count_type agent_count)
+	: TrainEnvironment(width, height, device, agent_count, false) {
 
 	const auto [min_action, max_action] = get_action_space();
 	std::cout << "min_action: " << min_action << ", max_action: " << max_action << std::endl;
 
-	state_ = init_objects();
+	circle_obstacles_num_ = 0;
+	rectangle_obstacles_num_ = 10;
+	circle_obstacles_spawn_bounds_ = Bounds2D(0, constants::Display::WIDTH, 0, constants::Display::HEIGHT);;
+	rectangle_obstacles_spawn_bounds_ = Bounds2D(0, constants::Display::WIDTH, 0, constants::Display::HEIGHT);;
+	goal_spawn_bounds_ = Bounds2D(0, constants::Display::WIDTH, 0, constants::Display::HEIGHT);
+	agents_spawn_bounds_ = Bounds2D(0, constants::Display::WIDTH, 0, constants::Display::HEIGHT);;
+	agents_move_bounds_ = Bounds2D(0, constants::Display::WIDTH, 0, constants::Display::HEIGHT);;
 
-	memory_ = std::make_unique<ReplayBuffer>(
-		get_observation_dim(),
-		get_action_dim(),
-		constants::NETWORK::BUFFER_SIZE,
-		constants::NETWORK::BATCH_SIZE,
-		device_
-		);
-
-	sac_ = std::make_unique<SAC>(
-		get_observation_dim(),
-		get_action_dim(),
-		min_action,
-		max_action,
-		memory_.get(),
-		device_
-		);
-
+	state_ = this->init(agent_count, min_action, max_action);
 
 	std::cout << "Finished Environment initialized" << std::endl;
 }
 
-tensor_t MazeEnvironment::reset() {
-	for (auto& obs : circle_obstacles_) {
-		obs->reset();
+void MultiAgentEnvironment::test(bool render) {
+	sac_->eval();
+	SDL_Event event;
+	reset();
+	tensor_t state = agents_state_;
+	bool done = false;
+
+	while (!done) {
+		while (SDL_PollEvent(&event)) {
+			if (event.type == SDL_QUIT ||
+				(event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
+				return;
+			}
+		}
+
+		for (count_type i = 0; i < agent_count_; ++i){
+			if (check_agent_goal(i) || check_agent_bounds(i) || check_agent_collision(i)) {
+				reset_agent(i);
+			}
+
+			tensor_t agent_obs = get_agent_observation(i);
+
+            tensor_t action = sac_->select_action(agent_obs);
+
+            agents_[i]->update(fixed_dt_, action, get_combined_obstacles_for_agent(i));
+		}
+
+		update_agents_state();
+
+		if (render) {
+			render_scene();
+		}
 	}
-	for (auto& obs : rectangle_obstacles_) {
-		obs->reset();
-	}
 
-	update_circle_obstacles_state();
-	update_rectangle_obstacles_state();
-
-	goal_->reset();
-	agent_->reset(std::nullopt, std::nullopt, circle_obstacles_state_, rectangle_obstacles_state_, goal_->get_state());
-
-	step_count_ = 0;
-	terminated_ = false;
-	truncated_ = false;
-
-	return get_observation();
 }
 
-tensor_t MazeEnvironment::init_objects() {
-	circle_obstacles_.reserve(0);
-	for (count_type i = 0; i < 0; ++i) {
-		auto obs = std::make_unique<object::CircleObstacle>(i, std::nullopt, std::nullopt, constants::CircleObstacle::RADIUS, constants::CircleObstacle::SPAWN_BOUNDS, Display::to_sdl_color(Display::ORANGE), true);
-		circle_obstacles_.push_back(std::move(obs));
-	}
-
-	rectangle_obstacles_.reserve(50);
-	for (count_type i = 0; i < 50; ++i) {
-		auto obs = std::make_unique<object::RectangleObstacle>(i, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, constants::RectangleObstacle::SPAWN_BOUNDS, Display::to_sdl_color(Display::ORANGE), false);
-		rectangle_obstacles_.push_back(std::move(obs));
-	}
-
-	circle_obstacles_state_ = torch::zeros({ 0, 3 });
-	rectangle_obstacles_state_ = torch::zeros({ 50, 5 });
-
-	update_circle_obstacles_state();
-	update_rectangle_obstacles_state();
-
-	goal_ = std::make_unique<object::Goal>(0, std::nullopt, std::nullopt, constants::Goal::RADIUS, constants::Goal::SPAWN_BOUNDS, Display::to_sdl_color(Display::GREEN), false);
-	agent_ = std::make_unique<object::Agent>(0, std::nullopt, std::nullopt, constants::Agent::RADIUS, constants::Agent::SPAWN_BOUNDS, constants::Agent::MOVE_BOUNDS, Display::to_sdl_color(Display::BLUE), true, circle_obstacles_state_, rectangle_obstacles_state_, goal_->get_state(), path_planner_.get());
-
-	return get_observation();
-}
-
-void MazeEnvironment::render_scene() const {
+void MultiAgentEnvironment::render_scene() const {
 	if (!renderer_) return;
 
 	SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
@@ -501,14 +569,12 @@ void MazeEnvironment::render_scene() const {
 	for (const auto& obs : circle_obstacles_) obs->draw(renderer_);
 	for (const auto& obs : rectangle_obstacles_) obs->draw(renderer_);
 
-	goal_->draw(renderer_);
-	agent_->draw(renderer_);
+	for (size_t i = 0; i < agents_.size(); ++i) {
+		goals_[i]->draw(renderer_);
+		agents_[i]->draw(renderer_);
+	}
 
 	SDL_RenderPresent(renderer_);
-}
-
-std::vector<real_t> MazeEnvironment::test(const dim_type episodes, bool render) {
-	return TrainEnvironment::test(episodes, render);
 }
 
 } // namespace environment

@@ -89,9 +89,10 @@ public:
 	TrainEnvironment(count_type width = Display::WIDTH,
 					 count_type height = Display::HEIGHT,
 					 torch::Device device = torch::kCPU,
+					 count_type agent_count = 1,
 					 bool init = true);
 
-	virtual tensor_t reset() override;
+	tensor_t reset() override;
 	std::tuple<tensor_t, tensor_t, bool, bool> step(const tensor_t& action) override;
 	void save(dim_type episode, bool print);
 	void load(const std::string& timestamp, dim_type episode);
@@ -99,13 +100,24 @@ public:
 	std::vector<real_t> test(const dim_type episodes, bool render = false);
 
 protected:
+	count_type circle_obstacles_num_;
+	count_type rectangle_obstacles_num_;
 	std::vector<std::unique_ptr<object::CircleObstacle>> circle_obstacles_;
 	std::vector<std::unique_ptr<object::RectangleObstacle>> rectangle_obstacles_;
-	tensor_t circle_obstacles_state_;
-	tensor_t rectangle_obstacles_state_;
+	tensor_t circle_obstacles_state_;    // [num_circles, 3]
+	tensor_t rectangle_obstacles_state_; // [num_rectangles, 5]
+	Bounds2D circle_obstacles_spawn_bounds_ { constants::CircleObstacle::SPAWN_BOUNDS };
+	Bounds2D rectangle_obstacles_spawn_bounds_ { constants::RectangleObstacle::SPAWN_BOUNDS };
 
-	std::unique_ptr<object::Goal> goal_;
-	std::unique_ptr<object::Agent> agent_;
+	std::vector<std::unique_ptr<object::Goal>> goals_;
+	Bounds2D goal_spawn_bounds_ = constants::Goal::SPAWN_BOUNDS;
+
+    count_type agent_count_;             // 총 에이전트 수
+	std::vector<std::unique_ptr<object::Agent>> agents_;
+	tensor_t agents_state_;             // [num_agents, 3]
+	Bounds2D agents_spawn_bounds_ { constants::Agent::SPAWN_BOUNDS };
+	Bounds2D agents_move_bounds_ { constants::Agent::MOVE_BOUNDS };
+
 	std::unique_ptr<path_planning::RRT> path_planner_;
 
 	std::unique_ptr<ReplayBuffer> memory_;
@@ -113,15 +125,25 @@ protected:
 
 	dim_type start_episode_{ 0 };
 
+	tensor_t init(count_type agent_count, tensor_t min_action, tensor_t max_action);
+	void update_circle_obstacles_state();
+	void update_rectangle_obstacles_state();
+	void update_agents_state();
+    tensor_t get_combined_obstacles_for_agent(size_t agent_idx) const;
+	void reset_agent(size_t agent_idx);
+
 	tensor_t get_observation() const override;
+	tensor_t get_agent_observation(size_t agent_idx) const;
+
 	real_t calculate_reward(const tensor_t& state, const tensor_t& action);
+
 	bool check_goal() const override;
 	bool check_bounds() const override;
 	bool check_obstacle_collision() const override;
+    bool check_agent_goal(size_t agent_idx) const;
+    bool check_agent_bounds(size_t agent_idx) const;
+    bool check_agent_collision(size_t agent_idx) const;
 
-	virtual tensor_t init_objects();
-	void update_circle_obstacles_state();
-	void update_rectangle_obstacles_state();
 	virtual void render_scene() const;
 
 private:
@@ -131,21 +153,19 @@ private:
 	void save_history(const std::vector<real_t>& reward_history, const std::vector<SACMetrics>& metrics_history) const;
 };
 
-class MazeEnvironment : public TrainEnvironment {
+class MultiAgentEnvironment : public TrainEnvironment {
 public:
-	MazeEnvironment(count_type width = Display::WIDTH,
-					count_type height = Display::HEIGHT,
-					torch::Device device = torch::kCPU);
+	MultiAgentEnvironment(count_type width = Display::WIDTH,
+						count_type height = Display::HEIGHT,
+						torch::Device device = torch::kCPU,
+						count_type agent_count = 1);
 
-	tensor_t reset() override;
-	std::vector<real_t> test(const dim_type episodes, bool render = false);
+	void test(bool render = true);
 
 protected:
-	tensor_t init_objects() override;
 	void render_scene() const override;
 
-private:
-
 };
+
 
 }  // namespace environment

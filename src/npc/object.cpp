@@ -594,7 +594,7 @@ tensor_t Agent::get_raw_state() const {
 		position_[1].item<real_t>(),
 		radius_
 		});
-	return state.unsqueeze(0);
+	return state;
 }
 
 void Agent::draw(SDL_Renderer* renderer) {

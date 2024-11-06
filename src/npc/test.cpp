@@ -1,6 +1,7 @@
 ﻿#include "utils/constants.hpp"
 #include "npc/environment.hpp"
 #include <SDL.h>
+#include <SDL_render.h>
 #include <torch/torch.h>
 #include <iostream>
 #include <chrono>
@@ -122,19 +123,19 @@ private:
 
 void testBasicTrainEnvironment(SDL_Renderer* renderer) {
     torch::Device device = get_device();
-    environment::TrainEnvironment env(constants::Display::WIDTH, constants::Display::HEIGHT, torch::kCPU);
+    environment::TrainEnvironment env(constants::Display::WIDTH, constants::Display::HEIGHT, torch::kCPU, 1, true);
     env.set_render(renderer);
     env.load("20241106_054625", 4000);
     // env.train(4000, false, false);
     env.test(10, true);
 }
 
-void testMazeEnvironment(SDL_Renderer* renderer) {
-	torch::Device device = get_device();
-	environment::MazeEnvironment env(constants::Display::WIDTH, constants::Display::HEIGHT, torch::kCPU);
-	env.set_render(renderer);
-	env.load("20241105_135951", 4000);
-	env.test(10, true);
+void testMultiAgentEnvironment(SDL_Renderer* renderer) {
+    torch::Device device = get_device();
+    environment::MultiAgentEnvironment env(constants::Display::WIDTH, constants::Display::HEIGHT, torch::kCPU, 3);
+    env.set_render(renderer);
+    env.load("20241106_054625", 4000);
+    env.test(true);
 }
 
 int main(int argc, char* argv[]) {
@@ -142,8 +143,8 @@ int main(int argc, char* argv[]) {
         SDLWrapper sdl;
         RenderWindow window;
 
-        testBasicTrainEnvironment(window.getRenderer());
-        //testMazeEnvironment(window.getRenderer());
+        // testBasicTrainEnvironment(window.getRenderer());
+        testMultiAgentEnvironment(window.getRenderer());
         return 0;
 
     } catch (const std::exception& e) {
