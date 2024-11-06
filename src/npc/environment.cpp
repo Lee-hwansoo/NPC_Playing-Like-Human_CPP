@@ -528,7 +528,6 @@ void MultiAgentEnvironment::test(bool render) {
 	sac_->eval();
 	SDL_Event event;
 	reset();
-	tensor_t state = agents_state_;
 	bool done = false;
 
 	while (!done) {
