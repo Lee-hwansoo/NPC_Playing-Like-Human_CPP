@@ -124,9 +124,9 @@ void testBasicTrainEnvironment(SDL_Renderer* renderer) {
     torch::Device device = get_device();
     environment::TrainEnvironment env(constants::Display::WIDTH, constants::Display::HEIGHT, torch::kCPU);
     env.set_render(renderer);
-    //env.load("20241106_014554", 1270);
-    env.train(2000, true, false);
-    //env.test(30, true);
+    env.load("20241106_054625", 4000);
+    // env.train(4000, false, false);
+    env.test(10, true);
 }
 
 void testMazeEnvironment(SDL_Renderer* renderer) {
