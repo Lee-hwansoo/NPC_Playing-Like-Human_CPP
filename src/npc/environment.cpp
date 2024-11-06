@@ -110,114 +110,6 @@ tensor_t TrainEnvironment::init(count_type agent_count, tensor_t min_action, ten
 	return get_observation();
 }
 
-void TrainEnvironment::update_circle_obstacles_state() {
-	for (size_t i = 0; i < circle_obstacles_.size(); ++i) {
-		circle_obstacles_state_[i] = circle_obstacles_[i]->get_state();
-	}
-}
-
-void TrainEnvironment::update_rectangle_obstacles_state() {
-	for (size_t i = 0; i < rectangle_obstacles_.size(); ++i) {
-		rectangle_obstacles_state_[i] = rectangle_obstacles_[i]->get_state();
-	}
-}
-
-void TrainEnvironment::update_agents_state() {
-	for (size_t i = 0; i < agents_.size(); ++i) {
-		agents_state_[i] = agents_[i]->get_raw_state();
-	}
-}
-
-tensor_t TrainEnvironment::get_combined_obstacles_for_agent(size_t agent_idx) const {
-    if (agent_count_ == 1) {
-        return circle_obstacles_state_;
-    }
-
-    tensor_t other_agents = torch::cat({
-        agents_state_.slice(0, 0, agent_idx),
-        agents_state_.slice(0, agent_idx + 1)
-    });
-
-    return torch::cat({circle_obstacles_state_, other_agents});
-}
-
-void TrainEnvironment::reset_agent(size_t agent_idx) {
-	goals_[agent_idx]->reset();
-	agents_[agent_idx]->reset(std::nullopt, std::nullopt,
-		circle_obstacles_state_,
-		rectangle_obstacles_state_,
-		goals_[agent_idx]->get_state());
-}
-
-tensor_t TrainEnvironment::get_observation() const {
-	return agents_[0]->get_state();
-}
-
-tensor_t TrainEnvironment::get_agent_observation(size_t agent_idx) const {
-    return agents_[agent_idx]->get_state();
-}
-
-real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t& action) {
-	auto state_size = state.size(0);
-
-	auto required_state = state.slice(0, state_size-4, state_size).to(torch::kCPU);
-    auto required_action = action.to(torch::kCPU);
-
-    real_t normalized_goal_dist = required_state[0].item<real_t>();
-    real_t normalized_angle_diff = required_state[1].item<real_t>();
-    real_t goal_in_fov = required_state[2].item<real_t>();
-    real_t frenet_d = required_state[3].item<real_t>();
-
-    real_t force = required_action[0].item<real_t>();
-    real_t yaw_change = required_action[1].item<real_t>();
-
-	real_t goal_reward = (1.0f - normalized_goal_dist);
-	real_t fov_reward = (1.0f - std::abs(normalized_angle_diff)) * goal_in_fov * 0.3f;
-	real_t angle_reward = (1.0f - std::abs(normalized_angle_diff)) * 0.8f;
-	real_t turn_penalty = -(std::abs(yaw_change) * 0.3f);
-	real_t path_delta_penalty = -(std::abs(frenet_d) * 0.8f);
-	real_t time_penalty = -(0.001f * static_cast<real_t>(step_count_));
-
-	real_t terminal_reward = 0.0f;
-	if (terminated_) {
-		real_t speed_bonus = std::max(0.0f, (constants::NETWORK::MAX_STEP - step_count_) * 0.5f);
-		terminal_reward = terminal_reward + 100.0f + speed_bonus;
-	}
-	if (truncated_) {
-		terminal_reward = terminal_reward - 200.0f;
-	}
-
-	real_t reward = goal_reward +
-		fov_reward +
-		angle_reward +
-		turn_penalty +
-		path_delta_penalty +
-		time_penalty +
-		terminal_reward;
-
-	return reward;
-}
-
-bool TrainEnvironment::check_goal() const { return agents_[0]->is_goal(); }
-bool TrainEnvironment::check_bounds() const { return agents_[0]->is_out(); }
-bool TrainEnvironment::check_obstacle_collision() const { return agents_[0]->is_collison(); }
-bool TrainEnvironment::check_agent_goal(size_t agent_idx) const { return agents_[agent_idx]->is_goal(); }
-bool TrainEnvironment::check_agent_bounds(size_t agent_idx) const { return agents_[agent_idx]->is_out(); }
-bool TrainEnvironment::check_agent_collision(size_t agent_idx) const { return agents_[agent_idx]->is_collison(); }
-
-void TrainEnvironment::save(dim_type episode, bool print = true) {
-	if (sac_) {
-		sac_->save_network_parameters(episode, print);
-	}
-}
-
-void TrainEnvironment::load(const std::string& timestamp, dim_type episode) {
-	if (sac_) {
-		sac_->load_network_parameters(timestamp, episode);
-		start_episode_ = episode;
-	}
-}
-
 tensor_t TrainEnvironment::reset() {
 	for (auto& obs : circle_obstacles_) {
 		obs->reset();
@@ -244,6 +136,81 @@ tensor_t TrainEnvironment::reset() {
 	truncated_ = false;
 
 	return get_observation();
+}
+
+void TrainEnvironment::save(dim_type episode, bool print = true) {
+	if (sac_) {
+		sac_->save_network_parameters(episode, print);
+	}
+}
+
+void TrainEnvironment::load(const std::string& timestamp, dim_type episode) {
+	if (sac_) {
+		sac_->load_network_parameters(timestamp, episode);
+		start_episode_ = episode;
+	}
+}
+
+void TrainEnvironment::update_circle_obstacles_state() {
+	for (size_t i = 0; i < circle_obstacles_.size(); ++i) {
+		circle_obstacles_state_[i] = circle_obstacles_[i]->get_state();
+	}
+}
+
+void TrainEnvironment::update_rectangle_obstacles_state() {
+	for (size_t i = 0; i < rectangle_obstacles_.size(); ++i) {
+		rectangle_obstacles_state_[i] = rectangle_obstacles_[i]->get_state();
+	}
+}
+
+void TrainEnvironment::update_agents_state() {
+	for (size_t i = 0; i < agents_.size(); ++i) {
+		agents_state_[i] = agents_[i]->get_raw_state();
+	}
+}
+
+tensor_t TrainEnvironment::get_observation() const {
+	return agents_[0]->get_state();
+}
+
+real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t& action) {
+	auto state_size = state.size(0);
+
+	auto required_state = state.slice(0, state_size-4, state_size).to(torch::kCPU);
+    auto required_action = action.to(torch::kCPU);
+
+    real_t normalized_goal_dist = required_state[0].item<real_t>();
+    real_t normalized_angle_diff = required_state[1].item<real_t>();
+    real_t goal_in_fov = required_state[2].item<real_t>();
+    real_t frenet_d = required_state[3].item<real_t>();
+
+    real_t force = required_action[0].item<real_t>();
+    real_t yaw_change = required_action[1].item<real_t>();
+
+	real_t goal_reward = (1.0f - normalized_goal_dist);
+	real_t fov_reward = (1.0f - std::abs(normalized_angle_diff)) * goal_in_fov * 0.3f;
+	real_t angle_reward = (1.0f - std::abs(normalized_angle_diff)) * 0.8f;
+	real_t turn_penalty = -(std::abs(yaw_change) * 0.3f);
+	real_t path_delta_penalty = -(std::abs(frenet_d) * 0.8f);
+	real_t time_penalty = -(0.001f * static_cast<real_t>(step_count_));
+	real_t terminal_reward = 0.0f;
+	if (terminated_) {
+		real_t speed_bonus = std::max(0.0f, (constants::NETWORK::MAX_STEP - step_count_) * 0.5f);
+		terminal_reward = terminal_reward + 100.0f + speed_bonus;
+	}
+	if (truncated_) {
+		terminal_reward = terminal_reward - 200.0f;
+	}
+
+	real_t reward = goal_reward +
+		fov_reward +
+		angle_reward +
+		turn_penalty +
+		path_delta_penalty +
+		time_penalty +
+		terminal_reward;
+
+	return reward;
 }
 
 std::tuple<tensor_t, tensor_t, bool, bool> TrainEnvironment::step(const tensor_t& action) {
@@ -409,6 +376,10 @@ std::vector<real_t> TrainEnvironment::test(const dim_type episodes, bool render)
 	return reward_history;
 }
 
+bool TrainEnvironment::check_goal() const { return agents_[0]->is_goal(); }
+bool TrainEnvironment::check_bounds() const { return agents_[0]->is_out(); }
+bool TrainEnvironment::check_obstacle_collision() const { return agents_[0]->is_collison(); }
+
 void TrainEnvironment::render_scene() const {
     if (!renderer_) return;
 
@@ -430,6 +401,35 @@ void TrainEnvironment::render_scene() const {
 
     SDL_RenderPresent(renderer_);
 }
+
+void TrainEnvironment::reset_agent(size_t agent_idx) {
+	goals_[agent_idx]->reset();
+	agents_[agent_idx]->reset(std::nullopt, std::nullopt,
+		circle_obstacles_state_,
+		rectangle_obstacles_state_,
+		goals_[agent_idx]->get_state());
+}
+
+tensor_t TrainEnvironment::get_agent_observation(size_t agent_idx) const {
+    return agents_[agent_idx]->get_state();
+}
+
+tensor_t TrainEnvironment::get_combined_obstacles_for_agent(size_t agent_idx) const {
+    if (agent_count_ == 1) {
+        return circle_obstacles_state_;
+    }
+
+    tensor_t other_agents = torch::cat({
+        agents_state_.slice(0, 0, agent_idx),
+        agents_state_.slice(0, agent_idx + 1)
+    });
+
+    return torch::cat({circle_obstacles_state_, other_agents});
+}
+
+bool TrainEnvironment::check_agent_goal(size_t agent_idx) const { return agents_[agent_idx]->is_goal(); }
+bool TrainEnvironment::check_agent_bounds(size_t agent_idx) const { return agents_[agent_idx]->is_out(); }
+bool TrainEnvironment::check_agent_collision(size_t agent_idx) const { return agents_[agent_idx]->is_collison(); }
 
 void TrainEnvironment::log_statistics(const std::vector<real_t>& reward_history, dim_type episode) const {
 	// 최근 10개 에피소드의 보상 통계 계산
@@ -511,7 +511,7 @@ MultiAgentEnvironment::MultiAgentEnvironment(count_type width, count_type height
 	std::cout << "min_action: " << min_action << ", max_action: " << max_action << std::endl;
 
 	circle_obstacles_num_ = 0;
-	rectangle_obstacles_num_ = 10;
+	rectangle_obstacles_num_ = 5;
 	circle_obstacles_spawn_bounds_ = Bounds2D(0, constants::Display::WIDTH, 0, constants::Display::HEIGHT);;
 	rectangle_obstacles_spawn_bounds_ = Bounds2D(0, constants::Display::WIDTH, 0, constants::Display::HEIGHT);;
 	goal_spawn_bounds_ = Bounds2D(0, constants::Display::WIDTH, 0, constants::Display::HEIGHT);

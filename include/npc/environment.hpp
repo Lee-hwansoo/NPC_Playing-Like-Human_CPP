@@ -100,8 +100,8 @@ public:
 	std::vector<real_t> test(const dim_type episodes, bool render = false);
 
 protected:
-	count_type circle_obstacles_num_;
-	count_type rectangle_obstacles_num_;
+	count_type circle_obstacles_num_;	 // 원형 장애물 수
+	count_type rectangle_obstacles_num_; // 사각형 장애물 수
 	std::vector<std::unique_ptr<object::CircleObstacle>> circle_obstacles_;
 	std::vector<std::unique_ptr<object::RectangleObstacle>> rectangle_obstacles_;
 	tensor_t circle_obstacles_state_;    // [num_circles, 3]
@@ -129,22 +129,23 @@ protected:
 	void update_circle_obstacles_state();
 	void update_rectangle_obstacles_state();
 	void update_agents_state();
-    tensor_t get_combined_obstacles_for_agent(size_t agent_idx) const;
-	void reset_agent(size_t agent_idx);
 
 	tensor_t get_observation() const override;
-	tensor_t get_agent_observation(size_t agent_idx) const;
 
 	real_t calculate_reward(const tensor_t& state, const tensor_t& action);
 
 	bool check_goal() const override;
 	bool check_bounds() const override;
 	bool check_obstacle_collision() const override;
+
+	virtual void render_scene() const;
+
+	void reset_agent(size_t agent_idx);
+	tensor_t get_agent_observation(size_t agent_idx) const;
+    tensor_t get_combined_obstacles_for_agent(size_t agent_idx) const;
     bool check_agent_goal(size_t agent_idx) const;
     bool check_agent_bounds(size_t agent_idx) const;
     bool check_agent_collision(size_t agent_idx) const;
-
-	virtual void render_scene() const;
 
 private:
 	std::string his_dir_;
