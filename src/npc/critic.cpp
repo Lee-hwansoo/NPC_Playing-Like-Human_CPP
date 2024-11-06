@@ -28,8 +28,17 @@ void CriticImpl::initialize_network(torch::Device device) {
 		const auto& child = pair.value();
 
 		if (auto* linear = child->as<torch::nn::LinearImpl>()) {
-			torch::nn::init::xavier_uniform_(linear->weight);
+			// torch::nn::init::xavier_uniform_(linear->weight);
+
+            torch::nn::init::kaiming_normal_(
+                linear->weight,
+                0.0,
+                torch::kFanIn,
+                torch::kReLU
+            );
+
 			torch::nn::init::constant_(linear->bias, 0.0);
+
 			count++;
 			std::cout << "Initializing parameters for layer " << count
 				<< " (" << name << ": "
@@ -53,10 +62,10 @@ tensor_t CriticImpl::forward(const tensor_t& state, const tensor_t& action) {
 
 	auto x = torch::cat({state_dev, action_dev}, 1);
 
-    x = torch::leaky_relu(ln1->forward(fc1->forward(x)));
-    x = torch::leaky_relu(fc2->forward(x));
-    x = torch::leaky_relu(fc3->forward(x));
-    x = torch::leaky_relu(ln4->forward(fc4->forward(x)));
+    x = torch::gelu(ln1->forward(fc1->forward(x)));
+    x = torch::gelu(fc2->forward(x));
+    x = torch::gelu(fc3->forward(x));
+    x = torch::gelu(ln4->forward(fc4->forward(x)));
     x = fc5->forward(x);
 
 	return x;
