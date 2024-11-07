@@ -201,19 +201,25 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
     real_t force = required_action[0].item<real_t>();
     real_t yaw_change = required_action[1].item<real_t>();
 
-	real_t goal_reward = (1.0f - normalized_goal_dist);
-	real_t fov_reward = (1.0f - std::abs(normalized_angle_diff)) * goal_in_fov * 0.3f;
-	real_t angle_reward = (1.0f - std::abs(normalized_angle_diff)) * 0.8f;
-	real_t turn_penalty = -(std::abs(yaw_change) * 0.3f);
-	real_t path_delta_penalty = -(std::abs(frenet_d) * 0.8f);
-	real_t time_penalty = -(0.001f * static_cast<real_t>(step_count_));
+	// 기본 보상 컴포넌트들 (-0.6 ~ +0.6 범위로 조정)
+	real_t goal_reward = (1.0f - normalized_goal_dist) * 0.3f;            // 0 ~ 0.3
+	real_t fov_reward = (1.0f - std::abs(normalized_angle_diff)) * goal_in_fov * 0.1f;	// 0 ~ 0.1
+	real_t angle_reward = (1.0f - std::abs(normalized_angle_diff)) * 0.2f;	// 0 ~ 0.2
+	real_t turn_penalty = -(std::abs(yaw_change) * 0.1f);					// -0.1 ~ 0
+	real_t path_delta_penalty = -(std::abs(frenet_d) * 0.2f);				// -0.2 ~ 0
+
+	// 시간 패널티 (-0.4 ~ 0 범위로 조정)
+	real_t normalized_time_penalty = -0.4f * static_cast<real_t>(step_count_) / constants::NETWORK::MAX_STEP;
+
+	// 종료 보상 (-1 ~ +1 범위로 조정)
 	real_t terminal_reward = 0.0f;
 	if (terminated_) {
-		real_t speed_bonus = std::max(0.0f, (constants::NETWORK::MAX_STEP - step_count_) * 0.5f);
-		terminal_reward = terminal_reward + 100.0f + speed_bonus;
+		// 빠른 도달에 대한 보너스 (0 ~ 0.4)
+		real_t speed_bonus = 0.4f * (1.0f - static_cast<real_t>(step_count_) / constants::NETWORK::MAX_STEP);
+		terminal_reward = 0.6f + speed_bonus;  // 0.6 ~ 1.0
 	}
 	if (truncated_) {
-		terminal_reward = terminal_reward - 200.0f;
+		terminal_reward = -1.0f;  // 실패 시 최소 보상
 	}
 
 	real_t reward = goal_reward +
@@ -221,10 +227,11 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 		angle_reward +
 		turn_penalty +
 		path_delta_penalty +
-		time_penalty +
+		normalized_time_penalty +
 		terminal_reward;
 
-	return reward;
+	// 최종 보상을 -1과 1 사이로 클리핑
+	return std::max(-1.0f, std::min(1.0f, reward));
 }
 
 std::tuple<tensor_t, tensor_t, bool, bool> TrainEnvironment::step(const tensor_t& action) {
