@@ -79,7 +79,7 @@ public:
 
     tensor_t select_action(const tensor_t& state);
     SACMetrics update(bool debug = false);
-    tensor_t get_critic_values(const tensor_t& state, const tensor_t& action);
+    tensor_t get_critic_target_values(const tensor_t& state, const tensor_t& action);
 
     void save_network_parameters(dim_type episode, bool print = true) {
         actor_->save_network_parameters(episode, print);

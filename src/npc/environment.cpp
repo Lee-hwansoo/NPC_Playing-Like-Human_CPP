@@ -477,7 +477,7 @@ tensor_t TrainEnvironment::calculate_n_step_return(const tensor_t& next_state) {
     tensor_t n_step_return = torch::zeros({1}, torch::TensorOptions(types::get_tensor_dtype()).device(device_));
     real_t discount = 1.0f;
 
-    // 버퍼에 저장된 보상들의 할인된 합 계산
+    // 버퍼의 과거 데이터로부터 n-step return 계산
     for (index_type i = 0; i < n_steps_; ++i) {
 		index_type idx = (buffer_idx_ + i) % n_steps_;
 
@@ -493,7 +493,7 @@ tensor_t TrainEnvironment::calculate_n_step_return(const tensor_t& next_state) {
     }
 
     // 마지막 상태의 가치 추정값을 더함
-	auto q_value = sac_->get_critic_values(next_state, sac_->select_action(next_state));
+	auto q_value = sac_->get_critic_target_values(next_state, sac_->select_action(next_state));
     n_step_return += discount * q_value;
 
     return n_step_return;

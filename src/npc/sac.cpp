@@ -284,15 +284,15 @@ SACMetrics SAC::update(bool debug) {
     return metrics;
 }
 
-tensor_t SAC::get_critic_values(const tensor_t& state, const tensor_t& action) {
+tensor_t SAC::get_critic_target_values(const tensor_t& state, const tensor_t& action) {
     torch::NoGradGuard no_grad;
 
     auto batch_state = state.unsqueeze(0);
     auto batch_action = action.unsqueeze(0);
 
     auto q = torch::min(
-        critic1_->forward(batch_state, batch_action),
-        critic2_->forward(batch_state, batch_action)
+        critic1_target_->forward(batch_state, batch_action),
+        critic2_target_->forward(batch_state, batch_action)
     );
 
     return q.squeeze(0);
