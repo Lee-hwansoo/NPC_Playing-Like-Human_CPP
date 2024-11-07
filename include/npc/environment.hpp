@@ -150,6 +150,17 @@ protected:
 private:
 	std::string his_dir_;
 
+    // N-step 버퍼: [N_STEPS, state_dim + action_dim + 2] 크기의 텐서
+    // 각 행은 [state, action, reward, done] 형태로 저장
+    tensor_t n_step_buffer_;
+	count_type n_steps_{ constants::NETWORK::N_STEPS };
+	real_t gamma_{ constants::NETWORK::GAMMA };
+    count_type buffer_idx_;
+
+    void init_n_step_buffer();
+    void store_transition(const tensor_t& state, const tensor_t& action, const tensor_t& reward, const tensor_t& done);
+    tensor_t calculate_n_step_return(const tensor_t& next_state);
+
 	void log_statistics(const std::vector<real_t>& reward_history, dim_type episode) const;
 	void save_history(const std::vector<real_t>& reward_history, const std::vector<SACMetrics>& metrics_history) const;
 };
@@ -167,6 +178,5 @@ protected:
 	void render_scene() const override;
 
 };
-
 
 }  // namespace environment

@@ -30,6 +30,8 @@ TrainEnvironment::TrainEnvironment(count_type width, count_type height, torch::D
 
 		state_ = this->init(agent_count, min_action, max_action);
 
+		init_n_step_buffer();
+
 		std::cout << "Finished Environment initialized" << std::endl;
 	}
 }
@@ -265,9 +267,21 @@ TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, boo
 
 			tensor_t action = sac_->select_action(state);
 			auto [next_state, reward, terminated, truncated] = step(action);
-
 			done = terminated || truncated;
-			sac_->add(state, action, reward, next_state, torch::tensor(done, get_tensor_dtype()));
+			tensor_t done_tensor = torch::tensor(done, get_tensor_dtype());
+
+			store_transition(state, action, reward, done_tensor);
+
+			if (step_count_ >= n_steps_) {
+				//tensor_t n_step_return = calculate_n_step_return(next_state);
+				sac_->add(n_step_buffer_[buffer_idx_].slice(0, 0, get_observation_dim()),
+					n_step_buffer_[buffer_idx_].slice(0, get_observation_dim(), get_observation_dim() + get_action_dim()),
+					reward,
+					next_state,
+					done_tensor);
+			}
+
+			//sac_->add(state, action, reward, next_state, done_tensor);
 
 			if (step_count_ % constants::NETWORK::UPDATE_INTERVAL == 0) {
 				auto metrics = sac_->update(debug);
@@ -430,6 +444,57 @@ tensor_t TrainEnvironment::get_combined_obstacles_for_agent(size_t agent_idx) co
 bool TrainEnvironment::check_agent_goal(size_t agent_idx) const { return agents_[agent_idx]->is_goal(); }
 bool TrainEnvironment::check_agent_bounds(size_t agent_idx) const { return agents_[agent_idx]->is_out(); }
 bool TrainEnvironment::check_agent_collision(size_t agent_idx) const { return agents_[agent_idx]->is_collison(); }
+
+void TrainEnvironment::init_n_step_buffer() {
+    // n_step_buffer의 각 행은 [state, action, reward, done] 형태
+    dim_type row_dim = get_observation_dim() + get_action_dim() + 2;  // +2는 reward와 done을 위한 공간
+    n_step_buffer_ = torch::zeros({n_steps_, row_dim}, torch::TensorOptions(types::get_tensor_dtype()).device(device_));
+    buffer_idx_ = 0;
+}
+
+void TrainEnvironment(const tensor_t& state, const tensor_t& action, const tensor_t& reward, const tensor_t& done) {
+    // 현재 transition을 버퍼에 저장
+    dim_type state_dim = get_observation_dim();
+    dim_type action_dim = get_action_dim();
+
+    // 버퍼의 현재 위치에 transition 저장
+    n_step_buffer_[buffer_idx_].slice(0, 0, state_dim).copy_(state);
+    n_step_buffer_[buffer_idx_].slice(0, state_dim, state_dim + action_dim).copy_(action);
+	n_step_buffer_[buffer_idx_][state_dim + action_dim].copy_(reward);
+	n_step_buffer_[buffer_idx_][state_dim + action_dim + 1].copy_(done);
+
+    // 버퍼 인덱스 업데이트
+    buffer_idx_ = (buffer_idx_ + 1) % n_steps_;
+}
+
+tensor_t TrainEnvironment::calculate_n_step_return(const tensor_t& next_state) {
+    dim_type state_dim = get_observation_dim();
+    dim_type action_dim = get_action_dim();
+
+    // N-step 리턴 계산
+    tensor_t n_step_return = torch::zeros({1}, torch::TensorOptions(types::get_tensor_dtype()).device(device_));
+    real_t discount = 1.0f;
+
+    // 버퍼에 저장된 보상들의 할인된 합 계산
+    for (index_type i = 0; i < n_steps_; ++i) {
+        index_type idx = (buffer_idx_ - n_steps_ + i + n_steps_) % n_steps_;
+        real_t reward = n_step_buffer_[idx][state_dim + action_dim].item<real_t>();
+        bool done = n_step_buffer_[idx][state_dim + action_dim + 1].item<bool>();
+
+        n_step_return += discount * reward;
+
+        if (done) {
+            return n_step_return;
+        }
+        discount *= gamma_;
+    }
+
+    // 마지막 상태의 가치 추정값을 더함
+    auto [q1, q2] = sac_->get_critic_values(next_state, sac_->select_action(next_state));
+    n_step_return += discount * std::min(q1.item<real_t>(), q2.item<real_t>());
+
+    return n_step_return;
+}
 
 void TrainEnvironment::log_statistics(const std::vector<real_t>& reward_history, dim_type episode) const {
 	// 최근 10개 에피소드의 보상 통계 계산

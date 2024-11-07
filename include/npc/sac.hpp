@@ -9,7 +9,7 @@
 class ReplayBuffer {
 public:
     explicit ReplayBuffer(dim_type state_dim, dim_type action_dim,
-                        count_type buffer_size, index_type batch_size,
+                        count_type buffer_size, count_type batch_size,
                         torch::Device device);
 
     virtual ~ReplayBuffer() = default;
@@ -24,7 +24,7 @@ public:
     std::tuple<tensor_t, tensor_t, tensor_t, tensor_t, tensor_t> sample();
 
     count_type size() const { return current_size_; }
-    index_type batch_size() const { return batch_size_; }
+    count_type batch_size() const { return batch_size_; }
     torch::Device device() const { return device_; }
 
 private:
@@ -32,7 +32,7 @@ private:
 
     dim_type state_dim_, action_dim_;
     count_type buffer_size_;
-    index_type batch_size_;
+    count_type batch_size_;
     count_type current_size_;
     index_type position_;
     torch::Device device_;
@@ -79,6 +79,8 @@ public:
 
     tensor_t select_action(const tensor_t& state);
     SACMetrics update(bool debug = false);
+    std::pair<tensor_t, tensor_t> get_critic_values(const tensor_t& state, const tensor_t action);
+
     void save_network_parameters(dim_type episode, bool print = true) {
         actor_->save_network_parameters(episode, print);
 		critic1_->save_network_parameters(episode, print);

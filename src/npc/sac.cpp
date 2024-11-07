@@ -3,7 +3,7 @@
 #include <iostream>
 
 ReplayBuffer::ReplayBuffer(dim_type state_dim, dim_type action_dim,
-                         count_type buffer_size, index_type batch_size,
+                         count_type buffer_size, count_type batch_size,
                          torch::Device device)
     : state_dim_(state_dim)
     , action_dim_(action_dim)
@@ -168,6 +168,15 @@ void SAC::warmup() {
 		action.squeeze(0);
 	}
 
+    // get_critic_values warmup
+    {
+        torch::NoGradGuard no_grad;
+
+        auto [next_actions, next_log_pi] = actor_->sample(dummy_next_states);
+        auto [target_q1, target_q2] = get_critic_values(dummy_next_states, next_actions);
+        auto target_q = torch::min(target_q1, target_q2);
+    }
+
 }
 
 tensor_t SAC::select_action(const tensor_t& state) {
@@ -282,6 +291,14 @@ SACMetrics SAC::update(bool debug) {
     metrics.is_vaild = true;
 
     return metrics;
+}
+
+std::pair<tensor_t, tensor_t> SAC::get_critic_values(const tensor_t& state, const tensor_t action) {
+    torch::NoGradGuard no_grad;
+    return {
+        critic1_->forward(state, action),
+        critic2_->forward(state, action)
+    };
 }
 
 void SAC::update_target_networks() {

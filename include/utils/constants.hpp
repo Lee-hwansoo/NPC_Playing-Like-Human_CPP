@@ -158,7 +158,7 @@ namespace constants
     {
         constexpr real_t  MAX_STEP = 3000;
 		constexpr count_type BUFFER_SIZE = 500000;
-		constexpr index_type BATCH_SIZE = 128;
+		constexpr count_type BATCH_SIZE = 128;
 		constexpr real_t  GAMMA = 0.99f;
 		constexpr real_t  TAU = 0.005f;
 		constexpr real_t  ALPHA = 0.2f;
@@ -166,5 +166,7 @@ namespace constants
 
         constexpr count_type UPDATE_INTERVAL = 4;
         constexpr count_type LOG_INTERVAL = 10;
+
+        constexpr types::count_type N_STEPS = 3;
     }
 }
