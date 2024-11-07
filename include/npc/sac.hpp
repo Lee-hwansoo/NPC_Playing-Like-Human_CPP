@@ -2,34 +2,38 @@
 
 #include "npc/actor.hpp"
 #include "npc/critic.hpp"
+#include "utils/constants.hpp"
+#include "utils/types.hpp"
 #include <torch/torch.h>
 #include <tuple>
-#include <memory>
 
 class ReplayBuffer {
 public:
     explicit ReplayBuffer(dim_type state_dim, dim_type action_dim,
-                        count_type buffer_size, count_type batch_size,
-                        torch::Device device);
+                          count_type buffer_size, count_type batch_size,
+                          torch::Device device);
 
     virtual ~ReplayBuffer() = default;
 
     ReplayBuffer(const ReplayBuffer&) = delete;
     ReplayBuffer& operator=(const ReplayBuffer&) = delete;
 
-    void add(const tensor_t& state, const tensor_t& action,
-             const tensor_t& reward, const tensor_t& next_state,
-             const tensor_t& done);
+    virtual void add(const tensor_t& state, const tensor_t& action,
+                     const tensor_t& reward, const tensor_t& next_state,
+                     const tensor_t& done);
 
     std::tuple<tensor_t, tensor_t, tensor_t, tensor_t, tensor_t> sample();
 
     count_type size() const { return current_size_; }
+    count_type buffer_size() const { return buffer_size_; }
     count_type batch_size() const { return batch_size_; }
     torch::Device device() const { return device_; }
 
-private:
+protected:
     tensor_t states_, actions_, rewards_, next_states_, dones_;
+    tensor_t indices_;
 
+private:
     dim_type state_dim_, action_dim_;
     count_type buffer_size_;
     count_type batch_size_;
@@ -37,9 +41,43 @@ private:
     index_type position_;
     torch::Device device_;
 
-    tensor_t indices_;
-
     void preallocate_tensors();
+    void warmup();
+};
+
+class PrioritizedReplayBuffer : public ReplayBuffer {
+public:
+    PrioritizedReplayBuffer(dim_type state_dim, dim_type action_dim,
+                            count_type buffer_size, count_type batch_size,
+                            torch::Device device,
+                            real_t alpha = 0.6f, real_t beta = 0.4f);
+
+    void add(const tensor_t& state, const tensor_t& action,
+             const tensor_t& reward, const tensor_t& next_state,
+             const tensor_t& done) override;
+
+    std::tuple<tensor_t, tensor_t, tensor_t, tensor_t, tensor_t, tensor_t, tensor_t> sample_with_priorities();
+    void update_priorities(const tensor_t& indices, const tensor_t& td_errors);
+    void set_beta(real_t beta) { beta_ = beta; }
+
+protected:
+    void initialize_priorities();
+
+    void update_sampling_probabilities(count_type valid_size);
+
+    void update_is_weights(const tensor_t& probs, const tensor_t& indices, count_type valid_size);
+
+private:
+    real_t alpha_;
+    real_t beta_;
+    real_t max_priority_;
+
+    tensor_t priorities_;
+    tensor_t weights_;     // IS weights
+    tensor_t probs_;       // 샘플링 확률
+
+    real_t eplsion_ = constants::EPSILON;
+
     void warmup();
 };
 

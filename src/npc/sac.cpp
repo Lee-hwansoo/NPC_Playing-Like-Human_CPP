@@ -65,6 +65,145 @@ std::tuple<tensor_t, tensor_t, tensor_t, tensor_t, tensor_t> ReplayBuffer::sampl
     );
 }
 
+PrioritizedReplayBuffer::PrioritizedReplayBuffer(
+    dim_type state_dim, dim_type action_dim,
+    count_type buffer_size, count_type batch_size,
+    torch::Device device,
+    real_t alpha, real_t beta)
+    : ReplayBuffer(state_dim, action_dim, buffer_size, batch_size, device)
+    , alpha_(alpha)
+    , beta_(beta)
+    , max_priority_(1.0f) {
+
+    initialize_priorities();
+    warmup();
+}
+
+void PrioritizedReplayBuffer::initialize_priorities() {
+    auto options = torch::TensorOptions()
+                      .dtype(types::get_tensor_dtype())
+                      .device(device());
+
+    priorities_ = torch::ones({buffer_size()}, options);
+    weights_ = torch::zeros({batch_size()}, options);
+    probs_ = torch::ones({buffer_size()}, options);
+    probs_ /= buffer_size();
+}
+
+void PrioritizedReplayBuffer::warmup() {
+    // power 연산 웜업
+    {
+        torch::NoGradGuard no_grad;
+        auto dummy = torch::ones({1}, device());
+        dummy.pow_(alpha_);
+    }
+
+    // multinomial 샘플링 웜업
+    {
+        torch::NoGradGuard no_grad;
+        auto dummy_probs = torch::ones({2}, device());
+        dummy_probs /= dummy_probs.sum();
+        torch::multinomial(dummy_probs, 1, /*replacement=*/true);
+    }
+
+    // index_copy_ 연산 웜업
+    {
+        torch::NoGradGuard no_grad;
+        auto dummy_indices = torch::zeros({1}, torch::TensorOptions().dtype(torch::kInt64).device(device()));
+        auto dummy_values = torch::ones({1}, device());
+        priorities_.index_copy_(0, dummy_indices, dummy_values);
+    }
+
+    // div_ 연산 웜업
+    {
+        torch::NoGradGuard no_grad;
+        auto dummy = torch::ones({1}, device());
+        auto dummy_divisor = torch::ones({1}, device());
+        dummy.div_(dummy_divisor);
+    }
+
+    // copy_ 연산 웜업
+    {
+        torch::NoGradGuard no_grad;
+        auto dummy_src = torch::ones({1}, device());
+        auto dummy_dst = torch::zeros({1}, device());
+        dummy_dst.copy_(dummy_src);
+    }
+}
+
+void PrioritizedReplayBuffer::add(
+    const tensor_t& state, const tensor_t& action,
+    const tensor_t& reward, const tensor_t& next_state,
+    const tensor_t& done) {
+
+    ReplayBuffer::add(state, action, reward, next_state, done);
+
+    // 현재 위치의 우선순위를 최대값으로 설정
+    // position은 부모 클래스의 add에서 이미 업데이트되었으므로, size()-1로 계산
+    auto position = (size() - 1) % buffer_size();
+    priorities_[position] = max_priority_;
+}
+
+void PrioritizedReplayBuffer::update_sampling_probabilities(count_type valid_size) {
+    // valid_size까지의 우선순위 슬라이스에 대해서만 계산
+    auto priorities_slice = priorities_.slice(0, 0, valid_size);
+    auto probs_slice = probs_.slice(0, 0, valid_size);
+
+    // 해당 부분의 우선순위만 업데이트
+    probs_slice.copy_(priorities_slice.pow(alpha_));
+
+    // 정규화 (valid_size 범위 내에서만)
+    auto sum_probs = probs_slice.sum();
+    probs_slice.div_(sum_probs);
+}
+
+void PrioritizedReplayBuffer::update_is_weights(const tensor_t& probs, const tensor_t& indices, count_type valid_size) {
+    // P(i) 계산
+    auto sampled_probs = probs.index_select(0, indices);
+
+    // (1/N * 1/P(i))^β 계산하여 weights_에 직접 저장
+    weights_.copy_((valid_size * sampled_probs).pow(-beta_));
+
+    // weights 정규화
+    auto max_weight = weights_.max();
+    weights_.div_(max_weight);
+}
+
+std::tuple<tensor_t, tensor_t, tensor_t, tensor_t, tensor_t, tensor_t, tensor_t>PrioritizedReplayBuffer::sample_with_priorities() {
+    auto valid_size = size();
+
+    // 샘플링 확률 업데이트
+    update_sampling_probabilities(valid_size);
+
+    // 우선순위에 따른 샘플링
+    indices_ = torch::multinomial(probs_, batch_size(), /*replacement=*/true);
+
+    // IS weights 계산
+    update_is_weights(probs_, indices_, valid_size);
+
+    // 상태, 행동, 보상 등 샘플링
+    return std::make_tuple(
+        states_.index_select(0, indices_),
+        actions_.index_select(0, indices_),
+        rewards_.index_select(0, indices_),
+        next_states_.index_select(0, indices_),
+        dones_.index_select(0, indices_),
+        weights_,
+        indices_
+    );
+}
+
+void PrioritizedReplayBuffer::update_priorities(const tensor_t& indices, const tensor_t& td_errors) {
+    // 새로운 우선순위 계산 (TD 에러의 절대값 + 작은 상수)
+    auto new_priorities = (td_errors.abs() + eplsion_);
+
+    // 최대 우선순위 업데이트
+    max_priority_ = std::max(max_priority_, new_priorities.max().item<real_t>());
+
+    // 우선순위 업데이트
+    priorities_.index_copy_(0, indices, new_priorities);
+}
+
 SAC::SAC(dim_type state_dim, dim_type action_dim,
         tensor_t min_action,
         tensor_t max_action,
