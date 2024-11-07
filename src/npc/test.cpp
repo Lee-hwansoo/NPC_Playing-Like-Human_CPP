@@ -126,7 +126,7 @@ void testBasicTrainEnvironment(SDL_Renderer* renderer) {
     environment::TrainEnvironment env(constants::Display::WIDTH, constants::Display::HEIGHT, torch::kCPU, 1, true);
     env.set_render(renderer);
     // env.load("20241106_054625", 4000);
-    env.train(5000, false, false);
+    env.train(1500, false, false);
     // env.test(10, true);
 }
 

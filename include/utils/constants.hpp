@@ -167,6 +167,6 @@ namespace constants
         constexpr count_type UPDATE_INTERVAL = 4;
         constexpr count_type LOG_INTERVAL = 10;
 
-        constexpr types::count_type N_STEPS = 3;
+        constexpr types::count_type N_STEPS = 5;
     }
 }

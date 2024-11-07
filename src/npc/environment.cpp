@@ -273,7 +273,7 @@ TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, boo
 
 	const real_t beta_start = 0.4f;
 	const real_t beta_end = 1.0f;
-	const dim_type beta_anneal_episodes = 2500;
+	const dim_type beta_anneal_episodes = 700;
 
     for (dim_type episode = start_episode_; episode < start_episode_+ episodes; ++episode) {
 		real_t progress = static_cast<real_t>(episode) / beta_anneal_episodes;
@@ -518,9 +518,9 @@ tensor_t TrainEnvironment::calculate_n_step_return(const tensor_t& next_state) {
         discount *= gamma_;
     }
 
-    // 마지막 상태의 가치 추정값을 더함
-	auto q_value = sac_->get_critic_target_values(next_state, sac_->select_action(next_state));
-    n_step_return += discount * q_value;
+    // // 마지막 상태의 가치 추정값을 더함
+	// auto q_value = sac_->get_critic_target_values(next_state, sac_->select_action(next_state));
+    // n_step_return += discount * q_value;
 
     return n_step_return;
 }
