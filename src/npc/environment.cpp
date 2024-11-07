@@ -264,7 +264,15 @@ TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, boo
     reward_history.reserve(static_cast<size_t>(episodes));
 	metrics_history.reserve(static_cast<size_t>(episodes * constants::NETWORK::MAX_STEP / constants::NETWORK::UPDATE_INTERVAL));
 
+	const real_t beta_start = 0.4f;
+	const real_t beta_end = 1.0f;
+	const dim_type beta_anneal_episodes = 2500;
+
     for (dim_type episode = start_episode_; episode < start_episode_+ episodes; ++episode) {
+		real_t progress = static_cast<real_t>(episode) / beta_anneal_episodes;
+		real_t beta = beta_start + (beta_end - beta_start) * progress;
+		sac_->set_beta(beta);
+
 		real_t episode_return = 0.0f;
 		tensor_t state = reset();
 		bool done = false;

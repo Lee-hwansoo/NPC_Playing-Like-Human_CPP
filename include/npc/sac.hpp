@@ -100,6 +100,8 @@ public:
         memory_->add(state, action, reward, next_state, done);
     }
 
+    void set_beta(real_t beta) { memory_->set_beta(beta); }
+
     void train() {
         actor_->train();
         critic1_->train();
