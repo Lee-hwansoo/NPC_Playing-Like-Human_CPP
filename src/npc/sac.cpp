@@ -307,6 +307,37 @@ void SAC::warmup() {
 		action.squeeze(0);
 	}
 
+    // PER 웜업
+    {
+        torch::NoGradGuard no_grad;
+
+        auto dummy_buffer = PrioritizedReplayBuffer(
+            state_dim_,
+            action_dim_,
+            batch_size * 2,
+            batch_size,
+            device_,
+            0.6f,
+            0.4f
+        );
+
+        for (int i = 0; i < batch_size; ++i) {
+            dummy_buffer.add(
+                dummy_states[0],
+                dummy_actions[0],
+                dummy_rewards[0],
+                dummy_next_states[0],
+                dummy_dones[0]
+            );
+        }
+
+        // sample_with_priorities 웜업
+        auto [states, actions, rewards, next_states, dones, weights, indices] = dummy_buffer.sample_with_priorities();
+        // update_priorities 웜업
+        auto dummy_td_errors = torch::ones({ batch_size }, device_);
+        dummy_buffer.update_priorities(indices, dummy_td_errors);
+    }
+
 }
 
 tensor_t SAC::select_action(const tensor_t& state) {
