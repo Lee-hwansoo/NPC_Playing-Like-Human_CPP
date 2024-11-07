@@ -1,4 +1,5 @@
 ﻿#include "npc/environment.hpp"
+#include "npc/sac.hpp"
 #include "utils/constants.hpp"
 #include "utils/types.hpp"
 #include <iostream>
@@ -93,12 +94,22 @@ tensor_t TrainEnvironment::init(count_type agent_count, tensor_t min_action, ten
 	agents_state_ = torch::zeros({ agent_count, 3 });
 	update_agents_state();
 
-	memory_ = std::make_unique<ReplayBuffer>(
+	// memory_ = std::make_unique<ReplayBuffer>(
+	// 	get_observation_dim(),
+	// 	get_action_dim(),
+	// 	constants::NETWORK::BUFFER_SIZE,
+	// 	constants::NETWORK::BATCH_SIZE,
+	// 	device_
+	// );
+
+	memory_ = std::make_unique<PrioritizedReplayBuffer>(
 		get_observation_dim(),
 		get_action_dim(),
 		constants::NETWORK::BUFFER_SIZE,
 		constants::NETWORK::BATCH_SIZE,
-		device_
+		device_,
+		0.6f,
+		0.4f
 	);
 
 	sac_ = std::make_unique<SAC>(

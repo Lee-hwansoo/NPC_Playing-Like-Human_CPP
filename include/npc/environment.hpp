@@ -120,7 +120,7 @@ protected:
 
 	std::unique_ptr<path_planning::RRT> path_planner_;
 
-	std::unique_ptr<ReplayBuffer> memory_;
+	std::unique_ptr<PrioritizedReplayBuffer> memory_;
 	std::unique_ptr<SAC> sac_;
 
 	dim_type start_episode_{ 0 };

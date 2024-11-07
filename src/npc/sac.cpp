@@ -207,7 +207,7 @@ void PrioritizedReplayBuffer::update_priorities(const tensor_t& indices, const t
 SAC::SAC(dim_type state_dim, dim_type action_dim,
         tensor_t min_action,
         tensor_t max_action,
-        ReplayBuffer* memory,
+        PrioritizedReplayBuffer* memory,
         torch::Device device)
     : actor_("actor", state_dim, action_dim, min_action, max_action, device)
     , critic1_("critic1", state_dim, action_dim, device)
@@ -322,16 +322,22 @@ SACMetrics SAC::update(bool debug) {
         return metrics;
     }
 
-	std::chrono::duration<double, std::milli> memory_sample_time;
-	std::chrono::duration<double, std::milli> actor_sample_time;
-	std::chrono::duration<double, std::milli> critic_forward_time;
-	std::chrono::duration<double, std::milli> critic_backward_time;
-	std::chrono::duration<double, std::milli> actor_forward_time;
-	std::chrono::duration<double, std::milli> actor_backward_time;
-	std::chrono::duration<double, std::milli> target_update_time;
+	std::chrono::duration<real_real_t, std::milli> memory_sample_time;
+	std::chrono::duration<real_real_t, std::milli> actor_sample_time;
+	std::chrono::duration<real_real_t, std::milli> critic_forward_time;
+	std::chrono::duration<real_real_t, std::milli> critic_backward_time;
+	std::chrono::duration<real_real_t, std::milli> actor_forward_time;
+	std::chrono::duration<real_real_t, std::milli> actor_backward_time;
+	std::chrono::duration<real_real_t, std::milli> target_update_time;
+    std::chrono::duration<real_real_t, std::milli> priority_update_time;
+
+    // auto start = std::chrono::high_resolution_clock::now();
+    // auto [states, actions, rewards, next_states, dones] = memory_->sample();
+    // auto end = std::chrono::high_resolution_clock::now();
+    // memory_sample_time = end - start;
 
     auto start = std::chrono::high_resolution_clock::now();
-    auto [states, actions, rewards, next_states, dones] = memory_->sample();
+    auto [states, actions, rewards, next_states, dones, weights, indices] = memory_->sample_with_priorities();
     auto end = std::chrono::high_resolution_clock::now();
     memory_sample_time = end - start;
 
@@ -358,8 +364,16 @@ SACMetrics SAC::update(bool debug) {
 
     auto current_q2 = critic2_->forward(states, actions);
 
-    auto critic_loss1 = torch::mse_loss(current_q1, target_q.detach());
-    auto critic_loss2 = torch::mse_loss(current_q2, target_q.detach());
+    // auto critic_loss1 = torch::mse_loss(current_q1, target_q.detach());
+    // auto critic_loss2 = torch::mse_loss(current_q2, target_q.detach());
+
+    // TD 오류 계산
+    auto td_error1 = current_q1 - target_q.detach();
+    auto td_error2 = current_q2 - target_q.detach();
+
+    // IS weights를 손실 함수에 적용
+    auto critic_loss1 = (weights * torch::pow(td_error1, 2)).mean();
+    auto critic_loss2 = (weights * torch::pow(td_error2, 2)).mean();
     metrics.critic_loss1 = critic_loss1.item<real_t>();
     metrics.critic_loss2 = critic_loss2.item<real_t>();
 
@@ -378,12 +392,14 @@ SACMetrics SAC::update(bool debug) {
     auto [new_actions, log_pi] = actor_->sample(states);
     end = std::chrono::high_resolution_clock::now();
     actor_forward_time = end - start;
+
     auto q = torch::min(
         critic1_->forward(states, new_actions),
         critic2_->forward(states, new_actions)
     );
 
-    auto actor_loss = (alpha_ * log_pi - q).mean();
+    // auto actor_loss = (alpha_ * log_pi - q).mean();
+    auto actor_loss = (weights * (alpha_ * log_pi - q)).mean();
     metrics.actor_loss = actor_loss.item<real_t>();
     metrics.log_pi = log_pi.mean().item<real_t>();
     metrics.q_value = q.mean().item<real_t>();
@@ -400,6 +416,12 @@ SACMetrics SAC::update(bool debug) {
 	end = std::chrono::high_resolution_clock::now();
 	target_update_time = end - start;
 
+    start = std::chrono::high_resolution_clock::now();
+    auto td_errors = torch::min(td_error1.abs(), td_error2.abs()).squeeze(-1).detach();
+    memory_->update_priorities(indices, td_errors);
+    end = std::chrono::high_resolution_clock::now();
+    priority_update_time = end - start;
+
     if (debug) {
 	    std::cout << "\nSAC Update Timing (ms):" << std::endl;
 	    std::cout << std::fixed << std::setprecision(4);
@@ -410,11 +432,12 @@ SACMetrics SAC::update(bool debug) {
 	    std::cout << "Actor Forward: " << actor_forward_time.count() << std::endl;
 	    std::cout << "Actor Backward: " << actor_backward_time.count() << std::endl;
 	    std::cout << "Target Update: " << target_update_time.count() << std::endl;
+        std::cout << "Priority Update: " << priority_update_time.count() << std::endl;
 
 	    double total_time = memory_sample_time.count() + actor_sample_time.count() +
 		    critic_forward_time.count() + critic_backward_time.count() +
 		    actor_forward_time.count() + actor_backward_time.count() +
-		    target_update_time.count();
+		    target_update_time.count() + priority_update_time.count();
 	    std::cout << "Total Update Time: " << total_time << std::endl;
     }
 
