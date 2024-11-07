@@ -201,22 +201,22 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
     real_t force = required_action[0].item<real_t>();
     real_t yaw_change = required_action[1].item<real_t>();
 
-	// 기본 보상 컴포넌트들 (-0.6 ~ +0.6 범위로 조정)
-	real_t goal_reward = (1.0f - normalized_goal_dist) * 0.3f;            // 0 ~ 0.3
+	// 기본 보상 컴포넌트들 (-0.3 ~ +0.7 범위로 조정)
+	real_t goal_reward = (1.0f - normalized_goal_dist) * 0.5f;            // 0 ~ 0.5
 	real_t fov_reward = (1.0f - std::abs(normalized_angle_diff)) * goal_in_fov * 0.1f;	// 0 ~ 0.1
 	real_t angle_reward = (1.0f - std::abs(normalized_angle_diff)) * 0.2f;	// 0 ~ 0.2
 	real_t turn_penalty = -(std::abs(yaw_change) * 0.1f);					// -0.1 ~ 0
 	real_t path_delta_penalty = -(std::abs(frenet_d) * 0.2f);				// -0.2 ~ 0
 
-	// 시간 패널티 (-0.4 ~ 0 범위로 조정)
-	real_t normalized_time_penalty = -0.4f * static_cast<real_t>(step_count_) / constants::NETWORK::MAX_STEP;
+	// 시간 패널티 (-0.3 ~ 0 범위로 조정)
+	real_t normalized_time_penalty = -0.3f * static_cast<real_t>(step_count_) / constants::NETWORK::MAX_STEP;
 
 	// 종료 보상 (-1 ~ +1 범위로 조정)
 	real_t terminal_reward = 0.0f;
 	if (terminated_) {
-		// 빠른 도달에 대한 보너스 (0 ~ 0.4)
-		real_t speed_bonus = 0.4f * (1.0f - static_cast<real_t>(step_count_) / constants::NETWORK::MAX_STEP);
-		terminal_reward = 0.6f + speed_bonus;  // 0.6 ~ 1.0
+		// 빠른 도달에 대한 보너스 (0 ~ 0.3)
+		real_t speed_bonus = 0.3f * (1.0f - static_cast<real_t>(step_count_) / constants::NETWORK::MAX_STEP);
+		terminal_reward = 0.7f + speed_bonus;  // 0.7 ~ 1.0
 	}
 	if (truncated_) {
 		terminal_reward = -1.0f;  // 실패 시 최소 보상
@@ -230,8 +230,8 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 		normalized_time_penalty +
 		terminal_reward;
 
-	// 최종 보상을 -1과 1 사이로 클리핑
-	return std::max(-1.0f, std::min(1.0f, reward));
+	// 최종 보상을 -1.5과 1.5 사이로 클리핑
+	return std::max(-1.5f, std::min(1.5f, reward));
 }
 
 std::tuple<tensor_t, tensor_t, bool, bool> TrainEnvironment::step(const tensor_t& action) {
