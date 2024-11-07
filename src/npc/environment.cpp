@@ -1,6 +1,7 @@
 ﻿#include "npc/environment.hpp"
 #include "utils/constants.hpp"
 #include "utils/types.hpp"
+#include <iostream>
 
 namespace environment {
 
@@ -273,10 +274,11 @@ TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, boo
 			store_transition(state, action, reward, done_tensor);
 
 			if (step_count_ >= n_steps_) {
-				//tensor_t n_step_return = calculate_n_step_return(next_state);
+				tensor_t n_step_return = calculate_n_step_return(next_state);
+
 				sac_->add(n_step_buffer_[buffer_idx_].slice(0, 0, get_observation_dim()),
 					n_step_buffer_[buffer_idx_].slice(0, get_observation_dim(), get_observation_dim() + get_action_dim()),
-					reward,
+					n_step_return,
 					next_state,
 					done_tensor);
 			}
@@ -452,7 +454,7 @@ void TrainEnvironment::init_n_step_buffer() {
     buffer_idx_ = 0;
 }
 
-void TrainEnvironment(const tensor_t& state, const tensor_t& action, const tensor_t& reward, const tensor_t& done) {
+void TrainEnvironment::store_transition(const tensor_t& state, const tensor_t& action, const tensor_t& reward, const tensor_t& done) {
     // 현재 transition을 버퍼에 저장
     dim_type state_dim = get_observation_dim();
     dim_type action_dim = get_action_dim();
@@ -477,21 +479,22 @@ tensor_t TrainEnvironment::calculate_n_step_return(const tensor_t& next_state) {
 
     // 버퍼에 저장된 보상들의 할인된 합 계산
     for (index_type i = 0; i < n_steps_; ++i) {
-        index_type idx = (buffer_idx_ - n_steps_ + i + n_steps_) % n_steps_;
-        real_t reward = n_step_buffer_[idx][state_dim + action_dim].item<real_t>();
-        bool done = n_step_buffer_[idx][state_dim + action_dim + 1].item<bool>();
+		index_type idx = (buffer_idx_ + i) % n_steps_;
 
-        n_step_return += discount * reward;
+        const tensor_t& reward_tensor = n_step_buffer_[idx][state_dim + action_dim];
+        const tensor_t& done_tensor = n_step_buffer_[idx][state_dim + action_dim + 1];
 
-        if (done) {
+		n_step_return += discount * reward_tensor;
+
+        if (done_tensor.item<real_t>() == 1.0f) {
             return n_step_return;
         }
         discount *= gamma_;
     }
 
     // 마지막 상태의 가치 추정값을 더함
-    auto [q1, q2] = sac_->get_critic_values(next_state, sac_->select_action(next_state));
-    n_step_return += discount * std::min(q1.item<real_t>(), q2.item<real_t>());
+	auto q_value = sac_->get_critic_values(next_state, sac_->select_action(next_state));
+    n_step_return += discount * q_value;
 
     return n_step_return;
 }

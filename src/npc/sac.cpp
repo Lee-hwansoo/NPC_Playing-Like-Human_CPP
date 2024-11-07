@@ -168,15 +168,6 @@ void SAC::warmup() {
 		action.squeeze(0);
 	}
 
-    // get_critic_values warmup
-    {
-        torch::NoGradGuard no_grad;
-
-        auto [next_actions, next_log_pi] = actor_->sample(dummy_next_states);
-        auto [target_q1, target_q2] = get_critic_values(dummy_next_states, next_actions);
-        auto target_q = torch::min(target_q1, target_q2);
-    }
-
 }
 
 tensor_t SAC::select_action(const tensor_t& state) {
@@ -293,12 +284,18 @@ SACMetrics SAC::update(bool debug) {
     return metrics;
 }
 
-std::pair<tensor_t, tensor_t> SAC::get_critic_values(const tensor_t& state, const tensor_t action) {
+tensor_t SAC::get_critic_values(const tensor_t& state, const tensor_t& action) {
     torch::NoGradGuard no_grad;
-    return {
-        critic1_->forward(state, action),
-        critic2_->forward(state, action)
-    };
+
+    auto batch_state = state.unsqueeze(0);
+    auto batch_action = action.unsqueeze(0);
+
+    auto q = torch::min(
+        critic1_->forward(batch_state, batch_action),
+        critic2_->forward(batch_state, batch_action)
+    );
+
+    return q.squeeze(0);
 }
 
 void SAC::update_target_networks() {
