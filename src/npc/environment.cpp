@@ -273,11 +273,13 @@ TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, boo
 
 	const real_t beta_start = 0.4f;
 	const real_t beta_end = 1.0f;
-	const dim_type beta_anneal_episodes = 700;
+	const real_t decay_rate = 5.0f;
+	const dim_type beta_anneal_episodes = episodes;
 
     for (dim_type episode = start_episode_; episode < start_episode_+ episodes; ++episode) {
 		real_t progress = static_cast<real_t>(episode) / beta_anneal_episodes;
-		real_t beta = beta_start + (beta_end - beta_start) * progress;
+		real_t beta = beta_end - (beta_end - beta_start) * std::exp(-decay_rate * progress);
+		beta = std::min(beta_end, std::max(beta_start, beta));
 		sac_->set_beta(beta);
 
 		real_t episode_return = 0.0f;
