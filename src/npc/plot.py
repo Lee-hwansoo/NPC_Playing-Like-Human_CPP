@@ -74,6 +74,6 @@ def plot_training_results(result_dir):
 
 if __name__ == "__main__":
    print("현재 디렉토리 절대 경로:", os.getcwd())
-   # result_dir = os.getcwd() + "/../../out/results/environment"
+   # result_dir = os.getcwd() + "/results/environment"
    result_dir = os.getcwd() + "/results/environment"
    plot_training_results(result_dir)
