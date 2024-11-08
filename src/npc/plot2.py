@@ -15,10 +15,10 @@ def plot_training_results(result_dir):
 
     # 서브플롯 레이아웃 개선
     fig = plt.figure(figsize=(20, 12))
-    gs = GridSpec(2, 4, figure=fig)
+    gs = GridSpec(2, 5, figure=fig)
 
     # 1. 보상 그래프 (더 큰 크기로)
-    ax1 = fig.add_subplot(gs[0, :2])  # 첫 번째 행의 절반을 차지
+    ax1 = fig.add_subplot(gs[0, :3])  # 첫 번째 행의 절반을 차지
     sns.lineplot(data=rewards_df, x='episode', y='reward', color='blue', ax=ax1)
     ax1.set_title('Episode Rewards', size=12, pad=10)
     ax1.set_xlabel('Episode')
@@ -36,7 +36,7 @@ def plot_training_results(result_dir):
     y_max = max(metrics_df['critic_loss1'].max(), metrics_df['critic_loss2'].max())
 
     # 2. Combined Critics Loss (더 큰 크기로)
-    ax2 = fig.add_subplot(gs[0, 2:])  # 첫 번째 행의 나머지 절반
+    ax2 = fig.add_subplot(gs[0, 3:])  # 첫 번째 행의 나머지 절반
     sns.lineplot(data=metrics_df, x='step', y='critic_loss1', color='red',
                 label='Critic1', ax=ax2, alpha=0.7)
     sns.lineplot(data=metrics_df, x='step', y='critic_loss2', color='green',
@@ -68,8 +68,15 @@ def plot_training_results(result_dir):
     ax5.set_xlabel('Step')
     ax5.set_ylabel('Value')
 
-    # 6. Training Progress Summary
+    # 6. beta
     ax6 = fig.add_subplot(gs[1, 3])
+    sns.lineplot(data=metrics_df, x='step', y='beta', color='yellow', ax=ax6)
+    ax6.set_title('beta', size=12, pad=10)
+    ax6.set_xlabel('Step')
+    ax6.set_ylabel('Value')
+
+    # 7. Training Progress Summary
+    ax7 = fig.add_subplot(gs[1, 4])
     # 학습 진행 상황 요약 통계
     summary_text = (
         f"Total Episodes: {len(rewards_df)}\n"
@@ -78,13 +85,17 @@ def plot_training_results(result_dir):
         f"Avg Reward: {rewards_df['reward'].mean():.2f}\n"
         f"Final Reward: {rewards_df['reward'].iloc[-1]:.2f}\n\n"
         f"Final Actor Loss: {metrics_df['actor_loss'].iloc[-1]:.4f}\n"
+        f"Avg Actor Loss: {metrics_df['actor_loss'].mean():.2f}\n"
         f"Final Critic1 Loss: {metrics_df['critic_loss1'].iloc[-1]:.4f}\n"
-        f"Final Critic2 Loss: {metrics_df['critic_loss2'].iloc[-1]:.4f}"
+        f"Final Critic2 Loss: {metrics_df['critic_loss2'].iloc[-1]:.4f}\n"
+        f"Avg Critic1 Loss: {metrics_df['critic_loss1'].mean():.2f}\n"
+        f"Avg Critic2 Loss: {metrics_df['critic_loss2'].mean():.2f}\n"
+        f"Final beta: {metrics_df['beta'].iloc[-1]:.4f}"
     )
-    ax6.text(0.05, 0.95, summary_text, transform=ax6.transAxes,
+    ax7.text(0.05, 0.95, summary_text, transform=ax7.transAxes,
              verticalalignment='top', fontsize=10)
-    ax6.set_title('Training Summary', size=12, pad=10)
-    ax6.axis('off')
+    ax7.set_title('Training Summary', size=12, pad=10)
+    ax7.axis('off')
 
     plt.tight_layout()
     plt.show()

@@ -69,6 +69,7 @@ namespace types {
 		real_t actor_loss;
 		real_t log_pi;
 		real_t q_value;
+        real_t beta;
 		bool is_vaild = false;
 	};
 

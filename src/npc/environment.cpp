@@ -201,25 +201,24 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
     real_t force = required_action[0].item<real_t>();
     real_t yaw_change = required_action[1].item<real_t>();
 
-	// 기본 보상 컴포넌트들 (-0.3 ~ +0.7 범위로 조정)
+	// 기본 보상 컴포넌트들 (-0.3 ~ +0.8 범위로 조정)
 	real_t goal_reward = (1.0f - normalized_goal_dist) * 0.5f;            // 0 ~ 0.5
 	real_t fov_reward = (1.0f - std::abs(normalized_angle_diff)) * goal_in_fov * 0.1f;	// 0 ~ 0.1
 	real_t angle_reward = (1.0f - std::abs(normalized_angle_diff)) * 0.2f;	// 0 ~ 0.2
 	real_t turn_penalty = -(std::abs(yaw_change) * 0.1f);					// -0.1 ~ 0
 	real_t path_delta_penalty = -(std::abs(frenet_d) * 0.2f);				// -0.2 ~ 0
 
-	// 시간 패널티 (-0.3 ~ 0 범위로 조정)
-	real_t normalized_time_penalty = -0.3f * static_cast<real_t>(step_count_) / constants::NETWORK::MAX_STEP;
-
-	// 종료 보상 (-1 ~ +1 범위로 조정)
+	// 종료 보상 (+0.8 ~ +1.2 범위로 조정)
 	real_t terminal_reward = 0.0f;
 	if (terminated_) {
-		// 빠른 도달에 대한 보너스 (0 ~ 0.3)
-		real_t speed_bonus = 0.3f * (1.0f - static_cast<real_t>(step_count_) / constants::NETWORK::MAX_STEP);
-		terminal_reward = 0.7f + speed_bonus;  // 0.7 ~ 1.0
+		// 빠른 도달에 대한 보너스 (0 ~ 0.4)
+		real_t speed_bonus = 0.4f * (1.0f - static_cast<real_t>(step_count_) / constants::NETWORK::MAX_STEP);
+		terminal_reward = 0.8f + speed_bonus;  // 0.8 ~ 1.2
 	}
+
+	// 중단 보상 (-1 * n steps)
 	if (truncated_) {
-		terminal_reward = -1.0f;  // 실패 시 최소 보상
+		return -1.0f * constants::NETWORK::N_STEPS;  // 실패 시 최소 보상
 	}
 
 	real_t reward = goal_reward +
@@ -227,11 +226,10 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 		angle_reward +
 		turn_penalty +
 		path_delta_penalty +
-		normalized_time_penalty +
 		terminal_reward;
 
-	// 최종 보상을 -1.5과 1.5 사이로 클리핑
-	return std::max(-1.5f, std::min(1.5f, reward));
+	// 최종 보상을 0과 2 사이로 클리핑
+	return std::max(0.0f, std::min(2.0f, reward));
 }
 
 std::tuple<tensor_t, tensor_t, bool, bool> TrainEnvironment::step(const tensor_t& action) {
@@ -316,6 +314,7 @@ TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, boo
 			if (step_count_ % constants::NETWORK::UPDATE_INTERVAL == 0) {
 				auto metrics = sac_->update(debug);
 				if (metrics.is_vaild){
+					metrics.beta = beta;
 					metrics_history.push_back(metrics);
 				}
 			}
@@ -583,14 +582,15 @@ void TrainEnvironment::save_history(const std::vector<real_t>& reward_history, c
 			if (!metrics_file.is_open()) {
 				throw std::runtime_error("Could not open " + metrics_path.string());
 			}
-			metrics_file << "step,critic_loss1,critic_loss2,actor_loss,log_pi,q_value\n";
+			metrics_file << "step,critic_loss1,critic_loss2,actor_loss,log_pi,q_value,beta\n";
 			for (size_t i = 0; i < metrics_history.size(); ++i) {
 				metrics_file << i << ","
 					<< metrics_history[i].critic_loss1 << ","
 					<< metrics_history[i].critic_loss2 << ","
 					<< metrics_history[i].actor_loss << ","
 					<< metrics_history[i].log_pi << ","
-					<< metrics_history[i].q_value << "\n";
+					<< metrics_history[i].q_value << ","
+					<< metrics_history[i].beta << "\n";
 			}
 		}
 	}
