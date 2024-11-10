@@ -554,7 +554,20 @@ tensor_t Agent::update(const real_t dt, const tensor_t& scaled_action, const ten
 
     position_ = position_ + velocity_;
     yaw_ = std::atan2(velocity_[1].item<real_t>(), velocity_[0].item<real_t>());
-    trajectory_ = torch::cat({trajectory_, position_.unsqueeze(0)});
+
+    real_t distance_moved = 0.0f;
+    if (trajectory_.size(0) > 0) {
+        auto last_position = trajectory_[-1];
+        auto diff = position_ - last_position;
+        distance_moved = std::sqrt(diff[0].item<real_t>() * diff[0].item<real_t>() +
+                                 diff[1].item<real_t>() * diff[1].item<real_t>());
+    }
+
+    if (trajectory_.size(0) == 0 || distance_moved >= 10.0f) {
+        trajectory_ = torch::cat({trajectory_, position_.unsqueeze(0)});
+    }
+
+    // trajectory_ = torch::cat({trajectory_, position_.unsqueeze(0)});
 
     circle_obstacles_state_ = circle_obstacles_state;
 
