@@ -88,7 +88,7 @@ namespace constants
 		);
 
         // Movement constraints
-        const Vector2 VELOCITY_LIMITS(15.0f, 50.0f);  // Range: 1.5~5 m/s
+        const Vector2 VELOCITY_LIMITS(5.0f, 50.0f);  // Range: 1.5~5 m/s
         constexpr real_t YAW_CHANGE_LIMIT = 180.0f * DEG_TO_RAD;  // 180 degrees/s
 
         // Field of View (FOV) properties
@@ -167,6 +167,6 @@ namespace constants
         constexpr count_type UPDATE_INTERVAL = 5;
         constexpr count_type LOG_INTERVAL = 10;
 
-        constexpr types::count_type N_STEPS = 5;
+        constexpr types::count_type N_STEPS = 4;
     }
 }

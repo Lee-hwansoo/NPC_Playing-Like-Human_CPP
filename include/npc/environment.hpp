@@ -155,6 +155,7 @@ private:
     tensor_t n_step_buffer_;
 	count_type n_steps_{ constants::NETWORK::N_STEPS };
 	real_t gamma_{ constants::NETWORK::GAMMA };
+	real_t bootstrap_weight_{ 0.5f };
     count_type buffer_idx_;
 
     void init_n_step_buffer();
