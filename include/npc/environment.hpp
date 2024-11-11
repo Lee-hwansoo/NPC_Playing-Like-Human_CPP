@@ -160,7 +160,7 @@ private:
 
     void init_n_step_buffer();
     void store_transition(const tensor_t& state, const tensor_t& action, const tensor_t& reward, const tensor_t& done);
-    tensor_t calculate_n_step_return(const tensor_t& next_state);
+    tensor_t calculate_n_step_return(const index_type start_idx, const index_type remaining_steps);
 
 	void log_statistics(const std::vector<real_t>& reward_history, dim_type episode) const;
 	void save_history(const std::vector<real_t>& reward_history, const std::vector<SACMetrics>& metrics_history) const;
