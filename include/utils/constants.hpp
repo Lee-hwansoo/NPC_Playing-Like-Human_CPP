@@ -88,7 +88,7 @@ namespace constants
 		);
 
         // Movement constraints
-        const Vector2 VELOCITY_LIMITS(5.0f, 50.0f);  // Range: 1.5~5 m/s
+        const Vector2 VELOCITY_LIMITS(15.0f, 50.0f);  // Range: 1.5~5 m/s
         constexpr real_t YAW_CHANGE_LIMIT = 180.0f * DEG_TO_RAD;  // 180 degrees/s
 
         // Field of View (FOV) properties
@@ -156,17 +156,17 @@ namespace constants
 	//--------------------------------------------------------------------------------
     namespace NETWORK
     {
-        constexpr real_t  MAX_STEP = 3000;
+        constexpr real_t  MAX_STEP = 2500;
 		constexpr count_type BUFFER_SIZE = 500000;
-		constexpr count_type BATCH_SIZE = 256;
+		constexpr count_type BATCH_SIZE = 128;
 		constexpr real_t  GAMMA = 0.99f;
 		constexpr real_t  TAU = 0.005f;
 		constexpr real_t  ALPHA = 0.2f;
         constexpr real_t  LEARNING_RATE = 3e-4f;
 
         constexpr count_type UPDATE_INTERVAL = 5;
-        constexpr count_type LOG_INTERVAL = 10;
+        constexpr count_type LOG_INTERVAL = 25;
 
-        constexpr types::count_type N_STEPS = 4;
+        constexpr types::count_type N_STEPS = 5;
     }
 }
