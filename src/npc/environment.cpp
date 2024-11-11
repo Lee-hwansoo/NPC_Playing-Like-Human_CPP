@@ -298,34 +298,17 @@ TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, boo
 
 			store_transition(state, action, reward, done_tensor);
 
-			if (done && step_count_ >= n_steps_){
-				for (index_type i = 0; i < n_steps_ -1; ++i){
-					index_type start_idx = (buffer_idx_ + i) % n_steps_;
-
-					tensor_t current_state = n_step_buffer_[start_idx].slice(0, 0, get_observation_dim());
-					tensor_t current_action = n_step_buffer_[start_idx].slice(0, get_observation_dim(), get_observation_dim() + get_action_dim());
-
-					index_type remaining_steps = n_steps_ - i;
-					tensor_t n_step_return = calculate_n_step_return(start_idx, remaining_steps);
-					sac_->add(current_state,
-							current_action,
-							n_step_return,
-							next_state,
-							done_tensor);
+			if (step_count_ >= n_steps_) {
+				if (done) {
+					// 중단된 경우 모든 이전 상태들에 대해 처리
+					for (index_type i = 0; i < n_steps_ - 1; ++i) {
+						index_type start_idx = (buffer_idx_ + i) % n_steps_;
+						process_n_step_return(start_idx, n_steps_ - i, next_state, done_tensor);
+					}
+				} else {
+					// 일반적인 경우 현재 상태만 처리
+					process_n_step_return(buffer_idx_, n_steps_, next_state, done_tensor);
 				}
-			}else if (step_count_ >= n_steps_) {
-				index_type start_idx = buffer_idx_; // 현재 시점으로 보는 과거의 인덱스
-
-				tensor_t current_state = n_step_buffer_[start_idx].slice(0, 0, get_observation_dim());
-				tensor_t current_action = n_step_buffer_[start_idx].slice(0, get_observation_dim(), get_observation_dim() + get_action_dim());
-
-				// 과거 시점부터 n-step return 계산
-				tensor_t n_step_return = calculate_n_step_return(start_idx, n_steps_);
-				sac_->add(current_state,
-						current_action,
-						n_step_return,
-						next_state,
-						done_tensor);
 			}
 
 			//sac_->add(state, action, reward, next_state, done_tensor);
@@ -538,6 +521,14 @@ tensor_t TrainEnvironment::calculate_n_step_return(const index_type start_idx, c
     }
 
     return n_step_return;
+}
+
+void TrainEnvironment::process_n_step_return(const index_type start_idx, const index_type steps, const tensor_t& next_state, const tensor_t& done_tensor) {
+    tensor_t current_state = n_step_buffer_[start_idx].slice(0, 0, get_observation_dim());
+    tensor_t current_action = n_step_buffer_[start_idx].slice(0, get_observation_dim(), get_observation_dim() + get_action_dim());
+
+    tensor_t n_step_return = calculate_n_step_return(start_idx, steps);
+    sac_->add(current_state, current_action, n_step_return, next_state, done_tensor);
 }
 
 void TrainEnvironment::log_statistics(const std::vector<real_t>& reward_history, dim_type episode) const {
