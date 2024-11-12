@@ -25,7 +25,7 @@ def plot_training_results(result_dir):
     ax1.set_ylabel('Reward')
 
     # 이동평균선 추가
-    window_size = 25
+    window_size = 50
     rewards_df['rolling_mean'] = rewards_df['reward'].rolling(window=window_size).mean()
     sns.lineplot(data=rewards_df, x='episode', y='rolling_mean', color='red',
                 ax=ax1, label=f'Moving Average (window={window_size})')

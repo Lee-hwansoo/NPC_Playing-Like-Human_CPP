@@ -123,11 +123,11 @@ private:
 
 void testBasicTrainEnvironment(SDL_Renderer* renderer) {
     torch::Device device = get_device();
-    environment::TrainEnvironment env(constants::Display::WIDTH, constants::Display::HEIGHT, device, 1, true);
+    environment::TrainEnvironment env(constants::Display::WIDTH, constants::Display::HEIGHT, torch::kCPU, 1, true);
     env.set_render(renderer);
-    // env.load("20241108_161108", 3000);
-    env.train(3000, false, false);
-    // env.test(10, true);
+    env.load("20241112_051733", 5000);
+    // env.train(5000, false, false);
+    env.test(10, true);
 }
 
 void testMultiAgentEnvironment(SDL_Renderer* renderer) {
