@@ -263,6 +263,7 @@ std::tuple<tensor_t, tensor_t, bool, bool> TrainEnvironment::step(const tensor_t
 TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, bool debug) {
 	sac_->train();
 	SDL_Event event;
+	bool is_render = render;
     std::vector<real_t> reward_history;
 	std::vector<SACMetrics> metrics_history;
     reward_history.reserve(static_cast<size_t>(episodes));
@@ -285,9 +286,16 @@ TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, boo
 
 		while (!done) {
 			while (SDL_PollEvent(&event)) {
-				if (event.type == SDL_QUIT ||
-					(event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
+				if (event.type == SDL_QUIT || (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
 					return { reward_history, metrics_history };
+				}
+				if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_r) {
+					is_render = !is_render;
+					if (!is_render) {
+						SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
+						SDL_RenderClear(renderer_);
+						SDL_RenderPresent(renderer_);
+					}
 				}
 			}
 
@@ -324,7 +332,7 @@ TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, boo
 			episode_return += reward.item<real_t>();
 			state = next_state;
 
-			if (render) {
+			if (is_render) {
 				render_scene();
 			}
 
@@ -345,6 +353,7 @@ TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, boo
 std::vector<real_t> TrainEnvironment::test(const dim_type episodes, bool render) {
 	sac_->eval();
 	SDL_Event event;
+	bool is_render = render;
 	std::vector<real_t> reward_history;
 	std::vector<real_real_t> action_times;
 	reward_history.reserve(static_cast<size_t>(episodes));
@@ -357,9 +366,16 @@ std::vector<real_t> TrainEnvironment::test(const dim_type episodes, bool render)
 
 		while (!done) {
 			while (SDL_PollEvent(&event)) {
-				if (event.type == SDL_QUIT ||
-					(event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
+				if (event.type == SDL_QUIT || (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
 					return reward_history;;
+				}
+				if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_r) {
+					is_render = !is_render;
+					if (!is_render) {
+						SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
+						SDL_RenderClear(renderer_);
+						SDL_RenderPresent(renderer_);
+					}
 				}
 			}
 
@@ -376,7 +392,7 @@ std::vector<real_t> TrainEnvironment::test(const dim_type episodes, bool render)
 			episode_return += reward.item<real_t>();
 			state = next_state;
 
-            if (render) {
+            if (is_render) {
 				render_scene();
             }
 		}
@@ -627,14 +643,22 @@ MultiAgentEnvironment::MultiAgentEnvironment(count_type width, count_type height
 void MultiAgentEnvironment::test(bool render) {
 	sac_->eval();
 	SDL_Event event;
+	bool is_render = render;
 	reset();
 	bool done = false;
 
 	while (!done) {
 		while (SDL_PollEvent(&event)) {
-			if (event.type == SDL_QUIT ||
-				(event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
+			if (event.type == SDL_QUIT || (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
 				return;
+			}
+			if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_r) {
+				is_render = !is_render;
+				if (!is_render) {
+					SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
+					SDL_RenderClear(renderer_);
+					SDL_RenderPresent(renderer_);
+				}
 			}
 		}
 
@@ -652,7 +676,7 @@ void MultiAgentEnvironment::test(bool render) {
 
 		update_agents_state();
 
-		if (render) {
+		if (is_render) {
 			render_scene();
 		}
 	}
@@ -827,13 +851,21 @@ tensor_t MazeAgentEnvironment::init_maze_environment(count_type agent_count, ten
 void MazeAgentEnvironment::test(bool render) {
 	sac_->eval();
 	SDL_Event event;
+	bool is_render = render;
 	bool done = false;
 
 	while (!done) {
 		while (SDL_PollEvent(&event)) {
-			if (event.type == SDL_QUIT ||
-				(event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
+			if (event.type == SDL_QUIT || (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
 				return;
+			}
+			if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_r) {
+				is_render = !is_render;
+				if (!is_render) {
+					SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
+					SDL_RenderClear(renderer_);
+					SDL_RenderPresent(renderer_);
+				}
 			}
 		}
 
@@ -851,7 +883,7 @@ void MazeAgentEnvironment::test(bool render) {
 
 		update_agents_state();
 
-		if (render) {
+		if (is_render) {
 			render_scene();
 		}
 	}
