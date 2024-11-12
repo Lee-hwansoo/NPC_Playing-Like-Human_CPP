@@ -575,7 +575,17 @@ void TrainEnvironment::log_statistics(const std::vector<real_t>& reward_history,
 	std::nth_element(recent_rewards.begin(), recent_rewards.begin() + mid, recent_rewards.end());
     real_t median = recent_rewards[mid];
 
-	std::cout << "Episode " << episode + 1
+    // 현재 시간 가져오기
+    auto now = std::chrono::system_clock::now();
+    auto now_time = std::chrono::system_clock::to_time_t(now);
+    auto local_time = std::localtime(&now_time);
+
+    // 시간 포맷팅
+    char time_buf[100];
+    std::strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", local_time);
+
+	std::cout << "[" << time_buf << "] "
+			<< "Episode " << episode + 1
 			<< ", Average Reward: " << std::fixed << std::setprecision(2) << mean
 			<< ", Median Reward: " << median
 			<< ", std: " << std << std::endl;
