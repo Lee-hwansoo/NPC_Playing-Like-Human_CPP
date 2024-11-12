@@ -181,4 +181,24 @@ protected:
 
 };
 
+class MazeAgentEnvironment : public TrainEnvironment {
+public:
+	MazeAgentEnvironment(count_type width = Display::WIDTH,
+						count_type height = Display::HEIGHT,
+						torch::Device device = torch::kCPU,
+						count_type agent_count = 1);
+
+	void test(bool render = true);
+
+protected:
+	void init_maze();
+	tensor_t init_maze_environment(count_type agent_count, tensor_t min_action, tensor_t max_action);
+
+	void render_scene() const override;
+
+private:
+    const count_type WALL_THICKNESS = 10;  // 벽 두께
+
+};
+
 }  // namespace environment

@@ -675,4 +675,198 @@ void MultiAgentEnvironment::render_scene() const {
 	SDL_RenderPresent(renderer_);
 }
 
+MazeAgentEnvironment::MazeAgentEnvironment(count_type width, count_type height, torch::Device device, count_type agent_count)
+	: TrainEnvironment(width, height, device, agent_count, false) {
+
+	const auto [min_action, max_action] = get_action_space();
+	std::cout << "min_action: " << min_action << ", max_action: " << max_action << std::endl;
+
+	circle_obstacles_num_ = 0;
+	rectangle_obstacles_num_ = 10;
+	circle_obstacles_spawn_bounds_ = constants::CircleObstacle::SPAWN_BOUNDS;
+	rectangle_obstacles_spawn_bounds_ = constants::RectangleObstacle::SPAWN_BOUNDS;
+	goal_spawn_bounds_ = constants::Goal::SPAWN_BOUNDS;
+	agents_spawn_bounds_ = constants::Agent::SPAWN_BOUNDS;
+	agents_move_bounds_ = constants::Agent::MOVE_BOUNDS;
+
+	init_maze();
+    state_ = init_maze_environment(agent_count, min_action, max_action);
+
+	std::cout << "Finished Environment initialized" << std::endl;
+}
+
+void MazeAgentEnvironment::init_maze() {
+    // 벡터 공간 할당 및 초기화
+    circle_obstacles_.clear();
+    circle_obstacles_.reserve(circle_obstacles_num_);
+    circle_obstacles_state_ = torch::zeros({ circle_obstacles_num_, 3 });
+
+    rectangle_obstacles_.clear();
+    rectangle_obstacles_.reserve(rectangle_obstacles_num_);
+    rectangle_obstacles_state_ = torch::zeros({ rectangle_obstacles_num_, 5 });
+
+    // 상단 벽
+    rectangle_obstacles_.push_back(std::make_unique<object::RectangleObstacle>(
+        0, width_/8, height_/8, (width_ - width_/8) - 1, WALL_THICKNESS, 0,
+        rectangle_obstacles_spawn_bounds_, Display::to_sdl_color(Display::ORANGE), false
+    ));
+
+    // 하단 벽
+    rectangle_obstacles_.push_back(std::make_unique<object::RectangleObstacle>(
+        1, width_/8, height_ - height_/8, (width_ - width_/8) - 1, WALL_THICKNESS, 0,
+        rectangle_obstacles_spawn_bounds_, Display::to_sdl_color(Display::ORANGE), false
+    ));
+
+    // 좌측 벽
+    rectangle_obstacles_.push_back(std::make_unique<object::RectangleObstacle>(
+        2, WALL_THICKNESS, height_ - height_/8 + WALL_THICKNESS, WALL_THICKNESS, height_ - height_/4 + WALL_THICKNESS, constants::PI,
+        rectangle_obstacles_spawn_bounds_, Display::to_sdl_color(Display::ORANGE), false
+    ));
+
+    // 우측 벽
+    rectangle_obstacles_.push_back(std::make_unique<object::RectangleObstacle>(
+        3, width_ - 1, height_ - height_/8 + WALL_THICKNESS, WALL_THICKNESS, height_ - height_/4 + WALL_THICKNESS, constants::PI,
+        rectangle_obstacles_spawn_bounds_, Display::to_sdl_color(Display::ORANGE), false
+    ));
+
+    // 미로의 내부 벽 생성
+	// 수직 벽
+	rectangle_obstacles_.push_back(std::make_unique<object::RectangleObstacle>(
+        4, width_/4, height_/3, WALL_THICKNESS, height_/3, 0,
+        rectangle_obstacles_spawn_bounds_, Display::to_sdl_color(Display::ORANGE), false
+    ));
+
+    rectangle_obstacles_.push_back(std::make_unique<object::RectangleObstacle>(
+        5, width_/2, height_/2, WALL_THICKNESS, height_/4, 0,
+        rectangle_obstacles_spawn_bounds_, Display::to_sdl_color(Display::ORANGE), false
+    ));
+
+    rectangle_obstacles_.push_back(std::make_unique<object::RectangleObstacle>(
+        6, (width_/4)*3, height_/3, WALL_THICKNESS, height_/3, 0,
+        rectangle_obstacles_spawn_bounds_, Display::to_sdl_color(Display::ORANGE), false
+    ));
+
+    // 수평 벽
+    rectangle_obstacles_.push_back(std::make_unique<object::RectangleObstacle>(
+        7, width_/4, height_/3, width_/4, WALL_THICKNESS, 0,
+        rectangle_obstacles_spawn_bounds_, Display::to_sdl_color(Display::ORANGE), false
+    ));
+
+    rectangle_obstacles_.push_back(std::make_unique<object::RectangleObstacle>(
+        8, width_/2, height_/2, width_/4, WALL_THICKNESS, 0,
+        rectangle_obstacles_spawn_bounds_, Display::to_sdl_color(Display::ORANGE), false
+    ));
+
+    rectangle_obstacles_.push_back(std::make_unique<object::RectangleObstacle>(
+        9, width_/3, (height_/4)*3, width_/3, WALL_THICKNESS, 0,
+        rectangle_obstacles_spawn_bounds_, Display::to_sdl_color(Display::ORANGE), false
+    ));
+
+    update_rectangle_obstacles_state();
+}
+
+tensor_t MazeAgentEnvironment::init_maze_environment(count_type agent_count, tensor_t min_action, tensor_t max_action) {
+    // 메모리와 SAC 초기화
+    memory_ = std::make_unique<PrioritizedReplayBuffer>(
+        get_observation_dim(),
+        get_action_dim(),
+        constants::NETWORK::BUFFER_SIZE,
+        constants::NETWORK::BATCH_SIZE,
+        device_,
+        0.6f,
+        0.4f
+    );
+
+    sac_ = std::make_unique<SAC>(
+        get_observation_dim(),
+        get_action_dim(),
+        min_action,
+        max_action,
+        memory_.get(),
+        device_
+    );
+
+    // 목표지점과 에이전트 초기화
+    goals_.reserve(agent_count);
+    agents_.reserve(agent_count);
+
+    for (count_type i = 0; i < agent_count; ++i) {
+        auto goal = std::make_unique<object::Goal>(i,
+            std::nullopt, std::nullopt,
+            constants::Goal::RADIUS,
+            goal_spawn_bounds_,
+            Display::to_sdl_color(Display::GREEN),
+            false);
+        goals_.push_back(std::move(goal));
+
+        auto agent = std::make_unique<object::Agent>(i,
+            std::nullopt, std::nullopt,
+            constants::Agent::RADIUS,
+            agents_spawn_bounds_,
+            agents_move_bounds_,
+            Display::to_sdl_color(Display::BLUE),
+            true,
+            circle_obstacles_state_,
+            rectangle_obstacles_state_,
+            goals_[i]->get_state(),
+            path_planner_.get());
+        agents_.push_back(std::move(agent));
+    }
+
+    agents_state_ = torch::zeros({ agent_count, 3 });
+    update_agents_state();
+
+    return get_observation();
+}
+
+void MazeAgentEnvironment::test(bool render) {
+	sac_->eval();
+	SDL_Event event;
+	bool done = false;
+
+	while (!done) {
+		while (SDL_PollEvent(&event)) {
+			if (event.type == SDL_QUIT ||
+				(event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
+				return;
+			}
+		}
+
+		for (count_type i = 0; i < agent_count_; ++i){
+			if (check_agent_goal(i) || check_agent_bounds(i) || check_agent_collision(i)) {
+				reset_agent(i);
+			}
+
+			tensor_t agent_obs = get_agent_observation(i);
+
+            tensor_t action = sac_->select_action(agent_obs);
+
+            agents_[i]->update(fixed_dt_, action, get_combined_obstacles_for_agent(i));
+		}
+
+		update_agents_state();
+
+		if (render) {
+			render_scene();
+		}
+	}
+}
+
+void MazeAgentEnvironment::render_scene() const {
+	if (!renderer_) return;
+
+	SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
+	SDL_RenderClear(renderer_);
+
+	for (const auto& obs : circle_obstacles_) obs->draw(renderer_);
+	for (const auto& obs : rectangle_obstacles_) obs->draw(renderer_);
+
+	for (size_t i = 0; i < agents_.size(); ++i) {
+		goals_[i]->draw(renderer_);
+		agents_[i]->draw(renderer_);
+	}
+
+	SDL_RenderPresent(renderer_);
+}
+
 } // namespace environment
