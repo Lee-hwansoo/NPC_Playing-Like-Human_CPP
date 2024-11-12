@@ -682,7 +682,7 @@ MazeAgentEnvironment::MazeAgentEnvironment(count_type width, count_type height, 
 	std::cout << "min_action: " << min_action << ", max_action: " << max_action << std::endl;
 
 	circle_obstacles_num_ = 0;
-	rectangle_obstacles_num_ = 10;
+	rectangle_obstacles_num_ = 11;
 	circle_obstacles_spawn_bounds_ = constants::CircleObstacle::SPAWN_BOUNDS;
 	rectangle_obstacles_spawn_bounds_ = constants::RectangleObstacle::SPAWN_BOUNDS;
 	goal_spawn_bounds_ = constants::Goal::SPAWN_BOUNDS;
@@ -707,58 +707,63 @@ void MazeAgentEnvironment::init_maze() {
 
     // 상단 벽
     rectangle_obstacles_.push_back(std::make_unique<object::RectangleObstacle>(
-        0, width_/8, height_/8, (width_ - width_/8) - 1, WALL_THICKNESS, 0,
+        0, width_/8, height_/8, (width_ - width_/4), WALL_THICKNESS, 0,
         rectangle_obstacles_spawn_bounds_, Display::to_sdl_color(Display::ORANGE), false
     ));
 
     // 하단 벽
     rectangle_obstacles_.push_back(std::make_unique<object::RectangleObstacle>(
-        1, width_/8, height_ - height_/8, (width_ - width_/8) - 1, WALL_THICKNESS, 0,
+        1, width_ - ((width_ - width_/4) / 2 + WALL_THICKNESS), height_ - height_/8, (width_ - width_/4) / 2, WALL_THICKNESS, 0,
+        rectangle_obstacles_spawn_bounds_, Display::to_sdl_color(Display::ORANGE), false
+    ));
+
+    rectangle_obstacles_.push_back(std::make_unique<object::RectangleObstacle>(
+        2, WALL_THICKNESS, height_ - height_/8, (width_ - width_/4) / 2, WALL_THICKNESS, 0,
         rectangle_obstacles_spawn_bounds_, Display::to_sdl_color(Display::ORANGE), false
     ));
 
     // 좌측 벽
     rectangle_obstacles_.push_back(std::make_unique<object::RectangleObstacle>(
-        2, WALL_THICKNESS, height_ - height_/8 + WALL_THICKNESS, WALL_THICKNESS, height_ - height_/4 + WALL_THICKNESS, constants::PI,
+        3, WALL_THICKNESS, height_ - height_/8 + WALL_THICKNESS, WALL_THICKNESS, height_ - height_/4 + WALL_THICKNESS, constants::PI,
         rectangle_obstacles_spawn_bounds_, Display::to_sdl_color(Display::ORANGE), false
     ));
 
     // 우측 벽
     rectangle_obstacles_.push_back(std::make_unique<object::RectangleObstacle>(
-        3, width_ - 1, height_ - height_/8 + WALL_THICKNESS, WALL_THICKNESS, height_ - height_/4 + WALL_THICKNESS, constants::PI,
+        4, width_ - 1, height_ - height_/8 + WALL_THICKNESS, WALL_THICKNESS, height_ - height_/4 + WALL_THICKNESS, constants::PI,
         rectangle_obstacles_spawn_bounds_, Display::to_sdl_color(Display::ORANGE), false
     ));
 
     // 미로의 내부 벽 생성
 	// 수직 벽
 	rectangle_obstacles_.push_back(std::make_unique<object::RectangleObstacle>(
-        4, width_/4, height_/3, WALL_THICKNESS, height_/3, 0,
+        5, width_/4, height_/3, WALL_THICKNESS, height_/3, 0,
         rectangle_obstacles_spawn_bounds_, Display::to_sdl_color(Display::ORANGE), false
     ));
 
     rectangle_obstacles_.push_back(std::make_unique<object::RectangleObstacle>(
-        5, width_/2, height_/2, WALL_THICKNESS, height_/4, 0,
+        6, width_/2, height_/2, WALL_THICKNESS, height_/4, 0,
         rectangle_obstacles_spawn_bounds_, Display::to_sdl_color(Display::ORANGE), false
     ));
 
     rectangle_obstacles_.push_back(std::make_unique<object::RectangleObstacle>(
-        6, (width_/4)*3, height_/3, WALL_THICKNESS, height_/3, 0,
+        7, (width_/4)*3, height_/3, WALL_THICKNESS, height_/3, 0,
         rectangle_obstacles_spawn_bounds_, Display::to_sdl_color(Display::ORANGE), false
     ));
 
     // 수평 벽
     rectangle_obstacles_.push_back(std::make_unique<object::RectangleObstacle>(
-        7, width_/4, height_/3, width_/4, WALL_THICKNESS, 0,
+        8, width_/4, height_/3, width_/4, WALL_THICKNESS, 0,
         rectangle_obstacles_spawn_bounds_, Display::to_sdl_color(Display::ORANGE), false
     ));
 
     rectangle_obstacles_.push_back(std::make_unique<object::RectangleObstacle>(
-        8, width_/2, height_/2, width_/4, WALL_THICKNESS, 0,
+        9, width_/2, height_/2, width_/4, WALL_THICKNESS, 0,
         rectangle_obstacles_spawn_bounds_, Display::to_sdl_color(Display::ORANGE), false
     ));
 
     rectangle_obstacles_.push_back(std::make_unique<object::RectangleObstacle>(
-        9, width_/3, (height_/4)*3, width_/3, WALL_THICKNESS, 0,
+        10, width_/3, (height_/4)*3, width_/3, WALL_THICKNESS, 0,
         rectangle_obstacles_spawn_bounds_, Display::to_sdl_color(Display::ORANGE), false
     ));
 
