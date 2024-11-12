@@ -336,7 +336,7 @@ TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, boo
 				render_scene();
 			}
 
-			std::cout << "\rEpisode: " << episode + 1 << "/" << start_episode_+ episodes << " | Step: " << step_count_ << " " << std::flush;
+			std::cout << "\rEpisode: " << episode + 1 << "/" << start_episode_+ episodes << " | Step: " << step_count_ << std::string(20, ' ') << std::flush;
 		}
 
 		reward_history.push_back(episode_return);
@@ -584,7 +584,8 @@ void TrainEnvironment::log_statistics(const std::vector<real_t>& reward_history,
     char time_buf[100];
     std::strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", local_time);
 
-	std::cout << "[" << time_buf << "] "
+ 	std::cout << "\r" << std::string(100, ' ') << "\r"
+			<< "[" << time_buf << "] "
 			<< "Episode " << episode + 1
 			<< ", Average Reward: " << std::fixed << std::setprecision(2) << mean
 			<< ", Median Reward: " << median
