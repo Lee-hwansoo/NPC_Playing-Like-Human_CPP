@@ -89,7 +89,7 @@ namespace constants
 
         // Movement constraints
         const Vector2 VELOCITY_LIMITS(15.0f, 50.0f);  // Range: 1.5~5 m/s
-        constexpr real_t YAW_CHANGE_LIMIT = 180.0f * DEG_TO_RAD;  // 180 degrees/s
+        constexpr real_t YAW_CHANGE_LIMIT = 120.0f * DEG_TO_RAD;  // 120 degrees/s
 
         // Field of View (FOV) properties
         namespace FOV
@@ -117,7 +117,7 @@ namespace constants
         );
 
         // Movement constraints
-        const Vector2 VELOCITY_LIMITS(10.0f, 15.0f);  // Range: 1~1.5 m/s
+        const Vector2 VELOCITY_LIMITS(10.0f, 10.0f);  // Range: 1~1 m/s
     }
 
     namespace RectangleObstacle
@@ -156,7 +156,7 @@ namespace constants
 	//--------------------------------------------------------------------------------
     namespace NETWORK
     {
-        constexpr real_t  MAX_STEP = 4000;
+        constexpr real_t  MAX_STEP = 3500;
 		constexpr count_type BUFFER_SIZE = 1000000;
 		constexpr count_type BATCH_SIZE = 256;
 		constexpr real_t  GAMMA = 0.99f;

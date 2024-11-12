@@ -32,7 +32,7 @@ void CircleObstacle::reset(std::optional<real_t> x, std::optional<real_t> y) {
     if (type_) {
         std::uniform_real_distribution<real_t> dist_force(constants::CircleObstacle::VELOCITY_LIMITS.a, constants::CircleObstacle::VELOCITY_LIMITS.b);
         std::uniform_real_distribution<real_t> dist_yaw(-constants::PI, constants::PI);
-        std::uniform_real_distribution<real_t> dist_yaw_rate(-constants::PI/6, constants::PI/6);
+        std::uniform_real_distribution<real_t> dist_yaw_rate(-constants::PI/9, constants::PI/9);
 
         force_ = dist_force(gen);
         yaw_ = dist_yaw(gen);
@@ -66,7 +66,7 @@ void CircleObstacle::update(real_t dt) {
 void CircleObstacle::add_random_movement() {
     static std::random_device rd;
     static std::mt19937 gen(rd());
-    std::uniform_real_distribution<real_t> dist(-constants::PI/6, constants::PI/6);
+    std::uniform_real_distribution<real_t> dist(-constants::PI/9, constants::PI/9);
     yaw_rate_ = dist(gen);
 }
 

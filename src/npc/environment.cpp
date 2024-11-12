@@ -208,17 +208,17 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 	real_t turn_penalty = -(std::abs(yaw_change) * 0.2f);					// -0.2 ~ 0
 	real_t path_delta_penalty = -(std::abs(frenet_d) * 0.3f);				// -0.3 ~ 0
 
-	// 종료 보상 (1.5 * n steps ~ 2.0 * n steps 범위로 조정)
+	// 종료 보상 (5 * n steps ~ 5.5 * n steps 범위로 조정)
 	real_t terminal_reward = 0.0f;
 	if (terminated_) {
-		// 빠른 도달에 대한 보너스 (1.5 * n steps ~ 2.0 * n steps)
+		// 빠른 도달에 대한 보너스 (0 * n steps ~ 0.5 * n steps)
 		real_t speed_bonus = (0.5f * constants::NETWORK::N_STEPS) * (1.0f - static_cast<real_t>(step_count_) / constants::NETWORK::MAX_STEP);
-		terminal_reward = (1.5f * constants::NETWORK::N_STEPS) + speed_bonus;  // 1.5 * n steps ~ 2.0 * n steps
+		terminal_reward = (5.0f * constants::NETWORK::N_STEPS) + speed_bonus;  // 5.0 * n steps ~ 5.5 * n steps
 	}
 
-	// 중단 보상 (-1 * n steps)
+	// 중단 보상 (-5 * n steps)
 	if (truncated_) {
-		return -2.0f * constants::NETWORK::N_STEPS;  // 실패 시 최소 보상
+		return -5.0f * constants::NETWORK::N_STEPS;  // 실패 시 최소 보상
 	}
 
 	real_t reward = goal_reward +
@@ -228,8 +228,8 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 		path_delta_penalty +
 		terminal_reward;
 
-	// 최종 보상을 최대 2.0f * constants::NETWORK::N_STEPS 클리핑
-	return std::min(2.0f * constants::NETWORK::N_STEPS, reward);
+	// 최종 보상을 최대 6.0f * constants::NETWORK::N_STEPS 클리핑
+	return std::min(6.0f * constants::NETWORK::N_STEPS, reward);
 }
 
 std::tuple<tensor_t, tensor_t, bool, bool> TrainEnvironment::step(const tensor_t& action) {
