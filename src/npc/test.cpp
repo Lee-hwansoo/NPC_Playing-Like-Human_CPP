@@ -3,14 +3,13 @@
 #include <SDL.h>
 #include <SDL_render.h>
 #include <iostream>
-#include <chrono>
 #include <torch/torch.h>
-#include <c10/cuda/CUDACachingAllocator.h>
-#include <c10/cuda/CUDAGuard.h>
-#include <ATen/cuda/CUDAContext.h>
 
 #ifdef _WIN32
 #include <windows.h>
+#include <c10/cuda/CUDACachingAllocator.h>
+#include <c10/cuda/CUDAGuard.h>
+#include <ATen/cuda/CUDAContext.h>
 #endif
 
 // 디바이스 설정 함수
@@ -154,7 +153,7 @@ private:
 
 void testBasicTrainEnvironment(SDL_Renderer* renderer) {
     torch::Device device = get_device();
-    environment::TrainEnvironment env(constants::Display::WIDTH, constants::Display::HEIGHT, device, 1, true);
+    environment::TrainEnvironment env(constants::Display::WIDTH, constants::Display::HEIGHT, torch::kCPU, 1, true);
     env.set_render(renderer);
     // env.load("20241112_185641", 7200);
     env.train(5000, false, false);

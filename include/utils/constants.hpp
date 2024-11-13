@@ -168,5 +168,6 @@ namespace constants
         constexpr count_type LOG_INTERVAL = 25;
 
         constexpr types::count_type N_STEPS = 3;
+        constexpr real_t DISCOUNT_FACTOR = 0.95f;
     }
 }

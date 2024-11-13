@@ -520,7 +520,7 @@ tensor_t TrainEnvironment::calculate_n_step_return(const index_type start_idx, c
 
     // N-step 리턴 계산
     tensor_t n_step_return = torch::zeros({1}, torch::TensorOptions(types::get_tensor_dtype()).device(device_));
-    real_t discount_factor = 1.0f;
+    real_t now_discount_factor = 1.0f;
 	// real_t scale_factor = 1.0f / static_cast<real_t>(constants::NETWORK::N_STEPS);
 
     // 버퍼의 과거 데이터로부터 n-step return 계산
@@ -529,12 +529,12 @@ tensor_t TrainEnvironment::calculate_n_step_return(const index_type start_idx, c
 
         const tensor_t& reward_tensor = n_step_buffer_[idx][state_dim + action_dim];
         const tensor_t& done_tensor = n_step_buffer_[idx][state_dim + action_dim + 1];
-		n_step_return += discount_factor * reward_tensor;
+		n_step_return += now_discount_factor * reward_tensor;
 
         if (done_tensor.item<real_t>() == 1.0f) {
             return n_step_return;
         }
-        discount_factor *= gamma_;
+        now_discount_factor *= discount_factor_;
     }
 
     return n_step_return;
