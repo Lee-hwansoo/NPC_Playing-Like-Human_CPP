@@ -223,7 +223,7 @@ SAC::SAC(dim_type state_dim, dim_type action_dim,
     , action_dim_(action_dim)
     , min_action_(min_action)
     , max_action_(max_action)
-    , gamma_(constants::NETWORK::GAMMA)
+    , gamma_(std::pow(constants::NETWORK::GAMMA, constants::NETWORK::N_STEPS))
     , tau_(constants::NETWORK::TAU)
     , alpha_(constants::NETWORK::ALPHA) {
 

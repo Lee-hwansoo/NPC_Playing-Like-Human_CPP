@@ -213,12 +213,12 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 		return -(0.5f * constants::NETWORK::N_STEPS);
 	}
 
-	// 종료 보상 ((0.5 * n_steps) ~ (1.0 * n_steps) 범위로 조정)
+	// 종료 보상 ((0.55 * n_steps) ~ (1.0 * n_steps) 범위로 조정)
 	real_t terminal_reward = 0.0f;
 	if (terminated_) {
 		// 빠른 도달에 대한 보너스 보상
 		real_t speed_bonus = (1.0f - static_cast<real_t>(step_count_) / constants::NETWORK::MAX_STEP) * constants::NETWORK::N_STEPS;	// 0 ~ (1.0 * n_steps)
-		terminal_reward = (0.5f * constants::NETWORK::N_STEPS) + 0.5f * speed_bonus;
+		terminal_reward = (0.55f * constants::NETWORK::N_STEPS) + 0.45f * speed_bonus;
 	}
 
 	real_t reward = goal_reward +
@@ -527,8 +527,7 @@ tensor_t TrainEnvironment::calculate_n_step_return(const index_type start_idx, c
 
     // N-step 리턴 계산
     tensor_t n_step_return = torch::zeros({1}, torch::TensorOptions(types::get_tensor_dtype()).device(device_));
-    real_t now_discount_factor = 1.0f;
-	// real_t scale_factor = 1.0f / static_cast<real_t>(constants::NETWORK::N_STEPS);
+    real_t cumulative_discount = 1.0f;
 
     // 버퍼의 과거 데이터로부터 n-step return 계산
     for (index_type i = 0; i < remaining_steps; ++i) {
@@ -536,12 +535,12 @@ tensor_t TrainEnvironment::calculate_n_step_return(const index_type start_idx, c
 
         const tensor_t& reward_tensor = n_step_buffer_[idx][state_dim + action_dim];
         const tensor_t& done_tensor = n_step_buffer_[idx][state_dim + action_dim + 1];
-		n_step_return += now_discount_factor * reward_tensor;
+		n_step_return += cumulative_discount * reward_tensor;
 
         if (done_tensor.item<real_t>() == 1.0f) {
             return n_step_return;
         }
-        now_discount_factor *= discount_factor_;
+        cumulative_discount *= gamma_;
     }
 
     return n_step_return;

@@ -159,7 +159,7 @@ namespace constants
         constexpr real_t  MAX_STEP = 2500;
 		constexpr count_type BUFFER_SIZE = 700000;
 		constexpr count_type BATCH_SIZE = 128;
-		constexpr real_t  GAMMA = 0.99f;
+		constexpr real_t  GAMMA = 0.95f;
 		constexpr real_t  TAU = 0.005f;
 		constexpr real_t  ALPHA = 0.2f;
         constexpr real_t  LEARNING_RATE = 3e-4f;
@@ -168,6 +168,5 @@ namespace constants
         constexpr count_type LOG_INTERVAL = 25;
 
         constexpr types::count_type N_STEPS = 3;
-        constexpr real_t DISCOUNT_FACTOR = 0.95f;
     }
 }

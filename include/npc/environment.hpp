@@ -154,7 +154,7 @@ private:
     // 각 행은 [state, action, reward, done] 형태로 저장
     tensor_t n_step_buffer_;
 	count_type n_steps_{ constants::NETWORK::N_STEPS };
-	real_t discount_factor_{ constants::NETWORK::DISCOUNT_FACTOR };
+	real_t gamma_{ constants::NETWORK::GAMMA };
 	real_t bootstrap_weight_{ 0.5f };
     count_type buffer_idx_;
 
