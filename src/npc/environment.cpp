@@ -556,8 +556,8 @@ void TrainEnvironment::process_n_step_return(const index_type start_idx, const i
 }
 
 void TrainEnvironment::log_statistics(const std::vector<SACResult>& result_history, dim_type episode) const {
-	// 최근 10개 에피소드의 보상 통계 계산
-    size_t start_idx = std::max(0, static_cast<int>(result_history.size()) - 10);
+	// 최근 에피소드의 보상 통계 계산
+    size_t start_idx = std::max(0, static_cast<int>(result_history.size()) - static_cast<int>(constants::NETWORK::LOG_INTERVAL));
     auto begin = result_history.begin() + start_idx;
     auto end = result_history.end();
 
