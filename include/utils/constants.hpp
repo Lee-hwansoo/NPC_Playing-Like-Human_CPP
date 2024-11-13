@@ -122,7 +122,7 @@ namespace constants
 
     namespace RectangleObstacle
     {
-        constexpr count_type COUNT = 15;
+        constexpr count_type COUNT = 10;
 
         const Vector2 WIDTH_LIMITS(5.0f, 120.0f);   // Range: 0.5~12m
         const Vector2 HEIGHT_LIMITS(5.0f, 120.0f);  // Range: 0.5~12m
@@ -156,7 +156,7 @@ namespace constants
 	//--------------------------------------------------------------------------------
     namespace NETWORK
     {
-        constexpr real_t  MAX_STEP = 3000;
+        constexpr real_t  MAX_STEP = 2500;
 		constexpr count_type BUFFER_SIZE = 1000000;
 		constexpr count_type BATCH_SIZE = 256;
 		constexpr real_t  GAMMA = 0.99f;
@@ -167,6 +167,6 @@ namespace constants
         constexpr count_type UPDATE_INTERVAL = 5;
         constexpr count_type LOG_INTERVAL = 25;
 
-        constexpr types::count_type N_STEPS = 2;
+        constexpr types::count_type N_STEPS = 3;
     }
 }
