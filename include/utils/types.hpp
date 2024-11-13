@@ -73,8 +73,13 @@ namespace types {
 		bool is_vaild = false;
 	};
 
+	struct SACResult {
+		real_t episode_reward;
+		bool is_arrived;
+	};
+
 	struct TrainingResult {
-		std::vector<real_t> rewards;
+		std::vector<SACResult> results;
 		std::vector<SACMetrics> metrics;
 	};
 }

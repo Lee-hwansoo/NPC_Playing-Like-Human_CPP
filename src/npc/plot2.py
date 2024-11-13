@@ -6,7 +6,7 @@ from matplotlib.gridspec import GridSpec
 
 def plot_training_results(result_dir):
     # CSV 파일 로드
-    rewards_df = pd.read_csv(os.path.join(result_dir, 'train_rewards.csv'))
+    rewards_df = pd.read_csv(os.path.join(result_dir, 'train_results.csv'))
     metrics_df = pd.read_csv(os.path.join(result_dir, 'train_metrics.csv'))
 
     # Seaborn 스타일 설정
@@ -18,7 +18,7 @@ def plot_training_results(result_dir):
     gs = GridSpec(2, 5, figure=fig)
 
     # 1. 보상 그래프 (더 큰 크기로)
-    ax1 = fig.add_subplot(gs[0, :3])  # 첫 번째 행의 절반을 차지
+    ax1 = fig.add_subplot(gs[0, :2])  # 첫 번째 행의 2/5를 차지
     sns.lineplot(data=rewards_df, x='episode', y='reward', color='blue', ax=ax1)
     ax1.set_title('Episode Rewards', size=12, pad=10)
     ax1.set_xlabel('Episode')
@@ -30,6 +30,16 @@ def plot_training_results(result_dir):
     sns.lineplot(data=rewards_df, x='episode', y='rolling_mean', color='red',
                 ax=ax1, label=f'Moving Average (window={window_size})')
     ax1.legend()
+
+    # 1-2. 도착 성공률 그래프 추가
+    ax1_2 = fig.add_subplot(gs[0, 2])  # 첫 번째 행의 1/5를 차지
+    # 이동 평균으로 성공률 계산
+    rewards_df['arrival_rate'] = rewards_df['arrived'].rolling(window=window_size).mean() * 100
+    sns.lineplot(data=rewards_df, x='episode', y='arrival_rate', color='green', ax=ax1_2)
+    ax1_2.set_title('Arrival Success Rate (%)', size=12, pad=10)
+    ax1_2.set_xlabel('Episode')
+    ax1_2.set_ylabel('Success Rate (%)')
+    ax1_2.set_ylim(0, 100)  # y축 범위를 0~100%로 설정
 
     # Critic Loss 그래프들의 공통 y축 범위 계산
     y_min = min(metrics_df['critic_loss1'].min(), metrics_df['critic_loss2'].min())
@@ -78,12 +88,18 @@ def plot_training_results(result_dir):
     # 7. Training Progress Summary
     ax7 = fig.add_subplot(gs[1, 4])
     # 학습 진행 상황 요약 통계
+    total_arrivals = rewards_df['arrived'].sum()
+    arrival_rate = (total_arrivals / len(rewards_df)) * 100
+    recent_arrival_rate = rewards_df['arrived'].tail(window_size).mean() * 100
     summary_text = (
         f"Total Episodes: {len(rewards_df)}\n"
         f"Max Reward: {rewards_df['reward'].max():.2f}\n"
         f"Min Reward: {rewards_df['reward'].min():.2f}\n"
         f"Avg Reward: {rewards_df['reward'].mean():.2f}\n"
-        f"Final Reward: {rewards_df['reward'].iloc[-1]:.2f}\n\n"
+        f"Final Reward: {rewards_df['reward'].iloc[-1]:.2f}\n"
+        f"Total Arrivals: {total_arrivals}\n"
+        f"Overall Success Rate: {arrival_rate:.1f}%\n"
+        f"Recent Success Rate: {recent_arrival_rate:.1f}%\n\n"
         f"Final Actor Loss: {metrics_df['actor_loss'].iloc[-1]:.4f}\n"
         f"Avg Actor Loss: {metrics_df['actor_loss'].mean():.2f}\n"
         f"Final Critic1 Loss: {metrics_df['critic_loss1'].iloc[-1]:.4f}\n"
@@ -102,6 +118,5 @@ def plot_training_results(result_dir):
 
 if __name__ == "__main__":
     print("현재 디렉토리 절대 경로:", os.getcwd())
-    # result_dir = os.getcwd() + "/results/environment"
     result_dir = os.getcwd() + "/results/environment"
     plot_training_results(result_dir)

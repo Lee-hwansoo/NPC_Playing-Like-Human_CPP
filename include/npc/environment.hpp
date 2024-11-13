@@ -97,7 +97,7 @@ public:
 	void save(dim_type episode, bool print);
 	void load(const std::string& timestamp, dim_type episode);
 	TrainingResult train(const dim_type episodes, bool render = false, bool debug = false);
-	std::vector<real_t> test(const dim_type episodes, bool render = false);
+	std::vector<SACResult> test(const dim_type episodes, bool render = false);
 
 protected:
 	count_type circle_obstacles_num_;	 // 원형 장애물 수
@@ -163,8 +163,8 @@ private:
     tensor_t calculate_n_step_return(const index_type start_idx, const index_type remaining_steps);
 	void process_n_step_return(const index_type start_idx, const index_type steps, const tensor_t& next_state, const tensor_t& done_tensor);
 
-	void log_statistics(const std::vector<real_t>& reward_history, dim_type episode) const;
-	void save_history(const std::vector<real_t>& reward_history, const std::vector<SACMetrics>& metrics_history) const;
+	void log_statistics(const std::vector<SACResult>& result_history, dim_type episode) const;
+	void save_history(const std::vector<SACResult>& result_history, const std::vector<SACMetrics>& metrics_history) const;
 };
 
 class MultiAgentEnvironment : public TrainEnvironment {

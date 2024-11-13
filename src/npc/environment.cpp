@@ -264,9 +264,9 @@ TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, boo
 	sac_->train();
 	SDL_Event event;
 	bool is_render = render;
-    std::vector<real_t> reward_history;
+    std::vector<SACResult> result_history;
 	std::vector<SACMetrics> metrics_history;
-    reward_history.reserve(static_cast<size_t>(episodes));
+    result_history.reserve(static_cast<size_t>(episodes));
 	metrics_history.reserve(static_cast<size_t>(episodes * constants::NETWORK::MAX_STEP / constants::NETWORK::UPDATE_INTERVAL));
 
 	const real_t beta_start = 0.4f;
@@ -280,14 +280,15 @@ TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, boo
 		beta = std::min(beta_end, std::max(beta_start, beta));
 		sac_->set_beta(beta);
 
-		real_t episode_return = 0.0f;
 		tensor_t state = reset();
+		real_t episode_return = 0.0f;
+		bool is_arrived = false;
 		bool done = false;
 
 		while (!done) {
 			while (SDL_PollEvent(&event)) {
 				if (event.type == SDL_QUIT || (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
-					return { reward_history, metrics_history };
+					return { result_history, metrics_history };
 				}
 				if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_r) {
 					is_render = !is_render;
@@ -330,6 +331,8 @@ TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, boo
 			}
 
 			episode_return += reward.item<real_t>();
+			is_arrived = terminated;
+
 			state = next_state;
 
 			if (is_render) {
@@ -339,35 +342,36 @@ TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, boo
 			std::cout << "\rEpisode: " << episode + 1 << "/" << start_episode_+ episodes << " | Step: " << step_count_ << std::string(20, ' ') << std::flush;
 		}
 
-		reward_history.push_back(episode_return);
+		result_history.push_back({episode_return, is_arrived});
 		if ((episode + 1) % constants::NETWORK::LOG_INTERVAL == 0) {
-			log_statistics(reward_history, episode);
-			save_history(reward_history, metrics_history);
+			log_statistics(result_history, episode);
+			save_history(result_history, metrics_history);
 			save(episode + 1, false);
 		}
     }
 
-    return {reward_history, metrics_history};
+    return {result_history, metrics_history};
 }
 
-std::vector<real_t> TrainEnvironment::test(const dim_type episodes, bool render) {
+std::vector<SACResult> TrainEnvironment::test(const dim_type episodes, bool render) {
 	sac_->eval();
 	SDL_Event event;
 	bool is_render = render;
-	std::vector<real_t> reward_history;
+	std::vector<SACResult> result_history;
 	std::vector<real_real_t> action_times;
-	reward_history.reserve(static_cast<size_t>(episodes));
+	result_history.reserve(static_cast<size_t>(episodes));
 	action_times.reserve(static_cast<size_t>(episodes) * 2000);
 
 	for (dim_type episode = 0; episode < episodes; ++episode) {
-		real_t episode_return = 0.0f;
 		tensor_t state = reset();
+		real_t episode_return = 0.0f;
+		bool is_arrived = false;
 		bool done = false;
 
 		while (!done) {
 			while (SDL_PollEvent(&event)) {
 				if (event.type == SDL_QUIT || (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
-					return reward_history;;
+					return result_history;
 				}
 				if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_r) {
 					is_render = !is_render;
@@ -389,7 +393,10 @@ std::vector<real_t> TrainEnvironment::test(const dim_type episodes, bool render)
 			auto [next_state, reward, terminated, truncated] = step(action);
 
 			done = terminated || truncated;
+
 			episode_return += reward.item<real_t>();
+			is_arrived = terminated;
+
 			state = next_state;
 
             if (is_render) {
@@ -399,7 +406,7 @@ std::vector<real_t> TrainEnvironment::test(const dim_type episodes, bool render)
 
 		std::cout << "Episode: " << episode + 1 << "/" <<  episodes << " | Reward: " << episode_return << " " << std::endl;
 
-		reward_history.push_back(episode_return);
+		result_history.push_back({episode_return, is_arrived});
 	}
 
 	double min_time = *std::min_element(action_times.begin(), action_times.end());
@@ -434,7 +441,7 @@ std::vector<real_t> TrainEnvironment::test(const dim_type episodes, bool render)
 	std::cout << "  Maximum: " << max_time_no_first << std::endl;
 	std::cout << "  Average: " << avg_time_no_first << std::endl;
 
-	return reward_history;
+	return result_history;
 }
 
 bool TrainEnvironment::check_goal() const { return agents_[0]->is_goal(); }
@@ -548,33 +555,46 @@ void TrainEnvironment::process_n_step_return(const index_type start_idx, const i
     sac_->add(current_state, current_action, n_step_return, next_state, done_tensor);
 }
 
-void TrainEnvironment::log_statistics(const std::vector<real_t>& reward_history, dim_type episode) const {
+void TrainEnvironment::log_statistics(const std::vector<SACResult>& result_history, dim_type episode) const {
 	// 최근 10개 에피소드의 보상 통계 계산
-    size_t start_idx = std::max(0, static_cast<int>(reward_history.size()) - 10);
-    auto begin = reward_history.begin() + start_idx;
-    auto end = reward_history.end();
+    size_t start_idx = std::max(0, static_cast<int>(result_history.size()) - 10);
+    auto begin = result_history.begin() + start_idx;
+    auto end = result_history.end();
 
 	// Welford's online algorithm
     real_t mean = 0.0f;
     real_t M2 = 0.0f;  // 이차 중심적률
     size_t n = 0;
+	size_t arrived_count = 0;
 
     for (auto it = begin; it != end; ++it) {
         n += 1;
-        real_t delta = *it - mean;
+        real_t delta = it->episode_reward - mean;
         mean += delta / n;
-        real_t delta2 = *it - mean;
+        real_t delta2 = it->episode_reward - mean;
         M2 += delta * delta2;
+
+        if (it->is_arrived) {
+            arrived_count++;
+        }
     }
 
     // n-1로 나누어 표본표준편차 계산
-    real_t variance = M2 / (n - 1);
+    real_t variance = n > 1 ? M2 / (n - 1) : 0.0f;
     real_t std = std::sqrt(variance);
 
-    std::vector<real_t> recent_rewards(begin, end);
+    std::vector<real_t> recent_rewards;
+	recent_rewards.reserve(n);
+	for (auto it = begin; it != end; ++it) {
+		recent_rewards.push_back(it->episode_reward);
+	}
+
     size_t mid = n / 2;
 	std::nth_element(recent_rewards.begin(), recent_rewards.begin() + mid, recent_rewards.end());
     real_t median = recent_rewards[mid];
+
+    // 도착 성공률 계산
+    real_t arrival_rate = n > 0 ? (static_cast<real_t>(arrived_count) / n) * 100.0f : 0.0f;
 
     // 현재 시간 가져오기
     auto now = std::chrono::system_clock::now();
@@ -590,21 +610,25 @@ void TrainEnvironment::log_statistics(const std::vector<real_t>& reward_history,
 			<< "Episode " << episode + 1
 			<< ", Average Reward: " << std::fixed << std::setprecision(2) << mean
 			<< ", Median Reward: " << median
-			<< ", std: " << std << std::endl;
+			<< ", std: " << std
+			<< ", Arrival Rate: " << std::setprecision(1) << arrival_rate << "%"
+			<< " (" << arrived_count << "/" << n << ")" << std::endl;
 }
 
-void TrainEnvironment::save_history(const std::vector<real_t>& reward_history, const std::vector<SACMetrics>& metrics_history) const {
+void TrainEnvironment::save_history(const std::vector<SACResult>& result_history, const std::vector<SACMetrics>& metrics_history) const {
 	try {
 		// 보상 데이터 저장
 		{
-			std::filesystem::path reward_path = std::filesystem::path(his_dir_) / "train_rewards.csv";
-			std::ofstream reward_file(reward_path);
-			if (!reward_file.is_open()) {
-				throw std::runtime_error("Could not open " + reward_path.string());
+			std::filesystem::path result_path = std::filesystem::path(his_dir_) / "train_results.csv";
+			std::ofstream result_file(result_path);
+			if (!result_file.is_open()) {
+				throw std::runtime_error("Could not open " + result_path.string());
 			}
-			reward_file << "episode,reward\n";
-			for (size_t i = 0; i < reward_history.size(); ++i) {
-				reward_file << i << "," << reward_history[i] << "\n";
+			result_file << "episode,reward,arrived\n";
+			for (size_t i = 0; i < result_history.size(); ++i) {
+				result_file << i << ","
+					<< result_history[i].episode_reward << ","
+					<< result_history[i].is_arrived << "\n";
 			}
 		}
 
@@ -656,6 +680,7 @@ void MultiAgentEnvironment::test(bool render) {
 	sac_->eval();
 	SDL_Event event;
 	bool is_render = render;
+
 	reset();
 	bool done = false;
 
@@ -864,6 +889,7 @@ void MazeAgentEnvironment::test(bool render) {
 	sac_->eval();
 	SDL_Event event;
 	bool is_render = render;
+
 	bool done = false;
 
 	while (!done) {
