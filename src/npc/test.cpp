@@ -2,9 +2,12 @@
 #include "npc/environment.hpp"
 #include <SDL.h>
 #include <SDL_render.h>
-#include <torch/torch.h>
 #include <iostream>
 #include <chrono>
+#include <torch/torch.h>
+#include <c10/cuda/CUDACachingAllocator.h>
+#include <c10/cuda/CUDAGuard.h>
+#include <ATen/cuda/CUDAContext.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -15,7 +18,35 @@ torch::Device get_device() {
 	torch::Device device(torch::kCPU);
 #ifdef _WIN32
 	if (torch::cuda::is_available()) {
-		device = torch::Device(torch::kCUDA);
+        c10::cuda::CUDACachingAllocator::emptyCache();
+
+        int num_gpus = torch::cuda::device_count();
+        int selected_gpu = 0;
+
+        if (num_gpus > 1) {
+            // libtorch API를 사용한 GPU 선택
+            for (int i = 0; i < num_gpus; ++i) {
+                at::cuda::CUDAGuard device_guard(i);
+                auto properties = at::cuda::getCurrentDeviceProperties();
+                std::cout << "GPU " << i << ": " << properties->name
+                         << " (" << properties->totalGlobalMem / (1024*1024*1024)
+                         << "GB)" << std::endl;
+            }
+            // 기본적으로 첫 번째 GPU 선택
+            selected_gpu = 0;
+        }
+
+        device = torch::Device(torch::kCUDA, selected_gpu);
+
+        auto properties = at::cuda::getCurrentDeviceProperties();
+        std::cout << "\nUsing CUDA Device:" << std::endl;
+        std::cout << "  - Device: " << properties->name << std::endl;
+        std::cout << "  - Compute Capability: " << properties->major << "."
+                  << properties->minor << std::endl;
+        std::cout << "  - Total Memory: "
+                  << properties->totalGlobalMem / (1024*1024*1024)
+                  << "GB" << std::endl;
+
 		std::cout << "Using CUDA Device" << std::endl;
 	}
 #elif defined(__APPLE__)
@@ -123,7 +154,7 @@ private:
 
 void testBasicTrainEnvironment(SDL_Renderer* renderer) {
     torch::Device device = get_device();
-    environment::TrainEnvironment env(constants::Display::WIDTH, constants::Display::HEIGHT, torch::kCPU, 1, true);
+    environment::TrainEnvironment env(constants::Display::WIDTH, constants::Display::HEIGHT, device, 1, true);
     env.set_render(renderer);
     // env.load("20241112_185641", 7200);
     env.train(5000, false, false);
