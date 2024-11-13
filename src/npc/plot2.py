@@ -27,19 +27,28 @@ def plot_training_results(result_dir):
     # 이동평균선 추가
     window_size = 50
     rewards_df['rolling_mean'] = rewards_df['reward'].rolling(window=window_size).mean()
-    sns.lineplot(data=rewards_df, x='episode', y='rolling_mean', color='red',
-                ax=ax1, label=f'Moving Average (window={window_size})')
+    sns.lineplot(data=rewards_df, x='episode', y='rolling_mean', color='red', ax=ax1, label=f'Moving Average (window={window_size})')
     ax1.legend()
 
     # 1-2. 도착 성공률 그래프 추가
     ax1_2 = fig.add_subplot(gs[0, 2])  # 첫 번째 행의 1/5를 차지
-    # 이동 평균으로 성공률 계산
-    rewards_df['arrival_rate'] = rewards_df['arrived'].rolling(window=window_size).mean() * 100
-    sns.lineplot(data=rewards_df, x='episode', y='arrival_rate', color='green', ax=ax1_2)
+    # 1-2. 1. 실제 성공/실패를 점으로 표시
+    sns.scatterplot(data=rewards_df, x='episode', y=rewards_df['arrived']*100, color='lightgreen', alpha=0.3, ax=ax1_2)
+
+    # 1-2. 2. 이동 평균으로 성공률 계산 (window_size는 더 작게 조정 가능)
+    window_size_arrival = 10  # 도착률용 윈도우 사이즈는 별도로 설정
+    rewards_df['arrival_rate'] = rewards_df['arrived'].rolling(window=window_size_arrival).mean() * 100
+
+    # 1-2. 3. 이동 평균 선 추가
+    sns.lineplot(data=rewards_df, x='episode', y='arrival_rate',color='green', ax=ax1_2, label=f'Moving Average (window={window_size_arrival})')
+
     ax1_2.set_title('Arrival Success Rate (%)', size=12, pad=10)
     ax1_2.set_xlabel('Episode')
     ax1_2.set_ylabel('Success Rate (%)')
-    ax1_2.set_ylim(0, 100)  # y축 범위를 0~100%로 설정
+    ax1_2.set_ylim(-2, 102)
+
+    # 1-2. 범례 추가
+    ax1_2.legend(loc='upper left')
 
     # Critic Loss 그래프들의 공통 y축 범위 계산
     y_min = min(metrics_df['critic_loss1'].min(), metrics_df['critic_loss2'].min())
