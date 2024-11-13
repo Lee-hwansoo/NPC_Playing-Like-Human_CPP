@@ -213,12 +213,12 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 		return -(0.5f * constants::NETWORK::N_STEPS);
 	}
 
-	// 종료 보상 ((0.55 * n_steps) ~ (1.0 * n_steps) 범위로 조정)
+	// 종료 보상 ((0.6 * n_steps) ~ (1.0 * n_steps) 범위로 조정)
 	real_t terminal_reward = 0.0f;
 	if (terminated_) {
 		// 빠른 도달에 대한 보너스 보상
 		real_t speed_bonus = (1.0f - static_cast<real_t>(step_count_) / constants::NETWORK::MAX_STEP) * constants::NETWORK::N_STEPS;	// 0 ~ (1.0 * n_steps)
-		terminal_reward = (0.55f * constants::NETWORK::N_STEPS) + 0.45f * speed_bonus;
+		terminal_reward = (0.6f * constants::NETWORK::N_STEPS) + 0.4f * speed_bonus;
 	}
 
 	real_t reward = goal_reward +
