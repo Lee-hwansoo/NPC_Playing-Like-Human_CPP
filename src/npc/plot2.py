@@ -45,7 +45,7 @@ def plot_training_results(result_dir):
     ax1_2.set_title('Arrival Success Rate (%)', size=12, pad=10)
     ax1_2.set_xlabel('Episode')
     ax1_2.set_ylabel('Success Rate (%)')
-    ax1_2.set_ylim(-2, 102)
+    ax1_2.set_ylim(-2, 120)
 
     # 1-2. 범례 추가
     ax1_2.legend(loc='upper left')
