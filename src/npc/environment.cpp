@@ -188,17 +188,16 @@ tensor_t TrainEnvironment::get_observation() const {
 }
 
 real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t& action) {
-
-	// 중단 보상 (-(0.5 * n_steps))
+	// 중단 보상 (-(1.0 * n_steps))
 	if (truncated_) {
-		return -(0.5f * constants::NETWORK::N_STEPS);
+		return -(1.0f * constants::NETWORK::N_STEPS);
 	}
 
-	// 종료 보상 ((1.0 * n_steps) ~ (1.5 * n_steps) 범위로 조정)
+	// 종료 보상 ((1.2 * n_steps) ~ (1.5 * n_steps) 범위로 조정)
 	if (terminated_) {
 		// 빠른 도달에 대한 보너스 보상
 		real_t speed_bonus = (1.0f - static_cast<real_t>(step_count_) / constants::NETWORK::MAX_STEP) * constants::NETWORK::N_STEPS;	// 0 ~ (1.0 * n_steps)
-		return (1.0f * constants::NETWORK::N_STEPS) + 0.5f * speed_bonus;
+		return (1.2f * constants::NETWORK::N_STEPS) + 0.3f * speed_bonus;
 	}
 
 	auto state_size = state.size(0);
