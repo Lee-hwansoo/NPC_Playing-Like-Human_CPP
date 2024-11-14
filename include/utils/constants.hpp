@@ -105,7 +105,7 @@ namespace constants
     //--------------------------------------------------------------------------------
     namespace CircleObstacle
     {
-        constexpr count_type COUNT = 2;
+        constexpr count_type COUNT = 0;
         constexpr real_t RADIUS = 10.0f;
 
         // Movement boundaries
@@ -122,7 +122,7 @@ namespace constants
 
     namespace RectangleObstacle
     {
-        constexpr count_type COUNT = 18;
+        constexpr count_type COUNT = 20;
 
         const Vector2 WIDTH_LIMITS(5.0f, 80.0f);   // Range: 0.5~8m
         const Vector2 HEIGHT_LIMITS(5.0f, 80.0f);  // Range: 0.5~8m
@@ -156,7 +156,7 @@ namespace constants
 	//--------------------------------------------------------------------------------
     namespace NETWORK
     {
-        constexpr real_t  MAX_STEP = 2500;
+        constexpr real_t  MAX_STEP = 3000;
 		constexpr count_type BUFFER_SIZE = 700000;
 		constexpr count_type BATCH_SIZE = 256;
 		constexpr real_t  GAMMA = 0.98f;
