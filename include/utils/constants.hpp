@@ -105,7 +105,7 @@ namespace constants
     //--------------------------------------------------------------------------------
     namespace CircleObstacle
     {
-        constexpr count_type COUNT = 12;
+        constexpr count_type COUNT = 2;
         constexpr real_t RADIUS = 10.0f;
 
         // Movement boundaries
@@ -122,10 +122,10 @@ namespace constants
 
     namespace RectangleObstacle
     {
-        constexpr count_type COUNT = 8;
+        constexpr count_type COUNT = 18;
 
-        const Vector2 WIDTH_LIMITS(5.0f, 100.0f);   // Range: 0.5~10m
-        const Vector2 HEIGHT_LIMITS(5.0f, 100.0f);  // Range: 0.5~10m
+        const Vector2 WIDTH_LIMITS(5.0f, 80.0f);   // Range: 0.5~8m
+        const Vector2 HEIGHT_LIMITS(5.0f, 80.0f);  // Range: 0.5~8m
 
         // Movement boundaries
         const Bounds2D SPAWN_BOUNDS(
@@ -164,9 +164,9 @@ namespace constants
 		constexpr real_t  ALPHA = 0.2f;
         constexpr real_t  LEARNING_RATE = 3e-4f;
 
-        constexpr count_type UPDATE_INTERVAL = 3;
+        constexpr count_type UPDATE_INTERVAL = 5;
         constexpr count_type LOG_INTERVAL = 25;
 
-        constexpr types::count_type N_STEPS = 4;
+        constexpr types::count_type N_STEPS = 5;
     }
 }
