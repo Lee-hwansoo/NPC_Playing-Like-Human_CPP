@@ -193,11 +193,11 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 		return -(1.0f * constants::NETWORK::N_STEPS);
 	}
 
-	// 종료 보상 (0.1 ~ 0.15 범위로 조정)
+	// 종료 보상 (0.4 ~ 0.5 범위로 조정)
 	if (terminated_) {
 		// 빠른 도달에 대한 보너스 보상
 		real_t speed_bonus = (1.0f - static_cast<real_t>(step_count_) / constants::NETWORK::MAX_STEP);	// 0 ~ 1.0
-		return 0.1f + (0.5f * speed_bonus);
+		return 0.4f + (0.1f * speed_bonus);
 	}
 
 	auto state_size = state.size(0);
@@ -214,11 +214,11 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
     real_t yaw_change = required_action[1].item<real_t>();
 
 	// 보상 컴포넌트들
-	real_t goal_reward = (1.0f - normalized_goal_dist) * 0.04f;            // 0 ~ 0.04
-	real_t fov_reward = (1.0f - std::abs(normalized_angle_diff)) * goal_in_fov * 0.01f;	// 0 ~ 0.01
-	real_t angle_reward = (1.0f - std::abs(normalized_angle_diff)) * 0.02f;	// 0 ~ 0.02
-	real_t turn_penalty = -(std::abs(yaw_change) * 0.01f);					// -0.01 ~ 0
-	real_t path_delta_penalty = -(std::abs(frenet_d) * 0.03f);				// -0.03 ~ 0
+	real_t goal_reward = (1.0f - normalized_goal_dist) * 0.05f;            // 0 ~ 0.05
+	real_t fov_reward = (1.0f - std::abs(normalized_angle_diff)) * goal_in_fov * 0.015f;	// 0 ~ 0.015
+	real_t angle_reward = (1.0f - std::abs(normalized_angle_diff)) * 0.035f;	// 0 ~ 0.035
+	real_t turn_penalty = -(std::abs(yaw_change) * 0.015f);					// -0.015 ~ 0
+	real_t path_delta_penalty = -(std::abs(frenet_d) * 0.035f);				// -0.035 ~ 0
 
 	real_t reward = goal_reward +
 		fov_reward +
@@ -226,8 +226,8 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 		turn_penalty +
 		path_delta_penalty;
 
-	// 기본 보상 컴포넌트들 (-0.04 ~ +0.07 범위로 조정)
-	return std::clamp(reward, -0.04f, 0.07f);
+	// 기본 보상 컴포넌트들 (-0.05 ~ +0.1 범위로 조정)
+	return std::clamp(reward, -0.05f, 0.1f);
 }
 
 std::tuple<tensor_t, tensor_t, bool, bool> TrainEnvironment::step(const tensor_t& action) {
