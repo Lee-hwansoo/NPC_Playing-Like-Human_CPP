@@ -226,8 +226,8 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 		turn_penalty +
 		path_delta_penalty;
 
-	// 기본 보상 컴포넌트들 (-0.02 ~ +0.05 범위로 조정)
-	return std::clamp(reward, -0.02f, 0.05f);
+	// 기본 보상 컴포넌트들 (-0.04 ~ +0.07 범위로 조정)
+	return std::clamp(reward, -0.04f, 0.07f);
 }
 
 std::tuple<tensor_t, tensor_t, bool, bool> TrainEnvironment::step(const tensor_t& action) {
