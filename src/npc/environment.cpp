@@ -201,24 +201,24 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
     real_t force = required_action[0].item<real_t>();
     real_t yaw_change = required_action[1].item<real_t>();
 
-	// 기본 보상 컴포넌트들 (-0.25 ~ +0.5 범위로 조정)
-	real_t goal_reward = (1.0f - normalized_goal_dist) * 0.3f;            // 0 ~ 0.3
-	real_t fov_reward = (1.0f - std::abs(normalized_angle_diff)) * goal_in_fov * 0.05f;	// 0 ~ 0.05
-	real_t angle_reward = (1.0f - std::abs(normalized_angle_diff)) * 0.15f;	// 0 ~ 0.15
-	real_t turn_penalty = -(std::abs(yaw_change) * 0.05f);					// -0.05 ~ 0
-	real_t path_delta_penalty = -(std::abs(frenet_d) * 0.2f);				// -0.2 ~ 0
+	// 기본 보상 컴포넌트들 (-0.5 ~ +1.0 범위로 조정)
+	real_t goal_reward = (1.0f - normalized_goal_dist) * 0.6f;            // 0 ~ 0.6
+	real_t fov_reward = (1.0f - std::abs(normalized_angle_diff)) * goal_in_fov * 0.1f;	// 0 ~ 0.1
+	real_t angle_reward = (1.0f - std::abs(normalized_angle_diff)) * 0.3f;	// 0 ~ 0.3
+	real_t turn_penalty = -(std::abs(yaw_change) * 0.15f);					// -0.15 ~ 0
+	real_t path_delta_penalty = -(std::abs(frenet_d) * 0.35f);				// -0.35 ~ 0
 
-	// 중단 보상 (-(0.5 * n_steps))
+	// 중단 보상 (-(1.0 * n_steps))
 	if (truncated_) {
-		return -(0.5f * constants::NETWORK::N_STEPS);
+		return -(1.0f * constants::NETWORK::N_STEPS);
 	}
 
-	// 종료 보상 ((0.6 * n_steps) ~ (1.0 * n_steps) 범위로 조정)
+	// 종료 보상 ((1.1 * n_steps) ~ (1.5 * n_steps) 범위로 조정)
 	real_t terminal_reward = 0.0f;
 	if (terminated_) {
 		// 빠른 도달에 대한 보너스 보상
 		real_t speed_bonus = (1.0f - static_cast<real_t>(step_count_) / constants::NETWORK::MAX_STEP) * constants::NETWORK::N_STEPS;	// 0 ~ (1.0 * n_steps)
-		terminal_reward = (0.6f * constants::NETWORK::N_STEPS) + 0.4f * speed_bonus;
+		terminal_reward = (1.1f * constants::NETWORK::N_STEPS) + 0.4f * speed_bonus;
 	}
 
 	real_t reward = goal_reward +
@@ -228,8 +228,8 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 		path_delta_penalty +
 		terminal_reward;
 
-	// 보상 범위를 -(0.5 * n_steps) ~ (1.0 * n_steps)로 클리핑
-	return std::clamp(reward, -(0.5f * constants::NETWORK::N_STEPS), 1.0f * constants::NETWORK::N_STEPS);
+	// 보상 범위를 -(1.0 * n_steps) ~ (1.5 * n_steps)로 클리핑
+	return std::clamp(reward, -(1.0f * constants::NETWORK::N_STEPS), 1.5f * constants::NETWORK::N_STEPS);
 }
 
 std::tuple<tensor_t, tensor_t, bool, bool> TrainEnvironment::step(const tensor_t& action) {
