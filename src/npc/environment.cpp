@@ -225,7 +225,7 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 		fov_reward +
 		angle_reward +
 		turn_penalty +
-		path_delta_penalty
+		path_delta_penalty;
 
 	// 기본 보상 컴포넌트들 (-0.5 ~ +1.0 범위로 조정)
 	return std::clamp(reward, -0.5f, 1.0f);
