@@ -60,7 +60,7 @@ namespace constants
         const Bounds2D SPAWN_BOUNDS(
             RADIUS + WIDTH,
             static_cast<real_t>(Display::WIDTH) - (RADIUS + WIDTH),
-            Section::GOAL_LINE - 5 * (RADIUS + WIDTH),
+            Section::GOAL_LINE - 3 * (RADIUS + WIDTH),
             Section::GOAL_LINE - (RADIUS + WIDTH)
         );
     }
