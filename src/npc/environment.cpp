@@ -264,6 +264,7 @@ TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, boo
 	sac_->train();
 	SDL_Event event;
 	bool is_render = render;
+	bool is_paused = false;
     std::vector<SACResult> result_history;
 	std::vector<SACMetrics> metrics_history;
     result_history.reserve(static_cast<size_t>(episodes));
@@ -290,14 +291,29 @@ TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, boo
 				if (event.type == SDL_QUIT || (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
 					return { result_history, metrics_history };
 				}
-				if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_r) {
-					is_render = !is_render;
-					if (!is_render) {
-						SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
-						SDL_RenderClear(renderer_);
-						SDL_RenderPresent(renderer_);
+				if (event.type == SDL_KEYDOWN){
+					if(event.key.keysym.sym == SDLK_r){
+						is_render = !is_render;
+						if (!is_render) {
+							SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
+							SDL_RenderClear(renderer_);
+							SDL_RenderPresent(renderer_);
+						}
+					}
+					if(event.key.keysym.sym == SDLK_SPACE){
+						is_paused = !is_paused;
 					}
 				}
+			}
+
+            if (is_paused) {
+                if (is_render) {
+                    render_scene();
+                }
+                SDL_Delay(20);
+                continue;
+            }else if (is_render) {
+				render_scene();
 			}
 
 			tensor_t action = sac_->select_action(state);
@@ -335,10 +351,6 @@ TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, boo
 
 			state = next_state;
 
-			if (is_render) {
-				render_scene();
-			}
-
 			std::cout << "\rEpisode: " << episode + 1 << "/" << start_episode_+ episodes << " | Step: " << step_count_ << std::string(20, ' ') << std::flush;
 		}
 
@@ -357,6 +369,7 @@ std::vector<SACResult> TrainEnvironment::test(const dim_type episodes, bool rend
 	sac_->eval();
 	SDL_Event event;
 	bool is_render = render;
+	bool is_paused = false;
 	std::vector<SACResult> result_history;
 	std::vector<real_real_t> action_times;
 	result_history.reserve(static_cast<size_t>(episodes));
@@ -373,14 +386,29 @@ std::vector<SACResult> TrainEnvironment::test(const dim_type episodes, bool rend
 				if (event.type == SDL_QUIT || (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
 					return result_history;
 				}
-				if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_r) {
-					is_render = !is_render;
-					if (!is_render) {
-						SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
-						SDL_RenderClear(renderer_);
-						SDL_RenderPresent(renderer_);
+				if (event.type == SDL_KEYDOWN){
+					if(event.key.keysym.sym == SDLK_r){
+						is_render = !is_render;
+						if (!is_render) {
+							SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
+							SDL_RenderClear(renderer_);
+							SDL_RenderPresent(renderer_);
+						}
+					}
+					if(event.key.keysym.sym == SDLK_SPACE){
+						is_paused = !is_paused;
 					}
 				}
+			}
+
+            if (is_paused) {
+                if (is_render) {
+                    render_scene();
+                }
+                SDL_Delay(20);
+                continue;
+            }else if (is_render) {
+				render_scene();
 			}
 
 			auto start_time = std::chrono::high_resolution_clock::now();
@@ -398,10 +426,6 @@ std::vector<SACResult> TrainEnvironment::test(const dim_type episodes, bool rend
 			is_arrived = terminated;
 
 			state = next_state;
-
-            if (is_render) {
-				render_scene();
-            }
 		}
 
 		std::cout << "Episode: " << episode + 1 << "/" <<  episodes << " | Reward: " << episode_return << " " << std::endl;
@@ -679,6 +703,7 @@ void MultiAgentEnvironment::test(bool render) {
 	sac_->eval();
 	SDL_Event event;
 	bool is_render = render;
+	bool is_paused = false;
 
 	reset();
 	bool done = false;
@@ -688,14 +713,29 @@ void MultiAgentEnvironment::test(bool render) {
 			if (event.type == SDL_QUIT || (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
 				return;
 			}
-			if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_r) {
-				is_render = !is_render;
-				if (!is_render) {
-					SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
-					SDL_RenderClear(renderer_);
-					SDL_RenderPresent(renderer_);
+			if (event.type == SDL_KEYDOWN){
+				if(event.key.keysym.sym == SDLK_r){
+					is_render = !is_render;
+					if (!is_render) {
+						SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
+						SDL_RenderClear(renderer_);
+						SDL_RenderPresent(renderer_);
+					}
+				}
+				if(event.key.keysym.sym == SDLK_SPACE){
+					is_paused = !is_paused;
 				}
 			}
+		}
+
+		if (is_paused) {
+			if (is_render) {
+				render_scene();
+			}
+			SDL_Delay(20);
+			continue;
+		}else if (is_render) {
+			render_scene();
 		}
 
 		for (count_type i = 0; i < agent_count_; ++i){
@@ -711,10 +751,6 @@ void MultiAgentEnvironment::test(bool render) {
 		}
 
 		update_agents_state();
-
-		if (is_render) {
-			render_scene();
-		}
 	}
 }
 
@@ -888,6 +924,7 @@ void MazeAgentEnvironment::test(bool render) {
 	sac_->eval();
 	SDL_Event event;
 	bool is_render = render;
+	bool is_paused = false;
 
 	bool done = false;
 
@@ -896,14 +933,29 @@ void MazeAgentEnvironment::test(bool render) {
 			if (event.type == SDL_QUIT || (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
 				return;
 			}
-			if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_r) {
-				is_render = !is_render;
-				if (!is_render) {
-					SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
-					SDL_RenderClear(renderer_);
-					SDL_RenderPresent(renderer_);
+			if (event.type == SDL_KEYDOWN){
+				if(event.key.keysym.sym == SDLK_r){
+					is_render = !is_render;
+					if (!is_render) {
+						SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
+						SDL_RenderClear(renderer_);
+						SDL_RenderPresent(renderer_);
+					}
+				}
+				if(event.key.keysym.sym == SDLK_SPACE){
+					is_paused = !is_paused;
 				}
 			}
+		}
+
+		if (is_paused) {
+			if (is_render) {
+				render_scene();
+			}
+			SDL_Delay(20);
+			continue;
+		}else if (is_render) {
+			render_scene();
 		}
 
 		for (count_type i = 0; i < agent_count_; ++i){
