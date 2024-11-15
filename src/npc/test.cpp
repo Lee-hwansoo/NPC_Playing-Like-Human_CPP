@@ -122,10 +122,10 @@ private:
 
 void testBasicTrainEnvironment(SDL_Renderer* renderer) {
     torch::Device device = get_device();
-    environment::TrainEnvironment env(constants::Display::WIDTH, constants::Display::HEIGHT, torch::kCPU, 1, true);
+    environment::TrainEnvironment env(constants::Display::WIDTH, constants::Display::HEIGHT, device, 1, true);
     env.set_render(renderer);
     // env.load("20241112_185641", 7200);
-    env.train(5000, false, false);
+    env.train(3000, false, false);
     // env.test(10, true);
 }
 
@@ -133,7 +133,7 @@ void testMultiAgentEnvironment(SDL_Renderer* renderer) {
     torch::Device device = get_device();
     environment::MultiAgentEnvironment env(constants::Display::WIDTH, constants::Display::HEIGHT, torch::kCPU, 5);
     env.set_render(renderer);
-    env.load("20241112_051733", 5000);
+    // env.load("20241112_051733", 5000);
     env.test(true);
 }
 
@@ -141,7 +141,7 @@ void testMazeAgentEnvironment(SDL_Renderer* renderer) {
     torch::Device device = get_device();
     environment::MazeAgentEnvironment env(constants::Display::WIDTH, constants::Display::HEIGHT, torch::kCPU, 5);
     env.set_render(renderer);
-    env.load("20241112_051733", 5000);
+    // env.load("20241112_051733", 5000);
     env.test(true);
 }
 
