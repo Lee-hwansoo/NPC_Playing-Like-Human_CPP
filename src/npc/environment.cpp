@@ -209,15 +209,15 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 
     real_t normalized_goal_dist = required_state[0].item<real_t>();
 	real_t angle_diff_cos = required_state[2].item<real_t>();
-    real_t frenet_d = required_state[4].item<real_t>();
+    real_t normalized_frenet_d = required_state[4].item<real_t>();
 
     real_t force = required_action[0].item<real_t>();
     real_t yaw_change = required_action[1].item<real_t>();
 
 	// 보상 컴포넌트들
-	real_t path_reward = std::exp(-std::abs(frenet_d) * 15.0f) * 0.6f;				// 0 ~ 0.6
-	real_t dist_reward = std::exp(-normalized_goal_dist * 2.0f) * 0.25f;             // 0 ~ 0.25
-	real_t alignment_reward = ((angle_diff_cos + 1.0f) * 0.5f) * 0.1f;				// 0 ~ 0.1
+	real_t path_reward = std::exp(-std::abs(normalized_frenet_d) * 10.0f) * 0.6f;	// 0 ~ 0.6
+	real_t dist_reward = std::exp(-normalized_goal_dist * 2.0f) * 0.2f;             // 0 ~ 0.2
+	real_t alignment_reward = ((angle_diff_cos + 1.0f) * 0.5f) * 0.15f;				// 0 ~ 0.15
 	real_t turn_reward = (1.0f - std::abs(yaw_change)) * 0.05f;						// 0 ~ 0.05
 
 	// std::cout << "\npath_reward: " << std::exp(-std::abs(frenet_d) * 2.0f)
