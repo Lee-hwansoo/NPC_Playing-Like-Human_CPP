@@ -488,9 +488,20 @@ index_type Agent::get_closest_waypoint() {
 std::tuple<Vector2, real_t> Agent::get_frenet_d() {
     if (initial_path_.size(0) > 0) {
         index_type closest_waypoint = get_closest_waypoint();
-        index_type next_waypoint = (closest_waypoint + 1) % initial_path_.size(0);
+        index_type next_waypoint;
+        tensor_t n_vec;
 
-        tensor_t n_vec = initial_path_[next_waypoint] - initial_path_[closest_waypoint];
+        if (closest_waypoint == initial_path_.size(0) - 1) {
+            n_vec = initial_path_[closest_waypoint] - initial_path_[closest_waypoint - 1];
+            next_waypoint = closest_waypoint;
+        } else {
+            next_waypoint = closest_waypoint + 1;
+            n_vec = initial_path_[next_waypoint] - initial_path_[closest_waypoint];
+        }
+
+        // index_type next_waypoint = (closest_waypoint + 1) % initial_path_.size(0);
+        // tensor_t n_vec = initial_path_[next_waypoint] - initial_path_[closest_waypoint];
+
         tensor_t x_vec = position_ - initial_path_[next_waypoint];
 
         tensor_t dot_product = torch::dot(x_vec, n_vec);
@@ -593,6 +604,8 @@ tensor_t Agent::get_state() const {
     auto normalized_angle_diff = torch::tensor({std::sin(angle_to_goal_), std::cos(angle_to_goal_)});
     auto goal_in_fov_tensor = torch::tensor({static_cast<real_t>(is_goal_in_fov_)});
     auto normalized_frenet_d = torch::tensor({frenet_d_ / (constants::Display::WIDTH > constants::Display::HEIGHT ? constants::Display::WIDTH : constants::Display::HEIGHT)});
+
+    std::cout << "\nfrenet_d: " << frenet_d_ << std::endl;
 
     auto state = torch::cat({
         normalized_position,
