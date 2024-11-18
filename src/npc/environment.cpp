@@ -260,7 +260,7 @@ std::tuple<tensor_t, tensor_t, bool, bool> TrainEnvironment::step(const tensor_t
 	return std::make_tuple(state_, reward, terminated_, truncated_);
 }
 
-TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, bool debug) {
+TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, bool debug, bool print) {
 	sac_->train();
 	SDL_Event event;
 	bool is_render = render;
@@ -339,7 +339,7 @@ TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, boo
 			//sac_->add(state, action, reward, next_state, done_tensor);
 
 			if (step_count_ % constants::NETWORK::UPDATE_INTERVAL == 0) {
-				auto metrics = sac_->update(debug);
+				auto metrics = sac_->update(print);
 				if (metrics.is_vaild){
 					metrics.beta = beta;
 					metrics_history.push_back(metrics);

@@ -96,7 +96,7 @@ public:
 	std::tuple<tensor_t, tensor_t, bool, bool> step(const tensor_t& action) override;
 	void save(dim_type episode, bool print);
 	void load(const std::string& timestamp, dim_type episode);
-	TrainingResult train(const dim_type episodes, bool render = false, bool debug = false);
+	TrainingResult train(const dim_type episodes, bool render = false, bool debug = false, bool print = false);
 	std::vector<SACResult> test(const dim_type episodes, bool render = false);
 
 protected:

@@ -347,7 +347,7 @@ tensor_t SAC::select_action(const tensor_t& state) {
     return action.squeeze(0);
 }
 
-SACMetrics SAC::update(bool debug) {
+SACMetrics SAC::update(bool print) {
     SACMetrics metrics{};
     if (memory_->size() < memory_->batch_size()) {
         return metrics;
@@ -453,7 +453,7 @@ SACMetrics SAC::update(bool debug) {
     end = std::chrono::high_resolution_clock::now();
     priority_update_time = end - start;
 
-    if (debug) {
+    if (print) {
 	    std::cout << "\nSAC Update Timing (ms):" << std::endl;
 	    std::cout << std::fixed << std::setprecision(4);
 	    std::cout << "Memory Sampling: " << memory_sample_time.count() << std::endl;

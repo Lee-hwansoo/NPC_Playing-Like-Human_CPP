@@ -125,7 +125,7 @@ void testBasicTrainEnvironment(SDL_Renderer* renderer) {
     environment::TrainEnvironment env(constants::Display::WIDTH, constants::Display::HEIGHT, device, 1, true);
     env.set_render(renderer);
     // env.load("20241112_185641", 7200);
-    env.train(3000, false, false);
+    env.train(3000, false, false, false);
     // env.test(10, true);
 }
 
