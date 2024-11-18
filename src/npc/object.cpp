@@ -605,8 +605,6 @@ tensor_t Agent::get_state() const {
     auto goal_in_fov_tensor = torch::tensor({static_cast<real_t>(is_goal_in_fov_)});
     auto normalized_frenet_d = torch::tensor({frenet_d_ / (constants::Display::WIDTH > constants::Display::HEIGHT ? constants::Display::WIDTH : constants::Display::HEIGHT)});
 
-    std::cout << "\nfrenet_d: " << frenet_d_ << std::endl;
-
     auto state = torch::cat({
         normalized_position,
         normalized_yaw,
