@@ -264,6 +264,7 @@ TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, boo
 	sac_->train();
 	SDL_Event event;
 	bool is_render = render;
+	bool is_debug = debug;
 	bool is_paused = false;
     std::vector<SACResult> result_history;
 	std::vector<SACMetrics> metrics_history;
@@ -274,6 +275,12 @@ TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, boo
 	const real_t beta_end = 1.0f;
 	const real_t decay_rate = 5.0f;
 	const dim_type beta_anneal_episodes = episodes;
+
+    // 디버그 모드용 키보드 입력 변수들
+    const real_t FIXED_FORCE = 0.5f;
+    const real_t FIXED_YAW = 0.5f;
+    real_t force = 0.0f;
+    real_t yaw_change = 0.0f;
 
     for (dim_type episode = start_episode_; episode < start_episode_+ episodes; ++episode) {
 		real_t progress = static_cast<real_t>(episode - start_episode_) / beta_anneal_episodes;
@@ -291,19 +298,54 @@ TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, boo
 				if (event.type == SDL_QUIT || (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
 					return { result_history, metrics_history };
 				}
-				if (event.type == SDL_KEYDOWN){
-					if(event.key.keysym.sym == SDLK_r){
-						is_render = !is_render;
-						if (!is_render) {
-							SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
-							SDL_RenderClear(renderer_);
-							SDL_RenderPresent(renderer_);
-						}
-					}
-					if(event.key.keysym.sym == SDLK_SPACE){
-						is_paused = !is_paused;
-					}
-				}
+                if (event.type == SDL_KEYDOWN) {
+                    switch (event.key.keysym.sym) {
+                        case SDLK_r:
+                            is_render = !is_render;
+                            if (!is_render) {
+                                SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
+                                SDL_RenderClear(renderer_);
+                                SDL_RenderPresent(renderer_);
+                            }
+                            break;
+                        case SDLK_SPACE:
+                            is_paused = !is_paused;
+                            break;
+                        case SDLK_d:
+                            is_debug = !is_debug;
+							force = 0.0f;
+                            yaw_change = 0.0f;
+                            std::cout << "Debug mode: " << (is_debug ? "ON" : "OFF") << std::endl;
+                            break;
+                    }
+                    if (is_debug) {
+                        switch (event.key.keysym.sym) {
+                            case SDLK_UP:
+                                force = FIXED_FORCE;
+                                break;
+                            case SDLK_DOWN:
+                                force = -FIXED_FORCE;
+                                break;
+                            case SDLK_LEFT:
+                                yaw_change = -FIXED_YAW;
+                                break;
+                            case SDLK_RIGHT:
+                                yaw_change = FIXED_YAW;
+                                break;
+                        }
+                    }
+                } else if (event.type == SDL_KEYUP && is_debug) {
+                    switch (event.key.keysym.sym) {
+                        case SDLK_UP:
+                        case SDLK_DOWN:
+                            force = 0.0f;
+                            break;
+                        case SDLK_LEFT:
+                        case SDLK_RIGHT:
+                            yaw_change = 0.0f;
+                            break;
+                    }
+                }
 			}
 
             if (is_paused) {
@@ -316,49 +358,60 @@ TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, boo
 				render_scene();
 			}
 
-			tensor_t action = sac_->select_action(state);
+			tensor_t action;
+			if (is_debug) {
+				action = torch::tensor({force, yaw_change}, torch::TensorOptions().device(device_).dtype(get_tensor_dtype()));
+			}else {
+				action = sac_->select_action(state);
+			}
+
+			// tensor_t action = sac_->select_action(state);
 			auto [next_state, reward, terminated, truncated] = step(action);
 			done = terminated || truncated;
 			tensor_t done_tensor = torch::tensor(done, get_tensor_dtype());
 
-			store_transition(state, action, reward, done_tensor);
+			if (!is_debug){
+				store_transition(state, action, reward, done_tensor);
 
-			if (step_count_ >= n_steps_) {
-				if (done) {
-					// 중단된 경우 모든 이전 상태들에 대해 처리
-					for (index_type i = 0; i < n_steps_ - 1; ++i) {
-						index_type start_idx = (buffer_idx_ + i) % n_steps_;
-						process_n_step_return(start_idx, n_steps_ - i, next_state, done_tensor);
+				if (step_count_ >= n_steps_) {
+					if (done) {
+						// 중단된 경우 모든 이전 상태들에 대해 처리
+						for (index_type i = 0; i < n_steps_ - 1; ++i) {
+							index_type start_idx = (buffer_idx_ + i) % n_steps_;
+							process_n_step_return(start_idx, n_steps_ - i, next_state, done_tensor);
+						}
+					} else {
+						// 일반적인 경우 현재 상태만 처리
+						process_n_step_return(buffer_idx_, n_steps_, next_state, done_tensor);
 					}
-				} else {
-					// 일반적인 경우 현재 상태만 처리
-					process_n_step_return(buffer_idx_, n_steps_, next_state, done_tensor);
 				}
-			}
 
-			//sac_->add(state, action, reward, next_state, done_tensor);
+				//sac_->add(state, action, reward, next_state, done_tensor);
 
-			if (step_count_ % constants::NETWORK::UPDATE_INTERVAL == 0) {
-				auto metrics = sac_->update(print);
-				if (metrics.is_vaild){
-					metrics.beta = beta;
-					metrics_history.push_back(metrics);
+				if (step_count_ % constants::NETWORK::UPDATE_INTERVAL == 0) {
+					auto metrics = sac_->update(print);
+					if (metrics.is_vaild){
+						metrics.beta = beta;
+						metrics_history.push_back(metrics);
+					}
 				}
+
+				episode_return += reward.item<real_t>();
+				is_arrived = terminated;
+
+				state = next_state;
+
+				std::cout << "\rEpisode: " << episode + 1 << "/" << start_episode_+ episodes << " | Step: " << step_count_ << std::string(20, ' ') << std::flush;
 			}
-
-			episode_return += reward.item<real_t>();
-			is_arrived = terminated;
-
-			state = next_state;
-
-			std::cout << "\rEpisode: " << episode + 1 << "/" << start_episode_+ episodes << " | Step: " << step_count_ << std::string(20, ' ') << std::flush;
 		}
 
-		result_history.push_back({episode_return, is_arrived});
-		if ((episode + 1) % constants::NETWORK::LOG_INTERVAL == 0) {
-			log_statistics(result_history, episode);
-			save_history(result_history, metrics_history);
-			save(episode + 1, false);
+		if (!is_debug){
+			result_history.push_back({episode_return, is_arrived});
+			if ((episode + 1) % constants::NETWORK::LOG_INTERVAL == 0) {
+				log_statistics(result_history, episode);
+				save_history(result_history, metrics_history);
+				save(episode + 1, false);
+			}
 		}
     }
 
