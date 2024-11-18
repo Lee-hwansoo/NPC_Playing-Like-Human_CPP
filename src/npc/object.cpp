@@ -317,8 +317,14 @@ std::tuple<tensor_t, tensor_t, real_t, real_t, bool, bool> Agent::calculate_fov(
     // 목표와의 상대 위치, 거리, 각도 계산
     auto goal_vector = goal_state.slice(0, 0, 2) - agent_pos;       // [2]
     auto goal_distance = torch::norm(goal_vector).item<real_t>();
-    auto goal_angle = torch::atan2(goal_vector[1], goal_vector[0]).item<real_t>();
-    auto angle_diff = std::fmod(goal_angle - agent_angle + constants::PI, 2 * constants::PI) - constants::PI;
+
+    auto goal_dir_x = goal_vector[0].item<real_t>() / goal_distance;
+    auto goal_dir_y = goal_vector[1].item<real_t>() / goal_distance;
+    auto agent_dir_x = std::cos(agent_angle);
+    auto agent_dir_y = std::sin(agent_angle);
+
+    auto angle_diff = std::atan2(goal_dir_x * agent_dir_y - goal_dir_y * agent_dir_x,
+                                goal_dir_x * agent_dir_x + goal_dir_y * agent_dir_y);
     auto abs_angle_diff = std::abs(angle_diff);
 
     // 화면 경계와의 ray casting 계산
@@ -550,10 +556,11 @@ tensor_t Agent::update(const real_t dt, const tensor_t& scaled_action, const ten
     yaw_ = std::fmod(yaw_ + constants::PI, 2 * constants::PI) - constants::PI;
 
     force = std::clamp(force, 0.0f, 50.0f);
-    velocity_ = force * torch::tensor({std::cos(yaw_), std::sin(yaw_)}) * dt;
+    velocity_ = force * torch::tensor({std::cos(yaw_), std::sin(yaw_)});
+    auto velocity_dt = velocity_ * dt;
 
-    position_ = position_ + velocity_;
-    yaw_ = std::atan2(velocity_[1].item<real_t>(), velocity_[0].item<real_t>());
+    position_ = position_ + velocity_dt;
+    yaw_ = std::atan2(velocity_dt[1].item<real_t>(), velocity_dt[0].item<real_t>());
 
     real_t distance_moved = 0.0f;
     if (trajectory_.size(0) > 0) {
@@ -579,11 +586,11 @@ tensor_t Agent::update(const real_t dt, const tensor_t& scaled_action, const ten
 
 tensor_t Agent::get_state() const {
     auto normalized_position = position_ / torch::tensor({static_cast<real_t>(constants::Display::WIDTH), static_cast<real_t>(constants::Display::HEIGHT)});
-    auto normalized_yaw = torch::tensor({yaw_ / constants::PI});
+    auto normalized_yaw = torch::tensor({std::sin(yaw_), std::cos(yaw_)});
     auto normalized_velocity = velocity_ / constants::Agent::VELOCITY_LIMITS.b;
     auto normalized_fov_dist = fov_distances_.flatten() / constants::Agent::FOV::RANGE;
     auto normalized_goal_dist = torch::tensor({goal_distance_ / std::sqrt(constants::Display::WIDTH * constants::Display::WIDTH + constants::Display::HEIGHT * constants::Display::HEIGHT)});
-    auto normalized_angle_diff = torch::tensor({std::clamp(angle_to_goal_ / constants::PI, -1.0f, 1.0f)});
+    auto normalized_angle_diff = torch::tensor({std::sin(angle_to_goal_), std::cos(angle_to_goal_)});
     auto goal_in_fov_tensor = torch::tensor({static_cast<real_t>(is_goal_in_fov_)});
     auto normalized_frenet_d = torch::tensor({frenet_d_ / (constants::Display::WIDTH > constants::Display::HEIGHT ? constants::Display::WIDTH : constants::Display::HEIGHT)});
 
