@@ -145,10 +145,10 @@ namespace constants
         constexpr count_type MAX_ITER = 1000;
         constexpr real_t GOAL_SAMPLE_RATE = 0.1f;
         constexpr real_t MIN_U = 10.0f;
-        constexpr real_t MAX_U = 200.0f;
+        constexpr real_t MAX_U = 125.0f;
         constexpr real_t SUCCESS_DIST_THRESHOLD = Goal::RADIUS;
         constexpr real_t COLLISION_CHECK_STEP = 0.2f;
-        constexpr real_t STEP_SIZE = 0.5f;
+        constexpr real_t STEP_SIZE = 0.2f;
     }
 
 	//--------------------------------------------------------------------------------
@@ -158,7 +158,7 @@ namespace constants
     {
         constexpr real_t  MAX_STEP = 3000;
 		constexpr count_type BUFFER_SIZE = 700000;
-		constexpr count_type BATCH_SIZE = 256;
+		constexpr count_type BATCH_SIZE = 128;
 		constexpr real_t  GAMMA = 0.99f;
 		constexpr real_t  TAU = 0.005f;
 		constexpr real_t  ALPHA = 0.2f;
@@ -167,6 +167,6 @@ namespace constants
         constexpr count_type UPDATE_INTERVAL = 5;
         constexpr count_type LOG_INTERVAL = 25;
 
-        constexpr types::count_type N_STEPS = 3;
+        constexpr types::count_type N_STEPS = 4;
     }
 }
