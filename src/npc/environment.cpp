@@ -188,16 +188,16 @@ tensor_t TrainEnvironment::get_observation() const {
 }
 
 real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t& action) {
-	// 중단 보상 (-(10.0 * n_steps))
+	// 중단 보상 (-(2.0 * n_steps))
 	if (truncated_) {
-		return -(10.0f * constants::NETWORK::N_STEPS);
+		return -(2.0f * constants::NETWORK::N_STEPS);
 	}
 
 	// 종료 보상
 	if (terminated_) {
 		// 빠른 도달에 대한 보너스 보상
 		real_t speed_bonus = (1.0f - static_cast<real_t>(step_count_) / constants::NETWORK::MAX_STEP) * constants::NETWORK::N_STEPS;	// (0 ~ 1.0) * N_STEPS
-		return 7.0f * constants::NETWORK::N_STEPS + (3.0f * speed_bonus);
+		return 2.0f * constants::NETWORK::N_STEPS + (1.0f * speed_bonus);
 		// real_t speed_bonus = (1.0f - static_cast<real_t>(step_count_) / constants::NETWORK::MAX_STEP);
 		// return 1.0f + (0.5f * speed_bonus);
 	}
@@ -215,9 +215,9 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
     real_t yaw_change = required_action[1].item<real_t>();
 
 	// 보상 컴포넌트들
-	real_t path_reward = std::exp(-std::abs(normalized_frenet_d) * 10.0f) * 0.6f;	// 0 ~ 0.6
+	real_t path_reward = std::exp(-std::abs(normalized_frenet_d) * 8.0f) * 0.55f;	// 0 ~ 0.55
 	real_t dist_reward = std::exp(-normalized_goal_dist * 2.0f) * 0.2f;             // 0 ~ 0.2
-	real_t alignment_reward = ((angle_diff_cos + 1.0f) * 0.5f) * 0.15f;				// 0 ~ 0.15
+	real_t alignment_reward = ((angle_diff_cos + 1.0f) * 0.5f) * 0.2f;				// 0 ~ 0.2
 	real_t turn_reward = (1.0f - std::abs(yaw_change)) * 0.05f;						// 0 ~ 0.05
 
 	// std::cout << "\npath_reward: " << std::exp(-std::abs(frenet_d) * 2.0f)

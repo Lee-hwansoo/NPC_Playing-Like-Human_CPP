@@ -88,7 +88,7 @@ namespace constants
 		);
 
         // Movement constraints
-        const Vector2 VELOCITY_LIMITS(15.0f, 50.0f);  // Range: 1.5~5 m/s
+        const Vector2 VELOCITY_LIMITS(10.0f, 50.0f);  // Range: 1~5 m/s
         constexpr real_t YAW_CHANGE_LIMIT = 120.0f * DEG_TO_RAD;  // 120 degrees/s
 
         // Field of View (FOV) properties
@@ -142,10 +142,10 @@ namespace constants
     namespace RRT
     {
         constexpr count_type MAX_ATTEMPTS = 2;
-        constexpr count_type MAX_ITER = 1000;
+        constexpr count_type MAX_ITER = 1500;
         constexpr real_t GOAL_SAMPLE_RATE = 0.1f;
         constexpr real_t MIN_U = 10.0f;
-        constexpr real_t MAX_U = 125.0f;
+        constexpr real_t MAX_U = 100.0f;
         constexpr real_t SUCCESS_DIST_THRESHOLD = Goal::RADIUS;
         constexpr real_t COLLISION_CHECK_STEP = 0.2f;
         constexpr real_t STEP_SIZE = 0.2f;
@@ -156,7 +156,7 @@ namespace constants
 	//--------------------------------------------------------------------------------
     namespace NETWORK
     {
-        constexpr real_t  MAX_STEP = 3000;
+        constexpr real_t  MAX_STEP = 4000;
 		constexpr count_type BUFFER_SIZE = 700000;
 		constexpr count_type BATCH_SIZE = 128;
 		constexpr real_t  GAMMA = 0.99f;
