@@ -95,7 +95,7 @@ namespace constants
         namespace FOV
         {
             constexpr real_t ANGLE = 280.0f * DEG_TO_RAD;  // 280 degrees
-            constexpr real_t RANGE = 150.0f;  // 15m in simulation
+            constexpr real_t RANGE = 200.0f;  // 20m in simulation
             constexpr count_type RAY_COUNT = 56;
         }
     }
@@ -117,7 +117,7 @@ namespace constants
         );
 
         // Movement constraints
-        const Vector2 VELOCITY_LIMITS(10.0f, 10.0f);  // Range: 1~1 m/s
+        const Vector2 VELOCITY_LIMITS(8.0f, 8.0f);  // Range: 0.8~0.8 m/s
     }
 
     namespace RectangleObstacle

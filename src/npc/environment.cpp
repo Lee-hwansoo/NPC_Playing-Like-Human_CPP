@@ -9,7 +9,7 @@ namespace environment {
 TrainEnvironment::TrainEnvironment(count_type width, count_type height, torch::Device device, count_type agent_count, bool init)
 	: BaseEnvironment(width, height, device)
 	, agent_count_(agent_count) {
-	set_observation_dim(constants::Agent::FOV::RAY_COUNT + 11);
+	set_observation_dim(constants::Agent::FOV::RAY_COUNT + 13);
 	set_action_dim(2);
 
 	std::cout << "Environment initialized, device: " << device_ << std::endl;
@@ -193,35 +193,38 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 		return -(2.0f * constants::NETWORK::N_STEPS);
 	}
 
-	// 종료 보상
-	if (terminated_) {
-		// 빠른 도달에 대한 보너스 보상
-		real_t speed_bonus = (1.0f - static_cast<real_t>(step_count_) / constants::NETWORK::MAX_STEP) * constants::NETWORK::N_STEPS;	// (0 ~ 1.0) * N_STEPS
-		return 2.0f * constants::NETWORK::N_STEPS + (1.0f * speed_bonus);
-		// real_t speed_bonus = (1.0f - static_cast<real_t>(step_count_) / constants::NETWORK::MAX_STEP);
-		// return 1.0f + (0.5f * speed_bonus);
-	}
+	// // 종료 보상
+	// if (terminated_) {
+	// 	// 빠른 도달에 대한 보너스 보상
+	// 	real_t speed_bonus = (1.0f - static_cast<real_t>(step_count_) / constants::NETWORK::MAX_STEP) * constants::NETWORK::N_STEPS;	// (0 ~ 1.0) * N_STEPS
+	// 	return 2.0f * constants::NETWORK::N_STEPS + (1.0f * speed_bonus);
+	// 	// real_t speed_bonus = (1.0f - static_cast<real_t>(step_count_) / constants::NETWORK::MAX_STEP);
+	// 	// return 1.0f + (0.5f * speed_bonus);
+	// }
 
 	auto state_size = state.size(0);
 
-	auto required_state = state.slice(0, state_size-5, state_size).to(torch::kCPU);
+	auto required_state = state.slice(0, state_size-7, state_size).to(torch::kCPU);
     auto required_action = action.to(torch::kCPU);
 
     real_t normalized_goal_dist = required_state[0].item<real_t>();
 	real_t angle_diff_cos = required_state[2].item<real_t>();
-    real_t normalized_frenet_d = required_state[4].item<real_t>();
+    real_t normalized_frenet_d = required_state[6].item<real_t>();
 
     real_t force = required_action[0].item<real_t>();
     real_t yaw_change = required_action[1].item<real_t>();
 
 	// 보상 컴포넌트들
-	real_t path_reward = std::exp(-std::abs(normalized_frenet_d) * 6.0f) * 0.55f;	// 0 ~ 0.55
-	real_t dist_reward = std::exp(-normalized_goal_dist * 3.0f) * 0.2f;             // 0 ~ 0.2
-	real_t alignment_reward = ((angle_diff_cos + 1.0f) * 0.5f) * 0.2f;				// 0 ~ 0.2
+	real_t path_reward = std::exp(-std::abs(normalized_frenet_d) * 7.0f) * 0.5f;	// 0 ~ 0.5
+	real_t alignment_reward = ((angle_diff_cos + 1.0f) * 0.5f) * 0.25f;				// 0 ~ 0.25
+	real_t dist_reward = std::exp(-normalized_goal_dist * 2.0f) * 0.2f;             // 0 ~ 0.2
 	real_t turn_reward = (1.0f - std::abs(yaw_change)) * 0.05f;						// 0 ~ 0.05
 
-	// std::cout << "\npath_reward: " << std::exp(-std::abs(frenet_d) * 2.0f)
-	// 	<< ", dist_reward: " << std::exp(-normalized_goal_dist * 2.0f)
+	// std::cout << "\npath_reward1: " << std::exp(-std::abs(normalized_frenet_d) * 2.0f)
+	// 	<< ", path_reward2: " << std::exp(-std::abs(normalized_frenet_d) * 6.0f)
+	// 	<< ", path_reward3: " << std::exp(-std::abs(normalized_frenet_d) * 7.0f)
+	// 	<< ", dist_reward1: " << std::exp(-normalized_goal_dist * 2.0f)
+	// 	<< ", dist_reward2: " << std::exp(-normalized_goal_dist * 4.0f)
 	// 	<< ", alignment_reward: " << ((angle_diff_cos + 1.0f) * 0.5f)
 	// 	<< ", turn_reward: " << (1.0f - std::abs(yaw_change))
 	// 	<< std::endl;

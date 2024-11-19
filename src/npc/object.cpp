@@ -603,12 +603,15 @@ tensor_t Agent::get_state() const {
     auto normalized_goal_dist = torch::tensor({goal_distance_ / std::sqrt(constants::Display::WIDTH * constants::Display::WIDTH + constants::Display::HEIGHT * constants::Display::HEIGHT)});
     auto normalized_angle_diff = torch::tensor({std::sin(angle_to_goal_), std::cos(angle_to_goal_)});
     auto goal_in_fov_tensor = torch::tensor({static_cast<real_t>(is_goal_in_fov_)});
+    auto normalized_frenet_point = torch::tensor({frenet_point_.a / constants::Display::WIDTH, frenet_point_.b / constants::Display::HEIGHT});
     auto normalized_frenet_d = torch::tensor({frenet_d_ / (constants::Display::WIDTH > constants::Display::HEIGHT ? constants::Display::WIDTH : constants::Display::HEIGHT)});
 
     // std::cout << "\nangle_to_goal_: " << angle_to_goal_
     //         << "\ncos(angle_to_goal_): " << std::cos(angle_to_goal_) << ", sin(angle_to_goal_): " << std::sin(angle_to_goal_)
     //         << "\nfrenet_d_: " << frenet_d_
     //         << "\nnormalized_frenet_d: " << normalized_frenet_d.item<real_t>()
+    //         << "\nnormalized_position: " << normalized_position[0].item<real_t>() << ", " << normalized_position[1].item<real_t>()
+    //         << "\nnormalized_frenet_point: " << normalized_frenet_point[0].item<real_t>() << ", " << normalized_frenet_point[1].item<real_t>()
     //         << std::endl;
 
     auto state = torch::cat({
@@ -619,6 +622,7 @@ tensor_t Agent::get_state() const {
         normalized_goal_dist,
         normalized_angle_diff,
         goal_in_fov_tensor,
+        normalized_frenet_point,
         normalized_frenet_d
     });
 
