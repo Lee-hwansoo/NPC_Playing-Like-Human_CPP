@@ -96,7 +96,7 @@ namespace constants
         {
             constexpr real_t ANGLE = 280.0f * DEG_TO_RAD;  // 280 degrees
             constexpr real_t RANGE = 200.0f;  // 20m in simulation
-            constexpr count_type RAY_COUNT = 56;
+            constexpr count_type RAY_COUNT = 28;
         }
     }
 
