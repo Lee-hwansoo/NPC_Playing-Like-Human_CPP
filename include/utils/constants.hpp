@@ -95,7 +95,7 @@ namespace constants
         namespace FOV
         {
             constexpr real_t ANGLE = 280.0f * DEG_TO_RAD;  // 280 degrees
-            constexpr real_t RANGE = 250.0f;  // 25m in simulation
+            constexpr real_t RANGE = 150.0f;  // 15m in simulation
             constexpr count_type RAY_COUNT = 56;
         }
     }
