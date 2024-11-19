@@ -212,8 +212,8 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
     real_t yaw_change = required_action[1].item<real_t>();
 
 	// 보상 컴포넌트들
-	real_t path_reward = std::exp(-std::abs(normalized_frenet_d) * 8.0f) * 0.6f;			// 0 ~ 0.6
-	real_t dist_reward = (1.0f - normalized_goal_dist) * 0.4f;             					// 0 ~ 0.4
+	real_t path_reward = std::exp(-std::abs(normalized_frenet_d) * 6.0f) * 0.5f;			// 0 ~ 0.5
+	real_t dist_reward = (1.0f - normalized_goal_dist) * 0.5f;             					// 0 ~ 0.5
 
 	// real_t stop_penalty = force < 0.15f ? std::exp(-force * 8.0f) * 0.1f : 0.0f;									// -0.1 ~ 0.0
 	real_t turn_penalty = std::abs(yaw_change) > 0.7f ? -0.4f * (std::abs(yaw_change) - 0.5f) : 0.0f; 	// -0.2 ~ 0.0
