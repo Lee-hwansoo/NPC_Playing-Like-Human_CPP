@@ -188,16 +188,16 @@ tensor_t TrainEnvironment::get_observation() const {
 }
 
 real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t& action) {
-	// 중단 보상 (-(2.0 * n_steps))
+	// 중단 보상 (-(5.0 * n_steps))
 	if (truncated_) {
-		return -(2.0f * constants::NETWORK::N_STEPS);
+		return -(5.0f * constants::NETWORK::N_STEPS);
 	}
 
 	// 종료 보상
 	if (terminated_) {
 		// 빠른 도달에 대한 보너스 보상
 		real_t speed_bonus = (1.0f - static_cast<real_t>(step_count_) / constants::NETWORK::MAX_STEP) * constants::NETWORK::N_STEPS;
-		return 1.0f * constants::NETWORK::N_STEPS + (1.0f * speed_bonus);
+		return 3.0f * constants::NETWORK::N_STEPS + (2.0f * speed_bonus);
 	}
 
 	auto state_size = state.size(0);
@@ -212,11 +212,11 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
     real_t yaw_change = required_action[1].item<real_t>();
 
 	// 보상 컴포넌트들
-	real_t path_reward = std::exp(-std::abs(normalized_frenet_d) * 7.0f) * 0.5f;			// 0 ~ 0.5
-	real_t dist_reward = (1.0f - normalized_goal_dist) * 0.5f;             					// 0 ~ 0.5
+	real_t dist_reward = (1.0f - normalized_goal_dist) * 0.55f;             				// 0 ~ 0.55
+	real_t path_reward = std::exp(-std::abs(normalized_frenet_d) * 7.0f) * 0.45f;			// 0 ~ 0.45
 
 	// real_t stop_penalty = force < 0.15f ? std::exp(-force * 8.0f) * 0.1f : 0.0f;								// -0.1 ~ 0.0
-	real_t turn_penalty = std::abs(yaw_change) > 0.7f ? -0.2f * (std::abs(yaw_change) - 0.5f) : 0.0f; 			// -0.1 ~ 0.0
+	// real_t turn_penalty = std::abs(yaw_change) > 0.7f ? -0.2f * (std::abs(yaw_change) - 0.5f) : 0.0f; 			// -0.1 ~ 0.0
 
 	// std::cout << "\npath_reward1: " << std::exp(-std::abs(normalized_frenet_d) * 2.0f)
 	// 	<< ", path_reward2: " << std::exp(-std::abs(normalized_frenet_d) * 6.0f)
@@ -235,25 +235,20 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 	// 	<< ", stop_penalty: " << stop_penalty
 	// 	<< std::endl;
 
-	real_t reward = path_reward +
-			dist_reward +
-			turn_penalty;
+	real_t reward = dist_reward +
+			path_reward;
 
-	// 기본 보상 컴포넌트들 (-0.2 ~ 1.0 범위로 조정)
-	return std::clamp(reward, -0.2f, 1.0f);
+	// 기본 보상 컴포넌트들 (0.0 ~ 1.0 범위로 조정)
+	return std::clamp(reward, 0.0f, 1.0f);
 }
 
-std::tuple<tensor_t, tensor_t, bool, bool> TrainEnvironment::step(const tensor_t& action) {
+std::tuple<tensor_t, tensor_t, bool, bool> TrainEnvironment::step(const tensor_t& state, const tensor_t& action) {
+	tensor_t reward = torch::tensor(calculate_reward(state, action));
 	terminated_ = check_goal();
 	truncated_ = check_bounds() || check_obstacle_collision() || step_count_ >= constants::NETWORK::MAX_STEP;
 
-	tensor_t reward = torch::tensor(calculate_reward(state_, action));
-
 	if (terminated_ || truncated_) {
-		tensor_t current_state = get_observation();
-		bool is_terminated = terminated_;
-		bool is_truncated = truncated_;
-		return std::make_tuple(current_state, reward, is_terminated, is_truncated);
+		return std::make_tuple(state, reward, terminated_, truncated_);
 	}
 
 	step_count_++;
@@ -264,11 +259,11 @@ std::tuple<tensor_t, tensor_t, bool, bool> TrainEnvironment::step(const tensor_t
 
 	update_circle_obstacles_state();
 
-	state_ = agents_[0]->update(fixed_dt_, action, circle_obstacles_state_);
+	agents_[0]->update(fixed_dt_, action, circle_obstacles_state_);
 
 	update_agents_state();
 
-	return std::make_tuple(state_, reward, terminated_, truncated_);
+	return std::make_tuple(get_observation(), reward, terminated_, truncated_);
 }
 
 TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, bool debug, bool print) {
@@ -377,7 +372,7 @@ TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, boo
 			}
 
 			// tensor_t action = sac_->select_action(state);
-			auto [next_state, reward, terminated, truncated] = step(action);
+			auto [next_state, reward, terminated, truncated] = step(state, action);
 			done = terminated || truncated;
 			tensor_t done_tensor = torch::tensor(done, get_tensor_dtype());
 
@@ -482,7 +477,7 @@ std::vector<SACResult> TrainEnvironment::test(const dim_type episodes, bool rend
 			std::chrono::duration<real_real_t, std::milli> duration = end_time - start_time;
 			action_times.push_back(duration.count());
 
-			auto [next_state, reward, terminated, truncated] = step(action);
+			auto [next_state, reward, terminated, truncated] = step(state, action);
 
 			done = terminated || truncated;
 
