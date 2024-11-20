@@ -9,7 +9,7 @@ namespace environment {
 TrainEnvironment::TrainEnvironment(count_type width, count_type height, torch::Device device, count_type agent_count, bool init)
 	: BaseEnvironment(width, height, device)
 	, agent_count_(agent_count) {
-	set_observation_dim(constants::Agent::FOV::RAY_COUNT + 13);
+	set_observation_dim(constants::Agent::FOV::RAY_COUNT + 11);
 	set_action_dim(2);
 
 	std::cout << "Environment initialized, device: " << device_ << std::endl;
@@ -202,21 +202,21 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 
 	auto state_size = state.size(0);
 
-	auto required_state = state.slice(0, state_size-7, state_size).to(torch::kCPU);
+	auto required_state = state.slice(0, state_size-5, state_size).to(torch::kCPU);
     auto required_action = action.to(torch::kCPU);
 
     real_t normalized_goal_dist = required_state[0].item<real_t>();
-    real_t normalized_frenet_d = required_state[6].item<real_t>();
+    real_t normalized_frenet_d = required_state[4].item<real_t>();
 
     real_t force = required_action[0].item<real_t>();
     real_t yaw_change = required_action[1].item<real_t>();
 
 	// 보상 컴포넌트들
-	real_t path_reward = std::exp(-std::abs(normalized_frenet_d) * 6.0f) * 0.5f;			// 0 ~ 0.5
+	real_t path_reward = std::exp(-std::abs(normalized_frenet_d) * 7.0f) * 0.5f;			// 0 ~ 0.5
 	real_t dist_reward = (1.0f - normalized_goal_dist) * 0.5f;             					// 0 ~ 0.5
 
-	// real_t stop_penalty = force < 0.15f ? std::exp(-force * 8.0f) * 0.1f : 0.0f;									// -0.1 ~ 0.0
-	real_t turn_penalty = std::abs(yaw_change) > 0.7f ? -0.4f * (std::abs(yaw_change) - 0.5f) : 0.0f; 	// -0.2 ~ 0.0
+	// real_t stop_penalty = force < 0.15f ? std::exp(-force * 8.0f) * 0.1f : 0.0f;								// -0.1 ~ 0.0
+	real_t turn_penalty = std::abs(yaw_change) > 0.7f ? -0.2f * (std::abs(yaw_change) - 0.5f) : 0.0f; 			// -0.1 ~ 0.0
 
 	// std::cout << "\npath_reward1: " << std::exp(-std::abs(normalized_frenet_d) * 2.0f)
 	// 	<< ", path_reward2: " << std::exp(-std::abs(normalized_frenet_d) * 6.0f)
@@ -239,8 +239,8 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 			dist_reward +
 			turn_penalty;
 
-	// 기본 보상 컴포넌트들 (-0.3 ~ 1.0 범위로 조정)
-	return std::clamp(reward, -0.3f, 1.0f);
+	// 기본 보상 컴포넌트들 (-0.2 ~ 1.0 범위로 조정)
+	return std::clamp(reward, -0.2f, 1.0f);
 }
 
 std::tuple<tensor_t, tensor_t, bool, bool> TrainEnvironment::step(const tensor_t& action) {

@@ -603,15 +603,18 @@ tensor_t Agent::get_state() const {
     auto normalized_goal_dist = torch::tensor({goal_distance_ / std::sqrt(constants::Display::WIDTH * constants::Display::WIDTH + constants::Display::HEIGHT * constants::Display::HEIGHT)}); // [1]
     auto normalized_angle_diff = torch::tensor({std::sin(angle_to_goal_), std::cos(angle_to_goal_)}); // [2]
     auto goal_in_fov_tensor = torch::tensor({static_cast<real_t>(is_goal_in_fov_)}); // [1]
-    auto normalized_frenet_point = torch::tensor({frenet_point_.a / constants::Display::WIDTH, frenet_point_.b / constants::Display::HEIGHT}); // [2]
+    // auto normalized_frenet_point = torch::tensor({frenet_point_.a / constants::Display::WIDTH, frenet_point_.b / constants::Display::HEIGHT}); // [2]
     auto normalized_frenet_d = torch::tensor({frenet_d_ / (constants::Display::WIDTH > constants::Display::HEIGHT ? constants::Display::WIDTH : constants::Display::HEIGHT)}); // [1]
 
-    // std::cout << "\nangle_to_goal_: " << angle_to_goal_
+    // std::cout << "\nyaw_: " << yaw_
+    //         << "\ncos(yaw_): " << std::cos(yaw_) << ", sin(yaw_): " << std::sin(yaw_)
+    //         << "\nangle_to_goal_: " << angle_to_goal_
     //         << "\ncos(angle_to_goal_): " << std::cos(angle_to_goal_) << ", sin(angle_to_goal_): " << std::sin(angle_to_goal_)
+    //         << std::endl;
+
+    // std::cout << "\nposition_: " << position_
+    //         << "\nfrenet_point_ " << frenet_point_.a << ", " << frenet_point_.b
     //         << "\nfrenet_d_: " << frenet_d_
-    //         << "\nnormalized_frenet_d: " << normalized_frenet_d.item<real_t>()
-    //         << "\nnormalized_position: " << normalized_position[0].item<real_t>() << ", " << normalized_position[1].item<real_t>()
-    //         << "\nnormalized_frenet_point: " << normalized_frenet_point[0].item<real_t>() << ", " << normalized_frenet_point[1].item<real_t>()
     //         << std::endl;
 
     auto state = torch::cat({
@@ -622,9 +625,8 @@ tensor_t Agent::get_state() const {
         normalized_goal_dist,
         normalized_angle_diff,
         goal_in_fov_tensor,
-        normalized_frenet_point,
         normalized_frenet_d
-    }); // [13 + num_rays]
+    }); // [11 + num_rays]
 
     return state;
 };
