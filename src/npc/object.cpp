@@ -596,15 +596,15 @@ tensor_t Agent::update(const real_t dt, const tensor_t& scaled_action, const ten
 }
 
 tensor_t Agent::get_state() const {
+    auto normalized_fov_dist = fov_distances_.flatten() / constants::Agent::FOV::RANGE; // [num_rays]
     auto normalized_position = position_ / torch::tensor({static_cast<real_t>(constants::Display::WIDTH), static_cast<real_t>(constants::Display::HEIGHT)}); // [2]
     auto normalized_yaw = torch::tensor({std::sin(yaw_), std::cos(yaw_)}); // [2]
     auto normalized_velocity = velocity_ / constants::Agent::VELOCITY_LIMITS.b; // [2]
-    auto normalized_fov_dist = fov_distances_.flatten() / constants::Agent::FOV::RANGE; // [num_rays]
-    auto normalized_goal_dist = torch::tensor({goal_distance_ / std::sqrt(constants::Display::WIDTH * constants::Display::WIDTH + constants::Display::HEIGHT * constants::Display::HEIGHT)}); // [1]
-    auto normalized_angle_diff = torch::tensor({std::sin(angle_to_goal_), std::cos(angle_to_goal_)}); // [2]
     auto goal_in_fov_tensor = torch::tensor({static_cast<real_t>(is_goal_in_fov_)}); // [1]
-    // auto normalized_frenet_point = torch::tensor({frenet_point_.a / constants::Display::WIDTH, frenet_point_.b / constants::Display::HEIGHT}); // [2]
+    auto normalized_angle_diff = torch::tensor({std::sin(angle_to_goal_), std::cos(angle_to_goal_)}); // [2]
+    auto normalized_goal_dist = torch::tensor({goal_distance_ / std::sqrt(constants::Display::WIDTH * constants::Display::WIDTH + constants::Display::HEIGHT * constants::Display::HEIGHT)}); // [1]
     auto normalized_frenet_d = torch::tensor({frenet_d_ / (constants::Display::WIDTH > constants::Display::HEIGHT ? constants::Display::WIDTH : constants::Display::HEIGHT)}); // [1]
+    // auto normalized_frenet_point = torch::tensor({frenet_point_.a / constants::Display::WIDTH, frenet_point_.b / constants::Display::HEIGHT}); // [2]
 
     // std::cout << "\nyaw_: " << yaw_
     //         << "\ncos(yaw_): " << std::cos(yaw_) << ", sin(yaw_): " << std::sin(yaw_)
@@ -618,15 +618,15 @@ tensor_t Agent::get_state() const {
     //         << std::endl;
 
     auto state = torch::cat({
+        normalized_fov_dist,
         normalized_position,
         normalized_yaw,
         normalized_velocity,
-        normalized_fov_dist,
-        normalized_goal_dist,
-        normalized_angle_diff,
         goal_in_fov_tensor,
+        normalized_angle_diff,
+        normalized_goal_dist,
         normalized_frenet_d
-    }); // [11 + num_rays]
+    }); // [num_rays + 11]
 
     return state;
 };
