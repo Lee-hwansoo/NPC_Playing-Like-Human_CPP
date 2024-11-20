@@ -202,18 +202,21 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 
 	auto state_size = state.size(0);
 
-	auto required_state = state.slice(0, state_size-2, state_size).to(torch::kCPU);
+	auto required_state = state.slice(0, state_size-3, state_size).to(torch::kCPU);
     auto required_action = action.to(torch::kCPU);
 
-    real_t normalized_goal_dist = required_state[0].item<real_t>();
-    real_t normalized_frenet_d = required_state[1].item<real_t>();
+	real_t angle_diff_cos = required_state[0].item<real_t>();
+	real_t normalized_alignment = (angle_diff_cos + 1.0f) * 0.5f;
+    real_t normalized_goal_dist = required_state[1].item<real_t>();
+    real_t normalized_frenet_d = required_state[2].item<real_t>();
 
     real_t force = required_action[0].item<real_t>();
     real_t yaw_change = required_action[1].item<real_t>();
 
 	// 보상 컴포넌트들
-	real_t dist_reward = (1.0f - normalized_goal_dist) * 0.55f;             				// 0 ~ 0.55
-	real_t path_reward = std::exp(-std::abs(normalized_frenet_d) * 8.0f) * 0.45f;			// 0 ~ 0.45
+	real_t dist_reward = (1.0f - normalized_goal_dist) * 0.5f;             				// 0 ~ 0.5
+	real_t path_reward = std::exp(-std::abs(normalized_frenet_d) * 8.0f) * 0.4f;		// 0 ~ 0.4
+	real_t alignment_reward = std::exp(-(1.0f - normalized_alignment) * 2.0f) * 0.1f;	// 0 ~ 0.1
 
 	// real_t stop_penalty = force < 0.15f ? std::exp(-force * 8.0f) * 0.1f : 0.0f;								// -0.1 ~ 0.0
 	// real_t turn_penalty = std::abs(yaw_change) > 0.7f ? -0.2f * (std::abs(yaw_change) - 0.5f) : 0.0f; 			// -0.1 ~ 0.0
