@@ -222,7 +222,7 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
     }
 	// real_t dist_reward = (1.0f - normalized_goal_dist) * 0.5f;             				// 0 ~ 0.5
 
-	real_t decay_rate = 8.0f - (1.0f - normalized_goal_dist) * 2.0f;
+	real_t decay_rate = 8.0f - (dist_reward) * 6.0f;
     real_t path_reward = std::exp(-std::abs(normalized_frenet_d) * decay_rate) * 0.4f;
 	// real_t path_reward = std::exp(-std::abs(normalized_frenet_d) * 8.0f) * 0.4f;		// 0 ~ 0.4
 
