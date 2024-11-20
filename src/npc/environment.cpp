@@ -239,7 +239,8 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 	// 	<< std::endl;
 
 	real_t reward = dist_reward +
-			path_reward;
+			path_reward +
+			alignment_reward;
 
 	// 기본 보상 컴포넌트들 (0.0 ~ 1.0 범위로 조정)
 	return std::clamp(reward, 0.0f, 1.0f);
