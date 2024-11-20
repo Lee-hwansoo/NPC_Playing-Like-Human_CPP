@@ -60,7 +60,7 @@ namespace constants
         const Bounds2D SPAWN_BOUNDS(
             RADIUS + WIDTH,
             static_cast<real_t>(Display::WIDTH) - (RADIUS + WIDTH),
-            (RADIUS + WIDTH) + 30,
+            (RADIUS + WIDTH) + 50,
             Section::GOAL_LINE - (RADIUS + WIDTH)
         );
     }
@@ -157,8 +157,8 @@ namespace constants
     namespace NETWORK
     {
         constexpr real_t  MAX_STEP = 4000;
-		constexpr count_type BUFFER_SIZE = 700000;
-		constexpr count_type BATCH_SIZE = 256;
+		constexpr count_type BUFFER_SIZE = 500000;
+		constexpr count_type BATCH_SIZE = 128;
 		constexpr real_t  GAMMA = 0.995f;
 		constexpr real_t  TAU = 0.005f;
 		constexpr real_t  ALPHA = 0.2f;

@@ -214,16 +214,16 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
     real_t yaw_change = required_action[1].item<real_t>();
 
 	// 보상 컴포넌트들
-	real_t dist_linear_reward = (1.0f - normalized_goal_dist) * 0.5f;
-	real_t dist_exp_reward = std::exp(-normalized_goal_dist * 4.0f) * 0.5f;
-	real_t dist_reward = std::max(dist_linear_reward, dist_exp_reward);										// 0 ~ 0.5
+	real_t dist_linear_reward = (1.0f - normalized_goal_dist) * 0.4f;
+	real_t dist_exp_reward = std::exp(-normalized_goal_dist * 4.0f) * 0.4f;
+	real_t dist_reward = std::max(dist_linear_reward, dist_exp_reward);										// 0 ~ 0.4
 
 	real_t sensitivity = 0.0f;
-	if (dist_reward > 0.2f) {
-		sensitivity = (dist_reward * 4.0f);  // 0 ~ 2.0
+	if (dist_reward > 0.25f) {
+		sensitivity = (dist_reward * 5.0f);  // 0 ~ 2.0
 	}
-    real_t path_reward = std::exp(-std::abs(normalized_frenet_d) * (8.0f - sensitivity)) * 0.4f;			// 0 ~ 0.4
-	real_t alignment_reward = std::exp(-(1.0f - normalized_alignment) * (2.0f + sensitivity)) * 0.1f;			// 0 ~ 0.1
+    real_t path_reward = std::exp(-std::abs(normalized_frenet_d) * (8.0f)) * 0.45f;						// 0 ~ 0.45
+	real_t alignment_reward = std::exp(-(1.0f - normalized_alignment) * (2.0f + sensitivity)) * 0.15f;			// 0 ~ 0.15
 
 	// std::cout <<"\ndist: " << normalized_goal_dist
 	// 	<< ", dist_reward: " << dist_reward
