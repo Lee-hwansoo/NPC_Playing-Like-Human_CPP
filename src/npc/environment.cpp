@@ -188,16 +188,16 @@ tensor_t TrainEnvironment::get_observation() const {
 }
 
 real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t& action) {
-	// 중단 보상 (-(5.0 * n_steps))
+	// 중단 보상 (-(1.0 * n_steps))
 	if (truncated_) {
-		return -(5.0f * constants::NETWORK::N_STEPS);
+		return -(1.0f * constants::NETWORK::N_STEPS);
 	}
 
 	// 종료 보상
 	if (terminated_) {
 		// 빠른 도달에 대한 보너스 보상
 		real_t speed_bonus = (1.0f - static_cast<real_t>(step_count_) / constants::NETWORK::MAX_STEP) * constants::NETWORK::N_STEPS;
-		return 3.0f * constants::NETWORK::N_STEPS + (2.0f * speed_bonus);
+		return 1.0f * constants::NETWORK::N_STEPS + (0.5f * speed_bonus);
 	}
 
 	auto state_size = state.size(0);
@@ -213,7 +213,7 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 
 	// 보상 컴포넌트들
 	real_t dist_reward = (1.0f - normalized_goal_dist) * 0.55f;             				// 0 ~ 0.55
-	real_t path_reward = std::exp(-std::abs(normalized_frenet_d) * 7.0f) * 0.45f;			// 0 ~ 0.45
+	real_t path_reward = std::exp(-std::abs(normalized_frenet_d) * 6.0f) * 0.45f;			// 0 ~ 0.45
 
 	// real_t stop_penalty = force < 0.15f ? std::exp(-force * 8.0f) * 0.1f : 0.0f;								// -0.1 ~ 0.0
 	// real_t turn_penalty = std::abs(yaw_change) > 0.7f ? -0.2f * (std::abs(yaw_change) - 0.5f) : 0.0f; 			// -0.1 ~ 0.0
