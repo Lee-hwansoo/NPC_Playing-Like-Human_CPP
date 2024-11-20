@@ -36,7 +36,7 @@ def plot_training_results(result_dir):
     sns.scatterplot(data=rewards_df, x='episode', y=rewards_df['arrived']*100, color='lightgreen', alpha=0.3, ax=ax1_2)
 
     # 1-2. 2. 이동 평균으로 성공률 계산 (window_size는 더 작게 조정 가능)
-    window_size_arrival = 10  # 도착률용 윈도우 사이즈는 별도로 설정
+    window_size_arrival = 20  # 도착률용 윈도우 사이즈는 별도로 설정
     rewards_df['arrival_rate'] = rewards_df['arrived'].rolling(window=window_size_arrival).mean() * 100
 
     # 1-2. 3. 이동 평균 선 추가
