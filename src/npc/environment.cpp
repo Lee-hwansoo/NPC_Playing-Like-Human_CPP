@@ -214,8 +214,18 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
     real_t yaw_change = required_action[1].item<real_t>();
 
 	// 보상 컴포넌트들
-	real_t dist_reward = (1.0f - normalized_goal_dist) * 0.5f;             				// 0 ~ 0.5
-	real_t path_reward = std::exp(-std::abs(normalized_frenet_d) * 8.0f) * 0.4f;		// 0 ~ 0.4
+    real_t dist_reward;
+    if (normalized_goal_dist < 0.2f) {
+        dist_reward = std::exp(-normalized_goal_dist * 4.0f) * 0.5f;
+    } else {
+        dist_reward = (1.0f - normalized_goal_dist) * 0.5f;
+    }
+	// real_t dist_reward = (1.0f - normalized_goal_dist) * 0.5f;             				// 0 ~ 0.5
+
+	real_t decay_rate = 8.0f - (1.0f - normalized_goal_dist) * 2.0f;
+    real_t path_reward = std::exp(-std::abs(normalized_frenet_d) * decay_rate) * 0.4f;
+	// real_t path_reward = std::exp(-std::abs(normalized_frenet_d) * 8.0f) * 0.4f;		// 0 ~ 0.4
+
 	real_t alignment_reward = std::exp(-(1.0f - normalized_alignment) * 2.0f) * 0.1f;	// 0 ~ 0.1
 
 	// real_t stop_penalty = force < 0.15f ? std::exp(-force * 8.0f) * 0.1f : 0.0f;								// -0.1 ~ 0.0
