@@ -216,12 +216,11 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 	// 보상 컴포넌트들
 	real_t dist_linear_reward = (1.0f - normalized_goal_dist) * 0.5f;
 	real_t dist_exp_reward = std::exp(-normalized_goal_dist * 4.0f) * 0.5f;
-	real_t dist_reward = std::max(dist_linear_reward, dist_exp_reward);						// 0 ~ 0.5
+	real_t dist_reward = std::max(dist_linear_reward, dist_exp_reward);										// 0 ~ 0.5
 
-	real_t decay_rate = 8.0f - ((dist_reward) * 10.0f);		// 8 ~ 3
-    real_t path_reward = std::exp(-std::abs(normalized_frenet_d) * decay_rate) * 0.4f;	// 0 ~ 0.4
-
-	real_t alignment_reward = std::exp(-(1.0f - normalized_alignment) * 2.0f) * 0.1f;			// 0 ~ 0.1
+	real_t sensitivity = (dist_reward * 6.0f);  // 0 ~ 3.0
+    real_t path_reward = std::exp(-std::abs(normalized_frenet_d) * (8.0f - sensitivity)) * 0.4f;			// 0 ~ 0.4
+	real_t alignment_reward = std::exp(-(1.0f - normalized_alignment) * (1.0f + sensitivity)) * 0.1f;			// 0 ~ 0.1
 
 	// std::cout <<"\ndist: " << normalized_goal_dist
 	// 	<< ", dist_reward: " << dist_reward
