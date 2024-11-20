@@ -215,7 +215,7 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 
 	// 보상 컴포넌트들
     real_t dist_reward;
-    if (normalized_goal_dist < 0.2f) {
+    if (normalized_goal_dist < 0.3f) {
         dist_reward = std::exp(-normalized_goal_dist * 4.0f) * 0.5f;
     } else {
         dist_reward = (1.0f - normalized_goal_dist) * 0.5f;
