@@ -479,8 +479,25 @@ index_type Agent::get_closest_waypoint() {
 	tensor_t expanded_position = position_.unsqueeze(0).expand_as(initial_path_);
     tensor_t distances = torch::norm(initial_path_ - expanded_position, 2, 1);
 
-	torch::Tensor min_idx;
-	std::tie(std::ignore, min_idx) = torch::min(distances, 0);
+	// torch::Tensor min_idx;
+	// std::tie(std::ignore, min_idx) = torch::min(distances, 0);
+
+    // 에이전트의 진행 방향 벡터
+    tensor_t agent_dir = torch::tensor({std::cos(yaw_), std::sin(yaw_)});
+
+    // 각 웨이포인트까지의 방향 벡터 계산 및 정규화
+    tensor_t path_directions = initial_path_ - expanded_position;
+    path_directions = path_directions / (distances.unsqueeze(1) + 1e-6);
+
+    // 진행 방향과의 일치도 계산 (-1 ~ 1)
+    tensor_t direction_scores = torch::matmul(path_directions, agent_dir);
+
+    // 거리와 방향을 모두 고려한 가중치 계산
+    // 방향 가중치(20.0f)는 튜닝 가능한 파라미터
+    tensor_t weighted_distances = distances - direction_scores * 20.0f;
+
+    torch::Tensor min_idx;
+    std::tie(std::ignore, min_idx) = torch::min(weighted_distances, 0);
 
 	return min_idx.item<index_type>();
 }
@@ -600,10 +617,10 @@ tensor_t Agent::get_state() const {
     auto normalized_position = position_ / torch::tensor({static_cast<real_t>(constants::Display::WIDTH), static_cast<real_t>(constants::Display::HEIGHT)}); // [2]
     auto normalized_yaw = torch::tensor({std::sin(yaw_), std::cos(yaw_)}); // [2]
     auto normalized_velocity = velocity_ / constants::Agent::VELOCITY_LIMITS.b; // [2]
-    auto goal_in_fov_tensor = torch::tensor({static_cast<real_t>(is_goal_in_fov_)}); // [1]
     auto normalized_angle_diff = torch::tensor({std::sin(angle_to_goal_), std::cos(angle_to_goal_)}); // [2]
     auto normalized_goal_dist = torch::tensor({goal_distance_ / std::sqrt(constants::Display::WIDTH * constants::Display::WIDTH + constants::Display::HEIGHT * constants::Display::HEIGHT)}); // [1]
     auto normalized_frenet_d = torch::tensor({frenet_d_ / (constants::Display::WIDTH > constants::Display::HEIGHT ? constants::Display::WIDTH : constants::Display::HEIGHT)}); // [1]
+    // auto goal_in_fov_tensor = torch::tensor({static_cast<real_t>(is_goal_in_fov_)}); // [1]
     // auto normalized_frenet_point = torch::tensor({frenet_point_.a / constants::Display::WIDTH, frenet_point_.b / constants::Display::HEIGHT}); // [2]
 
     // std::cout << "\nyaw_: " << yaw_
@@ -622,11 +639,10 @@ tensor_t Agent::get_state() const {
         normalized_position,
         normalized_yaw,
         normalized_velocity,
-        goal_in_fov_tensor,
         normalized_angle_diff,
         normalized_goal_dist,
         normalized_frenet_d
-    }); // [num_rays + 11]
+    }); // [num_rays + 10]
 
     return state;
 };

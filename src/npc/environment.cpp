@@ -9,7 +9,7 @@ namespace environment {
 TrainEnvironment::TrainEnvironment(count_type width, count_type height, torch::Device device, count_type agent_count, bool init)
 	: BaseEnvironment(width, height, device)
 	, agent_count_(agent_count) {
-	set_observation_dim(constants::Agent::FOV::RAY_COUNT + 11);
+	set_observation_dim(constants::Agent::FOV::RAY_COUNT + 10);
 	set_action_dim(2);
 
 	std::cout << "Environment initialized, device: " << device_ << std::endl;
