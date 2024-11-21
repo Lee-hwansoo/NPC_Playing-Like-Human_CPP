@@ -156,7 +156,7 @@ namespace constants
 	//--------------------------------------------------------------------------------
     namespace NETWORK
     {
-        constexpr real_t  MAX_STEP = 4000;
+        constexpr real_t  MAX_STEP = 3000;
 		constexpr count_type BUFFER_SIZE = 700000;
 		constexpr count_type BATCH_SIZE = 256;
 		constexpr real_t  GAMMA = 0.995f;
