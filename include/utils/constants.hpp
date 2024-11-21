@@ -60,7 +60,7 @@ namespace constants
         const Bounds2D SPAWN_BOUNDS(
             RADIUS + WIDTH,
             static_cast<real_t>(Display::WIDTH) - (RADIUS + WIDTH),
-            (RADIUS + WIDTH) + 50,
+            (RADIUS + WIDTH),
             Section::GOAL_LINE - (RADIUS + WIDTH)
         );
     }
@@ -70,7 +70,7 @@ namespace constants
     //--------------------------------------------------------------------------------
     namespace Agent
     {
-        constexpr real_t  RADIUS = 10.0f;
+        constexpr real_t RADIUS = 10.0f;
 
         // Movement boundaries
         const Bounds2D SPAWN_BOUNDS(
@@ -88,7 +88,7 @@ namespace constants
 		);
 
         // Movement constraints
-        const Vector2 VELOCITY_LIMITS(10.0f, 50.0f);  // Range: 1~5 m/s
+        const Vector2 VELOCITY_LIMITS(0.0f, 50.0f);  // Range: 0~5 m/s
         constexpr real_t YAW_CHANGE_LIMIT = 120.0f * DEG_TO_RAD;  // 120 degrees/s
 
         // Field of View (FOV) properties
@@ -96,7 +96,7 @@ namespace constants
         {
             constexpr real_t ANGLE = 280.0f * DEG_TO_RAD;  // 280 degrees
             constexpr real_t RANGE = 200.0f;  // 20m in simulation
-            constexpr count_type RAY_COUNT = 28;
+            constexpr count_type RAY_COUNT = 56;
         }
     }
 
@@ -157,8 +157,8 @@ namespace constants
     namespace NETWORK
     {
         constexpr real_t  MAX_STEP = 4000;
-		constexpr count_type BUFFER_SIZE = 500000;
-		constexpr count_type BATCH_SIZE = 128;
+		constexpr count_type BUFFER_SIZE = 700000;
+		constexpr count_type BATCH_SIZE = 256;
 		constexpr real_t  GAMMA = 0.995f;
 		constexpr real_t  TAU = 0.005f;
 		constexpr real_t  ALPHA = 0.2f;
@@ -167,6 +167,6 @@ namespace constants
         constexpr count_type UPDATE_INTERVAL = 5;
         constexpr count_type LOG_INTERVAL = 25;
 
-        constexpr types::count_type N_STEPS = 3;
+        constexpr types::count_type N_STEPS = 4;
     }
 }
