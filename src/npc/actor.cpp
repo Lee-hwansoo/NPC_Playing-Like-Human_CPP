@@ -20,9 +20,13 @@ void ActorImpl::initialize_network(torch::Device device) {
 	fc1 = register_module("fc1", torch::nn::Linear(state_dim_, 128));
 	ln1 = register_module("ln1", torch::nn::LayerNorm(torch::nn::LayerNormOptions({128})));
 	fc2 = register_module("fc2", torch::nn::Linear(128, 256));
+	ln2 = register_module("ln2", torch::nn::LayerNorm(torch::nn::LayerNormOptions({256})));
 	fc3 = register_module("fc3", torch::nn::Linear(256, 256));
-	fc4 = register_module("fc4", torch::nn::Linear(256, 128));
-	ln4 = register_module("ln4", torch::nn::LayerNorm(torch::nn::LayerNormOptions({128})));
+	ln3 = register_module("ln3", torch::nn::LayerNorm(torch::nn::LayerNormOptions({256})));
+	fc4 = register_module("fc4", torch::nn::Linear(256, 256));
+	ln4 = register_module("ln4", torch::nn::LayerNorm(torch::nn::LayerNormOptions({256})));
+	fc5 = register_module("fc5", torch::nn::Linear(256, 128));
+	ln5 = register_module("ln5", torch::nn::LayerNorm(torch::nn::LayerNormOptions({128})));
 	fc_mean = register_module("fc_mean", torch::nn::Linear(128, action_dim_));
 	fc_log_std = register_module("fc_log_std", torch::nn::Linear(128, action_dim_));
 
@@ -33,23 +37,64 @@ void ActorImpl::initialize_network(torch::Device device) {
 		const auto& child = pair.value();
 
 		if (auto* linear = child->as<torch::nn::LinearImpl>()) {
-			// torch::nn::init::xavier_uniform_(linear->weight);
+			if (name != "fc_mean" && name != "fc_log_std"){
+				torch::nn::init::kaiming_normal_(
+					linear->weight,
+					std::sqrt(2.0f / (1.0f + std::pow(0.01, 2))),
+					torch::kFanOut,
+					torch::kLeakyReLU
+				);
 
-            torch::nn::init::kaiming_normal_(
-                linear->weight,
-                0.0,
-                torch::kFanIn,
-                torch::kReLU
-            );
+				torch::nn::init::constant_(linear->bias, 0.1);
 
-			torch::nn::init::constant_(linear->bias, 0.0);
-
-			count++;
-			std::cout << "Initializing parameters for layer " << count
-				<< " (" << name << ": "
-				<< linear->weight.size(1) << " -> "
-				<< linear->weight.size(0) << ")" << std::endl;
+				count++;
+				std::cout << "Initializing parameters for layer " << count
+					<< " (" << name << ": "
+					<< linear->weight.size(1) << " -> "
+					<< linear->weight.size(0) << ")" << std::endl;
+			}
 		}
+	}
+
+	// Policy mean 출력층 초기화
+	torch::nn::init::kaiming_normal_(
+		fc_mean->weight,
+		std::sqrt(0.2f),
+		torch::kFanIn,
+		torch::kLeakyReLU
+	);
+	torch::nn::init::constant_(fc_mean->bias, 0.0);
+
+    std::cout << "Initializing parameters for Policy mean output layer"
+        << " (fc_mean: " << fc_mean->weight.size(1) << " -> "
+        << fc_mean->weight.size(0) << ")" << std::endl;
+
+	// Log std 출력층 초기화
+	torch::nn::init::kaiming_normal_(
+		fc_log_std->weight,
+		std::sqrt(0.1f),
+		torch::kFanIn,
+		torch::kLeakyReLU
+	);
+	torch::nn::init::constant_(fc_log_std->bias, -1.0);
+
+    std::cout << "Initializing parameters for Log std output layer"
+        << " (fc_log_std: " << fc_log_std->weight.size(1) << " -> "
+        << fc_log_std->weight.size(0) << ")" << std::endl;
+
+	std::cout << "\nNetwork Weight Statistics:" << std::endl;
+	for (const auto& pair : named_parameters()) {
+		const auto& name = pair.key();
+		const auto& param = pair.value();
+
+		auto mean = param.mean().item<real_t>();
+		auto std = param.std().item<real_t>();
+		auto max_abs = param.abs().max().item<real_t>();
+
+		std::cout << name << ":"
+					<< " mean=" << mean
+					<< " std=" << std
+					<< " max_abs=" << max_abs << std::endl;
 	}
 
 	to(device);
@@ -66,10 +111,11 @@ void ActorImpl::to(torch::Device device) {
 std::tuple<tensor_t, tensor_t> ActorImpl::forward(const tensor_t& state) {
 	auto x = state.to(this->device());
 
-    x = torch::gelu(ln1->forward(fc1->forward(x)));
-    x = torch::gelu(fc2->forward(x));
-    x = torch::gelu(fc3->forward(x));
-    x = torch::gelu(ln4->forward(fc4->forward(x)));
+    x = torch::leaky_relu(ln1->forward(fc1->forward(x)), 0.01);
+    x = torch::leaky_relu(ln2->forward(fc2->forward(x)), 0.01);
+    x = torch::leaky_relu(ln3->forward(fc3->forward(x)), 0.01);
+    x = torch::leaky_relu(ln4->forward(fc4->forward(x)), 0.01);
+	x = torch::leaky_relu(ln5->forward(fc5->forward(x)), 0.01);
 
 	auto mean = fc_mean->forward(x);
 	auto log_std = torch::clamp(fc_log_std->forward(x), -20.0, 2.0);
@@ -82,21 +128,24 @@ std::tuple<tensor_t, tensor_t> ActorImpl::sample(const tensor_t& batch_state) {
 
 	auto [mean, log_std] = forward(x);
 
+	const real_t epsilon = 1e-6;
+
 	auto std = torch::exp(log_std);
-	auto epsilon = torch::randn_like(mean);
-	auto x_t = mean + epsilon * std;
-	auto action = torch::tanh(x_t);
-	action = (action + 1.0) / 2.0;
-	action = action * (max_action_ - min_action_) + min_action_;
+	auto noise = torch::randn_like(mean);
+	auto x_t = mean + noise * std;
+	auto raw_action = torch::tanh(x_t);
 
-	auto log_prob = -0.5 * (
-		((x_t - mean) / std).pow(2) +
-		2.0 * log_std +
-		std::log(2.0 * constants::PI)
-		);
+    auto log_prob = -0.5 * (
+        ((x_t - mean) / (std + epsilon)).pow(2) +
+        2.0 * log_std +
+        std::log(2.0 * constants::PI)
+    );
 
-	log_prob = log_prob - torch::log(1.0 - action.pow(2) + 1e-6);
+	log_prob = log_prob - torch::log(1.0 - raw_action.pow(2) + epsilon);
 	log_prob = log_prob.sum(1, true);
+
+	auto action = (raw_action + 1.0) / 2.0;
+	action = action * (max_action_ - min_action_) + min_action_;
 
 	return std::make_tuple(action, log_prob);
 }
