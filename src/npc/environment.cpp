@@ -190,15 +190,12 @@ tensor_t TrainEnvironment::get_observation() const {
 real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t& action) {
 	// 중단 보상 (충돌, 경계, 최대 스텝)
 	if (truncated_) {
-		// return -(1.0f * constants::NETWORK::N_STEPS);
 		return 0.0f;
 	}
 
 	// 종료 보상
 	if (terminated_) {
 		// 빠른 도달에 대한 보너스 보상
-		// real_t speed_bonus = (1.0f - static_cast<real_t>(step_count_) / constants::NETWORK::MAX_STEP) * constants::NETWORK::N_STEPS;
-		// return (4.0f * constants::NETWORK::N_STEPS) + (2.0f * speed_bonus);
 		real_t speed_bonus = (1.0f - static_cast<real_t>(step_count_) / constants::NETWORK::MAX_STEP);
 		return 2.0f + speed_bonus;
 	}
@@ -221,19 +218,19 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 	real_t path_factor = 0.5f;			// 0.0 ~ 0.5
 	real_t alignment_factor = 0.1f;		// 0.0 ~ 0.1
 
-	real_t dist_linear_reward = (1.0f - normalized_goal_dist) * dist_factor;
-	real_t dist_exp_reward = std::exp(-normalized_goal_dist * 10.0f) * dist_factor;
-	real_t dist_reward = std::max(dist_linear_reward, dist_exp_reward);
+	real_t dist_linear = (1.0f - normalized_goal_dist);
+	real_t dist_exp = std::exp(-normalized_goal_dist * 10.0f);
+	real_t dist_reward = std::max(dist_linear, dist_exp) * dist_factor;
 
 	real_t path_reward = 0.0f;
 	real_t alignment_reward = 0.0f;
 	real_t sensitivity = 0.0f;
-	if (dist_reward > (dist_factor * 0.45f)) {
-		sensitivity = (dist_reward * 6.0f);  // 0 ~ 2.1
+	if (dist_reward > (dist_factor * 0.5f)) {
+		sensitivity = (dist_reward * 6.0f);  // 0 ~ 2.4
 	}
 	if (dist_reward > (dist_factor * 0.75f)){
-		real_t gamma = std::min(dist_reward, 0.35f);
-		path_reward = std::exp(-std::abs(normalized_frenet_d) * (8.0f)) * (path_factor - gamma);
+		real_t gamma = std::min(dist_reward, 0.25f);
+		path_reward = std::exp(-std::abs(normalized_frenet_d) * (8.0f - sensitivity)) * (path_factor - gamma);
 		alignment_reward = std::exp(-(1.0f - normalized_alignment) * (2.0f + sensitivity)) * (alignment_factor + gamma);
 	}else{
 		path_reward = std::exp(-std::abs(normalized_frenet_d) * (8.0f)) * path_factor;
