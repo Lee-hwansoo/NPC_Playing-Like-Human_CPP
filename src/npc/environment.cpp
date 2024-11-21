@@ -222,7 +222,7 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 	real_t alignment_factor = 0.1f;		// 0.0 ~ 0.1
 
 	real_t dist_linear_reward = (1.0f - normalized_goal_dist) * dist_factor;
-	real_t dist_exp_reward = std::exp(-normalized_goal_dist * 8.0f) * dist_factor;
+	real_t dist_exp_reward = std::exp(-normalized_goal_dist * 9.0f) * dist_factor;
 	real_t dist_reward = std::max(dist_linear_reward, dist_exp_reward);
 
 	real_t path_reward = 0.0f;
@@ -231,8 +231,8 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 	if (dist_reward > (dist_factor * 0.45f)) {
 		sensitivity = (dist_reward * 6.0f);  // 0 ~ 2.1
 	}
-	if (dist_reward > (dist_factor * 0.85f)){
-		real_t gamma = dist_reward;
+	if (dist_reward > (dist_factor * 0.8f)){
+		real_t gamma = std::min(dist_reward, 0.25f);
 		path_reward = std::exp(-std::abs(normalized_frenet_d) * (8.0f)) * (path_factor - gamma);
 		alignment_reward = std::exp(-(1.0f - normalized_alignment) * (2.0f + sensitivity)) * (alignment_factor + gamma);
 	}else{
