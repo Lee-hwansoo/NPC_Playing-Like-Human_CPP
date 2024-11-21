@@ -231,7 +231,7 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 	if (dist_reward > (dist_factor * 0.45f)) {
 		sensitivity = (dist_reward * 6.0f);  // 0 ~ 2.1
 	}
-	if (dist_reward > (dist_factor * 0.8f)){
+	if (dist_reward > (dist_factor * 0.75f)){
 		real_t gamma = std::min(dist_reward, 0.3f);
 		path_reward = std::exp(-std::abs(normalized_frenet_d) * (8.0f)) * (path_factor - gamma);
 		alignment_reward = std::exp(-(1.0f - normalized_alignment) * (2.0f + sensitivity)) * (alignment_factor + gamma);
