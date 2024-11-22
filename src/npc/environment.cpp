@@ -218,26 +218,18 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 	real_t path_factor = 0.5f;			// 0.0 ~ 0.5
 	real_t alignment_factor = 0.1f;		// 0.0 ~ 0.1
 
-	// real_t dist_reward = 0.0f;
-	// // real_t dist_preprocess = 0.0f;
-	// // if (normalized_goal_dist < 0.1f) {
-	// // 	dist_preprocess = std::pow(1.0f - normalized_goal_dist, 5.0f);
-	// // } else {
-	// // 	dist_preprocess = std::pow(1.0f - normalized_goal_dist, 2.0f);
-	// // }
-	// real_t power = 5.0f - 3.0f / (1.0f + std::exp(-(normalized_goal_dist - 0.1f) * 20.0f));
-	// real_t dist_preprocess = std::pow(1.0f - normalized_goal_dist, power);
-	// dist_reward = std::exp(-(1.0f - dist_preprocess) * 3.0f) * dist_factor;
-
-	real_t exp_factor = 2.0f;  // 기본 지수 계수
-	if (normalized_goal_dist < 0.05f) {
-		exp_factor = 2.0f + 38.0f * (normalized_goal_dist/0.05f);  // 2.0 ~ 40.0
+	real_t dist_reward = 0.0f;
+	if (normalized_goal_dist > 0.1f) {
+		dist_reward = (0.7f * (1.0f - (normalized_goal_dist - 0.1f) / 0.9f)) * dist_factor;
+	} else {
+		dist_reward = (0.7f + 0.3f * (std::pow(1.0f - normalized_goal_dist / 0.1f, 2))) * dist_factor;
 	}
-
-	real_t dist_reward = std::exp(-(normalized_goal_dist * exp_factor)) * dist_factor;
 
 	real_t path_reward = 0.0f;
 	real_t alignment_reward = 0.0f;
+	path_reward = std::exp(-std::abs(normalized_frenet_d) * (8.0f)) * path_factor;
+	alignment_reward = std::exp(-(1.0f - normalized_alignment) * (2.0f)) * alignment_factor;
+
 	// if (normalized_goal_dist < 0.1f) {
 	// 	path_reward = std::exp(-std::abs(normalized_frenet_d) * (8.0f)) * path_factor;
 	// 	alignment_reward = std::exp(-(1.0f - normalized_alignment) * (4.0f)) * alignment_factor;
@@ -246,32 +238,14 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 	// 	alignment_reward = std::exp(-(1.0f - normalized_alignment) * (2.0f)) * alignment_factor;
 	// }
 
-	path_reward = std::exp(-std::abs(normalized_frenet_d) * (8.0f)) * path_factor;
-	alignment_reward = std::exp(-(1.0f - normalized_alignment) * (2.0f)) * alignment_factor;
-
-	std::cout <<"\ndist: " << normalized_goal_dist
-		<< ", dist_reward: " << dist_reward
-		<< std::endl;
-
 	// std::cout <<"\ndist: " << normalized_goal_dist
 	// 	<< ", dist_reward: " << dist_reward
 	// 	<< ", path_reward: " << path_reward
 	// 	<< ", alignment_reward: " << alignment_reward
 	// 	<< std::endl;
 
-	// real_t dist_reward = (1.0f - normalized_goal_dist) * 0.5f;             				// 0 ~ 0.5
-	// real_t dist_reward = std::exp(-normalized_goal_dist * 4.0f) * 0.5f;
-	// real_t path_reward = std::exp(-std::abs(normalized_frenet_d) * 8.0f) * 0.4f;		// 0 ~ 0.4
 	// real_t stop_penalty = force < 0.15f ? std::exp(-force * 8.0f) * 0.1f : 0.0f;								// -0.1 ~ 0.0
 	// real_t turn_penalty = std::abs(yaw_change) > 0.7f ? -0.2f * (std::abs(yaw_change) - 0.5f) : 0.0f; 			// -0.1 ~ 0.0
-
-	// std::cout << "\nyaw_change: " << yaw_change
-	// 	<< ", turn_reward: " << turn_reward
-	// 	<< std::endl;
-
-	// std::cout << "\nforce: " << force
-	// 	<< ", stop_penalty: " << stop_penalty
-	// 	<< std::endl;
 
 	real_t reward = dist_reward +
 			path_reward +

@@ -5,12 +5,21 @@ import matplotlib.pyplot as plt
 def calculate_distance_reward(normalized_goal_dist, dist_factor=0.4):
     """
     거리 기반 보상 계산
+    - 1~0.1: 전체 보상의 70% (완만한 증가)
+    - 0.1~0: 나머지 30% (급격한 증가)
     """
-    exp_factor = 2.0
-    if normalized_goal_dist < 0.05:
-        exp_factor = 2.0 + 38.0 * (normalized_goal_dist / 0.05)
-    reward = np.exp(-normalized_goal_dist * exp_factor) * dist_factor
-    return reward
+    if normalized_goal_dist > 0.1:
+        # 1~0.1 구간: 70%의 보상을 완만하게 분배
+        reward = 0.6 * (1 - (normalized_goal_dist - 0.1) / 0.9)
+    else:
+        # 0.1~0 구간: 나머지 30%의 보상을 급격하게 분배
+        # 이차함수를 사용하여 0에 가까워질수록 더 가파른 증가
+        base_reward = 0.6  # 0.1 지점에서의 보상
+        remaining_reward = 0.4  # 남은 30%의 보상
+        progress = 1 - (normalized_goal_dist / 0.1)  # 0.1에서 0까지의 진행도
+        reward = base_reward + remaining_reward * (progress ** 2)
+
+    return reward * dist_factor
 
 def calculate_path_reward(normalized_frenet_d, path_factor=0.5):
     """
@@ -54,7 +63,7 @@ def visualize_rewards():
 
     plt.subplot(3, 1, 1)
     plt.plot(x_dist, y_dist, 'b-', label='Distance Reward', linewidth=2)
-    plt.axvline(x=0.05, color='r', linestyle='--', label='Transition Point')
+    plt.axvline(x=0.1, color='r', linestyle='--', label='Transition Point')
     plt.title('Distance Reward')
     plt.xlabel('Normalized Goal Distance')
     plt.ylabel('Reward')
@@ -100,8 +109,8 @@ def analyze_rewards1():
 
 def analyze_rewards2():
     distances = {
-        "근거리": [0.001, 0.005, 0.01, 0.02, 0.03, 0.04, 0.05],
-        "전환점 근처": [0.048, 0.049, 0.05, 0.051, 0.052],
+        "근거리": [0.001, 0.002, 0.003, 0.008, 0.015, 0.02, 0.025, 0.03, 0.035],
+        "전환점 근처": [0.098, 0.099, 0.1, 0.11, 0.12],
         "원거리": [0.1, 0.2, 0.3, 0.4, 0.5, 0.7, 1.0]
     }
 
@@ -118,8 +127,8 @@ def analyze_rewards2():
             prev_reward = reward
 
     # 변화율 분석
-    print("\n변화율 분석 (근거리):")
-    close_points = [0.001, 0.005, 0.01, 0.02, 0.03, 0.04]
+    print("\n변화율 분석:")
+    close_points = [0.001, 0.005, 0.01, 0.02, 0.03, 0.04, 0.1, 0.3, 0.5, 1.0]
     for i in range(len(close_points)-1):
         d1, d2 = close_points[i], close_points[i+1]
         r1 = calculate_distance_reward(d1)
