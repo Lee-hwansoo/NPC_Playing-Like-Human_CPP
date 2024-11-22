@@ -197,7 +197,7 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 	if (terminated_) {
 		// 빠른 도달에 대한 보너스 보상
 		real_t speed_bonus = (1.0f - static_cast<real_t>(step_count_) / constants::NETWORK::MAX_STEP);
-		return 2.0f + speed_bonus;
+		return (1.0f * constants::NETWORK::N_STEPS)  + (speed_bonus * constants::NETWORK::N_STEPS);
 	}
 
 	auto state_size = state.size(0);
@@ -218,28 +218,44 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 	real_t path_factor = 0.5f;			// 0.0 ~ 0.5
 	real_t alignment_factor = 0.1f;		// 0.0 ~ 0.1
 
-	real_t dist_linear = (1.0f - normalized_goal_dist);
-	real_t dist_exp = std::exp(-normalized_goal_dist * 10.0f);
-	real_t dist_reward = std::max(dist_linear, dist_exp) * dist_factor;
+	// real_t dist_reward = 0.0f;
+	// // real_t dist_preprocess = 0.0f;
+	// // if (normalized_goal_dist < 0.1f) {
+	// // 	dist_preprocess = std::pow(1.0f - normalized_goal_dist, 5.0f);
+	// // } else {
+	// // 	dist_preprocess = std::pow(1.0f - normalized_goal_dist, 2.0f);
+	// // }
+	// real_t power = 5.0f - 3.0f / (1.0f + std::exp(-(normalized_goal_dist - 0.1f) * 20.0f));
+	// real_t dist_preprocess = std::pow(1.0f - normalized_goal_dist, power);
+	// dist_reward = std::exp(-(1.0f - dist_preprocess) * 3.0f) * dist_factor;
+
+	real_t exp_factor = 2.0f;  // 기본 지수 계수
+	if (normalized_goal_dist < 0.05f) {
+		exp_factor = 2.0f + 38.0f * (normalized_goal_dist/0.05f);  // 2.0 ~ 40.0
+	}
+
+	real_t dist_reward = std::exp(-(normalized_goal_dist * exp_factor)) * dist_factor;
 
 	real_t path_reward = 0.0f;
 	real_t alignment_reward = 0.0f;
-	real_t sensitivity = 0.0f;
-	if (dist_reward > (dist_factor * 0.5f)) {
-		sensitivity = (dist_reward * 6.0f);  // 0 ~ 2.4
-	}
-	if (dist_reward > (dist_factor * 0.75f)){
-		real_t gamma = std::min(dist_reward, 0.25f);
-		path_reward = std::exp(-std::abs(normalized_frenet_d) * (8.0f - sensitivity)) * (path_factor - gamma);
-		alignment_reward = std::exp(-(1.0f - normalized_alignment) * (2.0f + sensitivity)) * (alignment_factor + gamma);
-	}else{
-		path_reward = std::exp(-std::abs(normalized_frenet_d) * (8.0f)) * path_factor;
-		alignment_reward = std::exp(-(1.0f - normalized_alignment) * (2.0f + sensitivity)) * alignment_factor;
-	}
+	// if (normalized_goal_dist < 0.1f) {
+	// 	path_reward = std::exp(-std::abs(normalized_frenet_d) * (8.0f)) * path_factor;
+	// 	alignment_reward = std::exp(-(1.0f - normalized_alignment) * (4.0f)) * alignment_factor;
+	// }else{
+	// 	path_reward = std::exp(-std::abs(normalized_frenet_d) * (8.0f)) * path_factor;
+	// 	alignment_reward = std::exp(-(1.0f - normalized_alignment) * (2.0f)) * alignment_factor;
+	// }
+
+	path_reward = std::exp(-std::abs(normalized_frenet_d) * (8.0f)) * path_factor;
+	alignment_reward = std::exp(-(1.0f - normalized_alignment) * (2.0f)) * alignment_factor;
+
+	std::cout <<"\ndist: " << normalized_goal_dist
+		<< ", dist_reward: " << dist_reward
+		<< std::endl;
 
 	// std::cout <<"\ndist: " << normalized_goal_dist
 	// 	<< ", dist_reward: " << dist_reward
-	// 	<< ", path_reward: " << path_reward << ", decay_rate: " << decay_rate
+	// 	<< ", path_reward: " << path_reward
 	// 	<< ", alignment_reward: " << alignment_reward
 	// 	<< std::endl;
 
