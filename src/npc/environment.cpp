@@ -187,7 +187,7 @@ tensor_t TrainEnvironment::get_observation() const {
 	return agents_[0]->get_state();
 }
 
-real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t& action) {
+real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t& action, bool debug) {
 	// 중단 보상 (충돌, 경계, 최대 스텝)
 	if (truncated_) {
 		return 0.0f;
@@ -220,29 +220,30 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 
 	real_t dist_reward = 0.0f;
 	if (normalized_goal_dist > 0.1f) {
-		dist_reward = (0.7f * (1.0f - (normalized_goal_dist - 0.1f) / 0.9f)) * dist_factor;
+		dist_reward = (0.7f * ((1.0f - normalized_goal_dist) / 0.9f)) * dist_factor;
 	} else {
-		dist_reward = (0.7f + 0.3f * (std::pow(1.0f - normalized_goal_dist / 0.1f, 2))) * dist_factor;
+		dist_reward = (0.7f + 0.3f * ((0.1f - normalized_goal_dist) / 0.1f)) * dist_factor;
 	}
 
 	real_t path_reward = 0.0f;
 	real_t alignment_reward = 0.0f;
-	path_reward = std::exp(-std::abs(normalized_frenet_d) * (8.0f)) * path_factor;
-	alignment_reward = std::exp(-(1.0f - normalized_alignment) * (2.0f)) * alignment_factor;
+	// path_reward = std::exp(-std::abs(normalized_frenet_d) * (8.0f)) * path_factor;
+	// alignment_reward = std::exp(-(1.0f - normalized_alignment) * (2.0f)) * alignment_factor;
+	if (normalized_goal_dist < 0.125f) {
+		path_reward = std::exp(-std::abs(normalized_frenet_d) * (8.0f)) * path_factor;
+		alignment_reward = std::exp(-(1.0f - normalized_alignment) * (4.0f)) * alignment_factor;
+	}else{
+		path_reward = std::exp(-std::abs(normalized_frenet_d) * (8.0f)) * path_factor;
+		alignment_reward = std::exp(-(1.0f - normalized_alignment) * (2.0f)) * alignment_factor;
+	}
 
-	// if (normalized_goal_dist < 0.1f) {
-	// 	path_reward = std::exp(-std::abs(normalized_frenet_d) * (8.0f)) * path_factor;
-	// 	alignment_reward = std::exp(-(1.0f - normalized_alignment) * (4.0f)) * alignment_factor;
-	// }else{
-	// 	path_reward = std::exp(-std::abs(normalized_frenet_d) * (8.0f)) * path_factor;
-	// 	alignment_reward = std::exp(-(1.0f - normalized_alignment) * (2.0f)) * alignment_factor;
-	// }
-
-	// std::cout <<"\ndist: " << normalized_goal_dist
-	// 	<< ", dist_reward: " << dist_reward
-	// 	<< ", path_reward: " << path_reward
-	// 	<< ", alignment_reward: " << alignment_reward
-	// 	<< std::endl;
+	if (debug){
+		std::cout <<"\ndist: " << normalized_goal_dist
+			<< ", dist_reward: " << dist_reward
+			<< ", path_reward: " << path_reward
+			<< ", alignment_reward: " << alignment_reward
+			<< std::endl;
+	}
 
 	// real_t stop_penalty = force < 0.15f ? std::exp(-force * 8.0f) * 0.1f : 0.0f;								// -0.1 ~ 0.0
 	// real_t turn_penalty = std::abs(yaw_change) > 0.7f ? -0.2f * (std::abs(yaw_change) - 0.5f) : 0.0f; 			// -0.1 ~ 0.0
@@ -255,8 +256,8 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 	return std::clamp(reward, 0.0f, 1.0f);
 }
 
-std::tuple<tensor_t, tensor_t, bool, bool> TrainEnvironment::step(const tensor_t& state, const tensor_t& action) {
-	tensor_t reward = torch::tensor(calculate_reward(state, action));
+std::tuple<tensor_t, tensor_t, bool, bool> TrainEnvironment::step(const tensor_t& state, const tensor_t& action, bool debug) {
+	tensor_t reward = torch::tensor(calculate_reward(state, action, debug));
 	terminated_ = check_goal();
 	truncated_ = check_bounds() || check_obstacle_collision() || step_count_ >= constants::NETWORK::MAX_STEP;
 
@@ -284,6 +285,7 @@ TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, boo
 	SDL_Event event;
 	bool is_render = render;
 	bool is_debug = debug;
+	bool is_reward = false;
 	bool is_paused = false;
     std::vector<SACResult> result_history;
 	std::vector<SACMetrics> metrics_history;
@@ -334,7 +336,11 @@ TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, boo
                             is_debug = !is_debug;
 							force = 0.0f;
                             yaw_change = 0.0f;
-                            std::cout << "Debug mode: " << (is_debug ? "ON" : "OFF") << std::endl;
+                            std::cout << "\nDebug mode: " << (is_debug ? "ON" : "OFF") << std::endl;
+                            break;
+                        case SDLK_c:
+                            is_reward = !is_reward;
+							std::cout << "\nPrint Reward: " << (is_reward ? "ON" : "OFF") << std::endl;
                             break;
                     }
                     if (is_debug) {
@@ -385,9 +391,13 @@ TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, boo
 			}
 
 			// tensor_t action = sac_->select_action(state);
-			auto [next_state, reward, terminated, truncated] = step(state, action);
+			auto [next_state, reward, terminated, truncated] = step(state, action, is_reward);
 			done = terminated || truncated;
 			tensor_t done_tensor = torch::tensor(done, get_tensor_dtype());
+
+			if(is_debug){
+				state = next_state;
+			}
 
 			if (!is_debug){
 				store_transition(state, action, reward, done_tensor);
@@ -490,7 +500,7 @@ std::vector<SACResult> TrainEnvironment::test(const dim_type episodes, bool rend
 			std::chrono::duration<real_real_t, std::milli> duration = end_time - start_time;
 			action_times.push_back(duration.count());
 
-			auto [next_state, reward, terminated, truncated] = step(state, action);
+			auto [next_state, reward, terminated, truncated] = step(state, action, false);
 
 			done = terminated || truncated;
 

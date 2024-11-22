@@ -8,16 +8,34 @@ def calculate_distance_reward(normalized_goal_dist, dist_factor=0.4):
     - 1~0.1: 전체 보상의 70% (완만한 증가)
     - 0.1~0: 나머지 30% (급격한 증가)
     """
+    # if normalized_goal_dist > 0.1:
+    #     # 1~0.1 구간: 70%의 보상을 완만하게 분배
+    #     reward = 0.6 * (1 - (normalized_goal_dist - 0.1) / 0.9)
+    # else:
+    #     # 0.1~0 구간: 나머지 30%의 보상을 급격하게 분배
+    #     # 이차함수를 사용하여 0에 가까워질수록 더 가파른 증가
+    #     base_reward = 0.6  # 0.1 지점에서의 보상
+    #     remaining_reward = 0.4  # 남은 30%의 보상
+    #     progress = 1 - (normalized_goal_dist / 0.1)  # 0.1에서 0까지의 진행도
+    #     reward = base_reward + remaining_reward * (progress ** 2)
+
+    # if normalized_goal_dist > 0.1:
+    #     # 1~0.1 구간
+    #     progress = 1 - normalized_goal_dist  # 직접적인 거리 사용
+    #     reward = 0.6 * (progress ** 1.5)  # 40%까지만 보상
+    # else:
+    #     # 0.1~0 구간: 급격한 보상 증가
+    #     progress = 1 - (normalized_goal_dist / 0.1)
+    #     reward = 0.6 + 0.4 * (progress ** 2.5)  # 0.1에서 60% 시작, 나머지 40% 급격히 증가
+
     if normalized_goal_dist > 0.1:
-        # 1~0.1 구간: 70%의 보상을 완만하게 분배
-        reward = 0.6 * (1 - (normalized_goal_dist - 0.1) / 0.9)
+        # 1~0.1 구간: 완만한 선형 증가
+        progress = 1 - normalized_goal_dist
+        reward = 0.7 * (progress / 0.9)  # 70%까지 선형 증가
     else:
-        # 0.1~0 구간: 나머지 30%의 보상을 급격하게 분배
-        # 이차함수를 사용하여 0에 가까워질수록 더 가파른 증가
-        base_reward = 0.6  # 0.1 지점에서의 보상
-        remaining_reward = 0.4  # 남은 30%의 보상
-        progress = 1 - (normalized_goal_dist / 0.1)  # 0.1에서 0까지의 진행도
-        reward = base_reward + remaining_reward * (progress ** 2)
+        # 0.1~0 구간: 가파른 선형 증가
+        near_goal_progress = (0.1 - normalized_goal_dist) / 0.1
+        reward = 0.7 + 0.3 * near_goal_progress  # 0.1에서 70% 시작, 선형적으로 100%까지 증가
 
     return reward * dist_factor
 
@@ -110,7 +128,7 @@ def analyze_rewards1():
 def analyze_rewards2():
     distances = {
         "근거리": [0.001, 0.002, 0.003, 0.008, 0.015, 0.02, 0.025, 0.03, 0.035],
-        "전환점 근처": [0.098, 0.099, 0.1, 0.11, 0.12],
+        "전환점 근처": [0.08, 0.09, 0.098, 0.099, 0.1, 0.101, 0.102, 0.11, 0.12],
         "원거리": [0.1, 0.2, 0.3, 0.4, 0.5, 0.7, 1.0]
     }
 

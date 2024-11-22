@@ -24,7 +24,7 @@ public:
 	BaseEnvironment& operator=(const BaseEnvironment&) = delete;
 
 	virtual tensor_t reset() = 0;
-	virtual std::tuple<tensor_t, tensor_t, bool, bool> step(const tensor_t& state, const tensor_t& action) = 0;
+	virtual std::tuple<tensor_t, tensor_t, bool, bool> step(const tensor_t& state, const tensor_t& action, bool debug) = 0;
 	virtual void render(SDL_Renderer* renderer) const {}
 
 	virtual tensor_t get_observation_space() const {
@@ -93,7 +93,7 @@ public:
 					 bool init = true);
 
 	tensor_t reset() override;
-	std::tuple<tensor_t, tensor_t, bool, bool> step(const tensor_t& state, const tensor_t& action) override;
+	std::tuple<tensor_t, tensor_t, bool, bool> step(const tensor_t& state, const tensor_t& action, bool debug) override;
 	void save(dim_type episode, bool print);
 	void load(const std::string& timestamp, dim_type episode);
 	TrainingResult train(const dim_type episodes, bool render = false, bool debug = false, bool print = false);
@@ -132,7 +132,7 @@ protected:
 
 	tensor_t get_observation() const override;
 
-	real_t calculate_reward(const tensor_t& state, const tensor_t& action);
+	real_t calculate_reward(const tensor_t& state, const tensor_t& action, bool debug);
 
 	bool check_goal() const override;
 	bool check_bounds() const override;
