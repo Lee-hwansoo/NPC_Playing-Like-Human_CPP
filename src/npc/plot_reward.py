@@ -81,7 +81,7 @@ def visualize_rewards():
     plt.show()
 
 # 테스트 및 분석
-def analyze_rewards():
+def analyze_rewards1():
     distances = np.linspace(0, 1, 1000)
     frenet_distances = np.linspace(-1, 1, 10)
     alignments = np.linspace(0, 1, 10)
@@ -98,7 +98,37 @@ def analyze_rewards():
     for a in alignments:
         print(f"Alignment: {a:.2f}, Reward: {calculate_alignment_reward(a):.6f}")
 
+def analyze_rewards2():
+    distances = {
+        "근거리": [0.001, 0.005, 0.01, 0.02, 0.03, 0.04, 0.05],
+        "전환점 근처": [0.048, 0.049, 0.05, 0.051, 0.052],
+        "원거리": [0.1, 0.2, 0.3, 0.4, 0.5, 0.7, 1.0]
+    }
+
+    for region, points in distances.items():
+        print(f"\n{region} 분석:")
+        print("거리      | 보상     | 차이")
+        print("-" * 40)
+        prev_reward = None
+        for d in points:
+            reward = calculate_distance_reward(d)
+            diff = reward - prev_reward if prev_reward is not None else None
+            diff_str = f"{diff:+.6f}" if diff is not None else "---"
+            print(f"{d:.6f} | {reward:.6f} | {diff_str}")
+            prev_reward = reward
+
+    # 변화율 분석
+    print("\n변화율 분석 (근거리):")
+    close_points = [0.001, 0.005, 0.01, 0.02, 0.03, 0.04]
+    for i in range(len(close_points)-1):
+        d1, d2 = close_points[i], close_points[i+1]
+        r1 = calculate_distance_reward(d1)
+        r2 = calculate_distance_reward(d2)
+        rate = (r2 - r1) / (d2 - d1)
+        print(f"구간 {d1:.3f}->{d2:.3f}: 변화율 = {rate:.6f}")
+
 # 실행
 if __name__ == "__main__":
     visualize_rewards()
-    analyze_rewards()
+    analyze_rewards1()
+    analyze_rewards2()
