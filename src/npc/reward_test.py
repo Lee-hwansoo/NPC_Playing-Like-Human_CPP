@@ -42,7 +42,7 @@ def visualize_rewards():
     y_dist = [calculate_distance_reward(d) for d in x_dist]
 
     # 경로 중심 보상 그래프
-    x_path = np.linspace(0, 1, 1000)
+    x_path = np.linspace(-1, 1, 1000)
     y_path = [calculate_path_reward(d) for d in x_path]
 
     # 정렬 보상 그래프
@@ -83,7 +83,7 @@ def visualize_rewards():
 # 테스트 및 분석
 def analyze_rewards():
     distances = np.linspace(0, 1, 1000)
-    frenet_distances = np.linspace(0, 1, 10)
+    frenet_distances = np.linspace(-1, 1, 10)
     alignments = np.linspace(0, 1, 10)
 
     print("Distance Reward Analysis:")
