@@ -31,11 +31,11 @@ def calculate_distance_reward(normalized_goal_dist, dist_factor=0.4):
     if normalized_goal_dist > 0.1:
         # 1~0.1 구간: 완만한 선형 증가
         progress = 1 - normalized_goal_dist
-        reward = 0.7 * (progress / 0.9)  # 70%까지 선형 증가
+        reward = 0.8 * (progress / 0.9)  # 80%까지 선형 증가
     else:
         # 0.1~0 구간: 가파른 선형 증가
         near_goal_progress = (0.1 - normalized_goal_dist) / 0.1
-        reward = 0.7 + 0.3 * near_goal_progress  # 0.1에서 70% 시작, 선형적으로 100%까지 증가
+        reward = 0.8 + 0.2 * near_goal_progress  # 0.1에서 80% 시작, 선형적으로 100%까지 증가
 
     return reward * dist_factor
 
@@ -43,15 +43,25 @@ def calculate_path_reward(normalized_frenet_d, path_factor=0.5):
     """
     경로 중심 거리 보상 계산
     """
-    reward = np.exp(-np.abs(normalized_frenet_d) * 8.0) * path_factor
+    reward = np.exp(-np.abs(normalized_frenet_d) * 10.0) * path_factor
     return reward
 
 def calculate_alignment_reward(normalized_alignment, alignment_factor=0.1):
     """
     정렬 기반 보상 계산
     """
-    reward = np.exp(-(1.0 - normalized_alignment) * 2.0) * alignment_factor
+    reward = np.exp(-(1.0 - normalized_alignment) * 3.0) * alignment_factor
     return reward
+
+def calculate_stop_penalty(force, stop_factor=0.1):
+    """
+    정지 패널티 계산
+    """
+    if force >= 0.1:
+        return 0.0
+    else:
+        penalty = np.exp(-force / 0.1) * stop_factor
+    return penalty
 
 # 통합 보상 계산
 def calculate_total_reward(normalized_goal_dist, normalized_frenet_d, normalized_alignment,
@@ -76,10 +86,14 @@ def visualize_rewards():
     x_align = np.linspace(0, 1, 1000)
     y_align = [calculate_alignment_reward(d) for d in x_align]
 
+    # 속도 페널티 그래프
+    x_force = np.linspace(0, 1, 1000)
+    y_force = [calculate_stop_penalty(d) for d in x_force]
+
     # 전체 보상 시각화
     plt.figure(figsize=(15, 12))
 
-    plt.subplot(3, 1, 1)
+    plt.subplot(4, 1, 1)
     plt.plot(x_dist, y_dist, 'b-', label='Distance Reward', linewidth=2)
     plt.axvline(x=0.1, color='r', linestyle='--', label='Transition Point')
     plt.title('Distance Reward')
@@ -88,7 +102,7 @@ def visualize_rewards():
     plt.legend()
     plt.grid(True)
 
-    plt.subplot(3, 1, 2)
+    plt.subplot(4, 1, 2)
     plt.plot(x_path, y_path, 'g-', label='Path Reward', linewidth=2)
     plt.title('Path Reward')
     plt.xlabel('Normalized Frenet d')
@@ -96,11 +110,19 @@ def visualize_rewards():
     plt.legend()
     plt.grid(True)
 
-    plt.subplot(3, 1, 3)
+    plt.subplot(4, 1, 3)
     plt.plot(x_align, y_align, 'm-', label='Alignment Reward', linewidth=2)
     plt.title('Alignment Reward')
     plt.xlabel('Normalized Alignment')
     plt.ylabel('Reward')
+    plt.legend()
+    plt.grid(True)
+
+    plt.subplot(4, 1, 4)
+    plt.plot(x_force, y_force, 'r-', label='Stop Penalty', linewidth=2)
+    plt.title('Stop Penalty')
+    plt.xlabel('Normalized Force')
+    plt.ylabel('Penalty')
     plt.legend()
     plt.grid(True)
 
