@@ -9,7 +9,7 @@ namespace environment {
 TrainEnvironment::TrainEnvironment(count_type width, count_type height, torch::Device device, count_type agent_count, bool init)
 	: BaseEnvironment(width, height, device)
 	, agent_count_(agent_count) {
-	set_observation_dim(constants::Agent::FOV::RAY_COUNT + 10);
+	set_observation_dim(constants::Agent::FOV::RAY_COUNT + 11);
 	set_action_dim(2);
 
 	std::cout << "Environment initialized, device: " << device_ << std::endl;
@@ -197,7 +197,7 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 	if (terminated_) {
 		// 빠른 도달에 대한 보너스 보상
 		real_t speed_bonus = (1.0f - static_cast<real_t>(step_count_) / constants::NETWORK::MAX_STEP);
-		return (1.0f * constants::NETWORK::N_STEPS)  + (speed_bonus * constants::NETWORK::N_STEPS);
+		return 10.0f + (5.0f * speed_bonus);
 	}
 
 	auto state_size = state.size(0);
@@ -214,43 +214,30 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
     real_t yaw_change = required_action[1].item<real_t>();
 
 	// 보상 컴포넌트들
-	real_t dist_factor = 0.4f;			// 0.0 ~ 0.4
-	real_t path_factor = 0.5f;			// 0.0 ~ 0.5
+	real_t dist_factor = 0.6f;			// 0.0 ~ 0.6
+	real_t path_factor = 0.3f;			// 0.0 ~ 0.3
 	real_t alignment_factor = 0.1f;		// 0.0 ~ 0.1
 
 	real_t dist_reward = 0.0f;
 	if (normalized_goal_dist > 0.1f) {
-		dist_reward = (0.7f * ((1.0f - normalized_goal_dist) / 0.9f)) * dist_factor;
+		dist_reward = (0.6f * ((1.0f - normalized_goal_dist) / 0.9f)) * dist_factor;
 	} else {
-		dist_reward = (0.7f + 0.3f * ((0.1f - normalized_goal_dist) / 0.1f)) * dist_factor;
+		dist_reward = (0.6f + 0.4f * ((0.1f - normalized_goal_dist) / 0.1f)) * dist_factor;
 	}
+	real_t path_reward = std::exp(-std::abs(normalized_frenet_d) * (6.0f)) * path_factor;
+	real_t alignment_reward = std::exp(-(1.0f - normalized_alignment) * (6.0f)) * alignment_factor;
 
-	real_t path_reward = 0.0f;
-	real_t alignment_reward = 0.0f;
-	// path_reward = std::exp(-std::abs(normalized_frenet_d) * (8.0f)) * path_factor;
-	// alignment_reward = std::exp(-(1.0f - normalized_alignment) * (2.0f)) * alignment_factor;
-	if (normalized_goal_dist < 0.125f) {
-		path_reward = std::exp(-std::abs(normalized_frenet_d) * (8.0f)) * path_factor;
-		alignment_reward = std::exp(-(1.0f - normalized_alignment) * (4.0f)) * alignment_factor;
-	}else{
-		path_reward = std::exp(-std::abs(normalized_frenet_d) * (8.0f)) * path_factor;
-		alignment_reward = std::exp(-(1.0f - normalized_alignment) * (2.0f)) * alignment_factor;
-	}
+	real_t reward = dist_reward +
+			path_reward +
+			alignment_reward;
 
 	if (debug){
-		std::cout <<"\ndist: " << normalized_goal_dist
+		std::cout <<"\ndist: " << std::fixed << std::setprecision(5) << normalized_goal_dist
 			<< ", dist_reward: " << dist_reward
 			<< ", path_reward: " << path_reward
 			<< ", alignment_reward: " << alignment_reward
 			<< std::endl;
 	}
-
-	// real_t stop_penalty = force < 0.15f ? std::exp(-force * 8.0f) * 0.1f : 0.0f;								// -0.1 ~ 0.0
-	// real_t turn_penalty = std::abs(yaw_change) > 0.7f ? -0.2f * (std::abs(yaw_change) - 0.5f) : 0.0f; 			// -0.1 ~ 0.0
-
-	real_t reward = dist_reward +
-			path_reward +
-			alignment_reward;
 
 	// 기본 보상 컴포넌트들 (0.0 ~ 1.0 범위로 조정)
 	return std::clamp(reward, 0.0f, 1.0f);

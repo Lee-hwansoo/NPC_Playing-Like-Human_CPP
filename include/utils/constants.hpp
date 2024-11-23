@@ -96,7 +96,7 @@ namespace constants
         {
             constexpr real_t ANGLE = 280.0f * DEG_TO_RAD;  // 280 degrees
             constexpr real_t RANGE = 200.0f;  // 20m in simulation
-            constexpr count_type RAY_COUNT = 56;
+            constexpr count_type RAY_COUNT = 28;
         }
     }
 
@@ -157,7 +157,7 @@ namespace constants
     namespace NETWORK
     {
         constexpr real_t  MAX_STEP = 3000;
-		constexpr count_type BUFFER_SIZE = 700000;
+		constexpr count_type BUFFER_SIZE = 500000;
 		constexpr count_type BATCH_SIZE = 256;
 		constexpr real_t  GAMMA = 0.995f;
 		constexpr real_t  TAU = 0.005f;
