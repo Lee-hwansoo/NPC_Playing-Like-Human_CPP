@@ -31,11 +31,11 @@ def calculate_distance_reward(normalized_goal_dist, dist_factor=0.4):
     if normalized_goal_dist > 0.1:
         # 1~0.1 구간: 완만한 선형 증가
         progress = 1 - normalized_goal_dist
-        reward = 0.8 * (progress / 0.9)  # 80%까지 선형 증가
+        reward = 0.5 * (progress / 0.9)  # 80%까지 선형 증가
     else:
         # 0.1~0 구간: 가파른 선형 증가
         near_goal_progress = (0.1 - normalized_goal_dist) / 0.1
-        reward = 0.8 + 0.2 * near_goal_progress  # 0.1에서 80% 시작, 선형적으로 100%까지 증가
+        reward = 0.5 + 0.5 * near_goal_progress  # 0.1에서 80% 시작, 선형적으로 100%까지 증가
 
     return reward * dist_factor
 
@@ -50,17 +50,18 @@ def calculate_alignment_reward(normalized_alignment, alignment_factor=0.1):
     """
     정렬 기반 보상 계산
     """
-    reward = np.exp(-(1.0 - normalized_alignment) * 3.0) * alignment_factor
+    reward = np.exp(-(1.0 - normalized_alignment) * 10.0) * alignment_factor
     return reward
 
 def calculate_stop_penalty(force, stop_factor=0.1):
     """
     정지 패널티 계산
     """
-    if force >= 0.1:
-        return 0.0
-    else:
-        penalty = np.exp(-force / 0.1) * stop_factor
+    # if force >= 0.1:
+    #     return 0.0
+    # else:
+    #     penalty = np.exp(-force / 0.1) * stop_factor
+    penalty = np.exp(-force * 25.0) * stop_factor
     return penalty
 
 # 통합 보상 계산
