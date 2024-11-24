@@ -159,7 +159,7 @@ private:
     count_type buffer_idx_;
 
     void init_n_step_buffer();
-    void store_transition(const tensor_t& state, const tensor_t& action, const tensor_t& reward, const tensor_t& done);
+    index_type store_transition(const tensor_t& state, const tensor_t& action, const tensor_t& reward, const tensor_t& done);
     tensor_t calculate_n_step_return(const index_type start_idx, const index_type remaining_steps);
 	void process_n_step_return(const index_type start_idx, const index_type steps, const tensor_t& next_state, const tensor_t& done_tensor);
 

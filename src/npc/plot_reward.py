@@ -28,14 +28,23 @@ def calculate_distance_reward(normalized_goal_dist, dist_factor=0.4):
     #     progress = 1 - (normalized_goal_dist / 0.1)
     #     reward = 0.6 + 0.4 * (progress ** 2.5)  # 0.1에서 60% 시작, 나머지 40% 급격히 증가
 
-    if normalized_goal_dist > 0.1:
+    # if normalized_goal_dist > 0.1:
+    #     # 1~0.1 구간: 완만한 선형 증가
+    #     progress = 1 - normalized_goal_dist
+    #     reward = 0.6 * (progress / 0.9)  # 60%까지 선형 증가
+    # else:
+    #     # 0.1~0 구간: 가파른 선형 증가
+    #     near_goal_progress = (0.1 - normalized_goal_dist) / 0.1
+    #     reward = 0.6 + 0.4 * near_goal_progress  # 0.1에서 60% 시작, 선형적으로 100%까지 증가
+
+    if normalized_goal_dist > 0.08:
         # 1~0.1 구간: 완만한 선형 증가
         progress = 1 - normalized_goal_dist
-        reward = 0.6 * (progress / 0.9)  # 60%까지 선형 증가
+        reward = 0.7 * (progress / 0.92)  # 60%까지 선형 증가
     else:
         # 0.1~0 구간: 가파른 선형 증가
-        near_goal_progress = (0.1 - normalized_goal_dist) / 0.1
-        reward = 0.6 + 0.4 * near_goal_progress  # 0.1에서 60% 시작, 선형적으로 100%까지 증가
+        near_goal_progress = (0.08 - normalized_goal_dist) / 0.08
+        reward = 0.7 + 0.3 * near_goal_progress  # 0.1에서 60% 시작, 선형적으로 100%까지 증가
 
     return reward * dist_factor
 

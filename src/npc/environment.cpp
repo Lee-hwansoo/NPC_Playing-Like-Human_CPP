@@ -196,8 +196,8 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 	// 종료 보상
 	if (terminated_) {
 		// 빠른 도달에 대한 보너스 보상
-		real_t speed_bonus = (1.0f - static_cast<real_t>(step_count_) / constants::NETWORK::MAX_STEP);
-		return 10.0f + (5.0f * speed_bonus);
+		real_t speed_bonus = (1.0f - static_cast<real_t>(step_count_) / constants::NETWORK::MAX_STEP) * constants::NETWORK::N_STEPS;
+		return 3.0f * constants::NETWORK::N_STEPS + (2.0f * speed_bonus);
 	}
 
 	auto state_size = state.size(0);
@@ -214,28 +214,24 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
     real_t yaw_change = required_action[1].item<real_t>();
 
 	// 보상 컴포넌트들
-	real_t dist_factor = 0.6f;			// 0.0 ~ 0.6
-	real_t path_factor = 0.3f;			// 0.0 ~ 0.3
-	real_t alignment_factor = 0.1f;		// 0.0 ~ 0.1
+	real_t dist_factor = 0.6f;			// 0.0 ~ 0.5
+	real_t path_factor = 0.4f;			// 0.0 ~ 0.4
 
 	real_t dist_reward = 0.0f;
 	if (normalized_goal_dist > 0.1f) {
-		dist_reward = (0.6f * ((1.0f - normalized_goal_dist) / 0.9f)) * dist_factor;
+		dist_reward = (0.7f * ((1.0f - normalized_goal_dist) / 0.9f)) * dist_factor;
 	} else {
-		dist_reward = (0.6f + 0.4f * ((0.1f - normalized_goal_dist) / 0.1f)) * dist_factor;
+		dist_reward = (0.7f + 0.3f * ((0.1f - normalized_goal_dist) / 0.1f)) * dist_factor;
 	}
-	real_t path_reward = std::exp(-std::abs(normalized_frenet_d) * (6.0f)) * path_factor;
-	real_t alignment_reward = std::exp(-(1.0f - normalized_alignment) * (6.0f)) * alignment_factor;
+	real_t path_reward = std::exp(-std::abs(normalized_frenet_d) * (8.0f)) * path_factor;
 
 	real_t reward = dist_reward +
-			path_reward +
-			alignment_reward;
+			path_reward;
 
 	if (debug){
 		std::cout <<"\ndist: " << std::fixed << std::setprecision(5) << normalized_goal_dist
 			<< ", dist_reward: " << dist_reward
 			<< ", path_reward: " << path_reward
-			<< ", alignment_reward: " << alignment_reward
 			<< std::endl;
 	}
 
@@ -377,7 +373,6 @@ TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, boo
 				action = sac_->select_action(state);
 			}
 
-			// tensor_t action = sac_->select_action(state);
 			auto [next_state, reward, terminated, truncated] = step(state, action, is_reward);
 			done = terminated || truncated;
 			tensor_t done_tensor = torch::tensor(done, get_tensor_dtype());
@@ -387,7 +382,7 @@ TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, boo
 			}
 
 			if (!is_debug){
-				store_transition(state, action, reward, done_tensor);
+				index_type stored_idx = store_transition(state, action, reward, done_tensor);
 
 				if (step_count_ >= n_steps_) {
 					if (done) {
@@ -401,8 +396,6 @@ TrainingResult TrainEnvironment::train(const dim_type episodes, bool render, boo
 						process_n_step_return(buffer_idx_, n_steps_, next_state, done_tensor);
 					}
 				}
-
-				//sac_->add(state, action, reward, next_state, done_tensor);
 
 				if (step_count_ % constants::NETWORK::UPDATE_INTERVAL == 0) {
 					auto metrics = sac_->update(print);
@@ -599,7 +592,9 @@ void TrainEnvironment::init_n_step_buffer() {
     buffer_idx_ = 0;
 }
 
-void TrainEnvironment::store_transition(const tensor_t& state, const tensor_t& action, const tensor_t& reward, const tensor_t& done) {
+index_type TrainEnvironment::store_transition(const tensor_t& state, const tensor_t& action, const tensor_t& reward, const tensor_t& done) {
+   index_type current_idx = buffer_idx_;  // 현재 인덱스 저장
+
     // 현재 transition을 버퍼에 저장
     dim_type state_dim = get_observation_dim();
     dim_type action_dim = get_action_dim();
@@ -612,6 +607,8 @@ void TrainEnvironment::store_transition(const tensor_t& state, const tensor_t& a
 
     // 버퍼 인덱스 업데이트
     buffer_idx_ = (buffer_idx_ + 1) % n_steps_;
+
+	return current_idx;  // 저장된 위치 반환
 }
 
 tensor_t TrainEnvironment::calculate_n_step_return(const index_type start_idx, const index_type remaining_steps) {
@@ -640,8 +637,11 @@ tensor_t TrainEnvironment::calculate_n_step_return(const index_type start_idx, c
 }
 
 void TrainEnvironment::process_n_step_return(const index_type start_idx, const index_type steps, const tensor_t& next_state, const tensor_t& done_tensor) {
-    tensor_t current_state = n_step_buffer_[start_idx].slice(0, 0, get_observation_dim());
-    tensor_t current_action = n_step_buffer_[start_idx].slice(0, get_observation_dim(), get_observation_dim() + get_action_dim());
+    dim_type state_dim = get_observation_dim();
+    dim_type action_dim = get_action_dim();
+
+    tensor_t current_state = n_step_buffer_[start_idx].slice(0, 0, state_dim);
+    tensor_t current_action = n_step_buffer_[start_idx].slice(0, state_dim, state_dim + action_dim);
 
     tensor_t n_step_return = calculate_n_step_return(start_idx, steps);
     sac_->add(current_state, current_action, n_step_return, next_state, done_tensor);
