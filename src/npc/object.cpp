@@ -504,8 +504,10 @@ index_type Agent::get_closest_waypoint() {
 
 std::tuple<Vector2, real_t> Agent::get_frenet_d() {
     if (initial_path_.size(0) > 0) {
+        // 1. 가장 가까운 웨이포인트 찾기
         index_type closest_waypoint = get_closest_waypoint();
 
+        // 2. 경로 벡터(n_vec) 계산
         index_type next_waypoint;
         tensor_t n_vec;
         if (closest_waypoint == initial_path_.size(0) - 1) {
@@ -516,34 +518,39 @@ std::tuple<Vector2, real_t> Agent::get_frenet_d() {
             n_vec = initial_path_[next_waypoint] - initial_path_[closest_waypoint];
         }
 
-        // index_type next_waypoint = (closest_waypoint + 1) % initial_path_.size(0);
-        // tensor_t n_vec = initial_path_[next_waypoint] - initial_path_[closest_waypoint];
+        // 3. 경로 벡터 정규화
+        real_t n_vec_norm = torch::norm(n_vec).item<real_t>();
+        n_vec = n_vec / n_vec_norm;
 
-        tensor_t x_vec = position_ - initial_path_[next_waypoint];
+        // 4. 현재 위치에서 가장 가까운 웨이포인트까지의 벡터
+        tensor_t x_vec = position_ - initial_path_[closest_waypoint];
 
+        // 5. 경로 벡터에 대한 투영 계산
         tensor_t dot_product = torch::dot(x_vec, n_vec);
-        tensor_t n_vec_norm_squared = torch::dot(n_vec, n_vec);
-        tensor_t proj_norm = dot_product / n_vec_norm_squared;
-        tensor_t proj_vec = proj_norm * n_vec;
+        tensor_t proj_vec = dot_product * n_vec;
 
-		tensor_t diff_vec = x_vec - proj_vec;
-		real_t frenet_d = torch::norm(diff_vec).item<real_t>();
+        // 6. 횡방향 거리 계산
+        tensor_t diff_vec = x_vec - proj_vec;
+        real_t frenet_d = torch::norm(diff_vec).item<real_t>();
 
+        // 7. 부호 결정을 위한 외적 계산
         tensor_t x_vec_3d = torch::zeros({ 3 });
         tensor_t n_vec_3d = torch::zeros({ 3 });
 
-		x_vec_3d.index_put_({ torch::indexing::Slice(0, 2) }, x_vec);
-		n_vec_3d.index_put_({ torch::indexing::Slice(0, 2) }, n_vec);
+        x_vec_3d.index_put_({ torch::indexing::Slice(0, 2) }, x_vec);
+        n_vec_3d.index_put_({ torch::indexing::Slice(0, 2) }, n_vec);
 
         tensor_t cross_product = torch::cross(x_vec_3d, n_vec_3d, 0);
 
-		if (cross_product[2].item<real_t>() > 0) {
-			frenet_d = -frenet_d;
-		}
+        if (cross_product[2].item<real_t>() > 0) {
+            frenet_d = -frenet_d;
+        }
 
-        real_t x = initial_path_[closest_waypoint][0].item<real_t>();
-        real_t y = initial_path_[closest_waypoint][1].item<real_t>();
-        return std::make_tuple(Vector2(x, y), frenet_d);
+        // 8. 투영점의 좌표 반환
+        real_t proj_x = initial_path_[closest_waypoint][0].item<real_t>() + proj_vec[0].item<real_t>();
+        real_t proj_y = initial_path_[closest_waypoint][1].item<real_t>() + proj_vec[1].item<real_t>();
+
+        return std::make_tuple(Vector2(proj_x, proj_y), frenet_d);
     }
     else {
         return std::make_tuple(Vector2(), 0.0f);
@@ -629,9 +636,7 @@ tensor_t Agent::get_state() const {
     //         << "\ncos(angle_to_goal_): " << std::cos(angle_to_goal_) << ", sin(angle_to_goal_): " << std::sin(angle_to_goal_)
     //         << std::endl;
 
-    // std::cout << "\nposition_: " << position_
-    //         << "\nfrenet_point_ " << frenet_point_.a << ", " << frenet_point_.b
-    //         << "\nfrenet_d_: " << frenet_d_
+    // std::cout << "\nfrenet_d_: " << frenet_d_
     //         << std::endl;
 
     auto state = torch::cat({
