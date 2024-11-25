@@ -89,7 +89,7 @@ namespace constants
 
         // Movement constraints
         const Vector2 VELOCITY_LIMITS(0.0f, 50.0f);  // Range: 0~5 m/s
-        constexpr real_t YAW_CHANGE_LIMIT = 120.0f * DEG_TO_RAD;  // 120 degrees/s
+        constexpr real_t YAW_CHANGE_LIMIT = 150.0f * DEG_TO_RAD;  // 150 degrees/s
 
         // Field of View (FOV) properties
         namespace FOV
