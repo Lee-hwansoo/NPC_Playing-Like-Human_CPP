@@ -220,8 +220,8 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 		path_factor = 0.3f;
 	} else {
 		// 목표 근처에서 경로 추종 가중치 증가
-		dist_factor = 0.5f;
-		path_factor = 0.5f;
+		dist_factor = 0.6f;
+		path_factor = 0.4f;
 	}
 
 	real_t dist_reward = 0.0f;
