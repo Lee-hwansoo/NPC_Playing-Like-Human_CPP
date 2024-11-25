@@ -23,11 +23,11 @@ void ActorImpl::initialize_network(torch::Device device) {
 	ln2 = register_module("ln2", torch::nn::LayerNorm(torch::nn::LayerNormOptions({128})));
 	fc3 = register_module("fc3", torch::nn::Linear(128, 256));
 	ln3 = register_module("ln3", torch::nn::LayerNorm(torch::nn::LayerNormOptions({256})));
-	fc4 = register_module("fc4", torch::nn::Linear(256, 256));
-	ln4 = register_module("ln4", torch::nn::LayerNorm(torch::nn::LayerNormOptions({256})));
-	fc5 = register_module("fc5", torch::nn::Linear(256, 256));
-	ln5 = register_module("ln5", torch::nn::LayerNorm(torch::nn::LayerNormOptions({256})));
-	fc6 = register_module("fc6", torch::nn::Linear(256, 256));
+	fc4 = register_module("fc4", torch::nn::Linear(256, 512));
+	ln4 = register_module("ln4", torch::nn::LayerNorm(torch::nn::LayerNormOptions({512})));
+	fc5 = register_module("fc5", torch::nn::Linear(512, 512));
+	ln5 = register_module("ln5", torch::nn::LayerNorm(torch::nn::LayerNormOptions({512})));
+	fc6 = register_module("fc6", torch::nn::Linear(512, 256));
 	ln6 = register_module("ln6", torch::nn::LayerNorm(torch::nn::LayerNormOptions({256})));
 	fc7 = register_module("fc7", torch::nn::Linear(256, 128));
 	ln7 = register_module("ln7", torch::nn::LayerNorm(torch::nn::LayerNormOptions({128})));
