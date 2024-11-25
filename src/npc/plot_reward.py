@@ -79,7 +79,7 @@ def calculate_path_reward(normalized_frenet_d, path_factor=0.2):
     """
     경로 중심 거리 보상 계산
     """
-    reward = np.exp(-np.abs(normalized_frenet_d) * 10.0) * path_factor
+    reward = np.exp(-np.abs(normalized_frenet_d) * 25.0) * path_factor
     return reward
 
 # 통합 보상 계산
