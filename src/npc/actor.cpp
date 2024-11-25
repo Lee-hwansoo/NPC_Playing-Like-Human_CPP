@@ -27,12 +27,16 @@ void ActorImpl::initialize_network(torch::Device device) {
 	ln4 = register_module("ln4", torch::nn::LayerNorm(torch::nn::LayerNormOptions({256})));
 	fc5 = register_module("fc5", torch::nn::Linear(256, 256));
 	ln5 = register_module("ln5", torch::nn::LayerNorm(torch::nn::LayerNormOptions({256})));
-	fc6 = register_module("fc6", torch::nn::Linear(256, 128));
-	ln6 = register_module("ln6", torch::nn::LayerNorm(torch::nn::LayerNormOptions({128})));
-	fc7 = register_module("fc7", torch::nn::Linear(128, 64));
-	ln7 = register_module("ln7", torch::nn::LayerNorm(torch::nn::LayerNormOptions({64})));
-	fc_mean = register_module("fc_mean", torch::nn::Linear(64, action_dim_));
-	fc_log_std = register_module("fc_log_std", torch::nn::Linear(64, action_dim_));
+	fc6 = register_module("fc6", torch::nn::Linear(256, 256));
+	ln6 = register_module("ln6", torch::nn::LayerNorm(torch::nn::LayerNormOptions({256})));
+	fc7 = register_module("fc7", torch::nn::Linear(256, 128));
+	ln7 = register_module("ln7", torch::nn::LayerNorm(torch::nn::LayerNormOptions({128})));
+	fc8 = register_module("fc8", torch::nn::Linear(128, 64));
+	ln8 = register_module("ln8", torch::nn::LayerNorm(torch::nn::LayerNormOptions({64})));
+	fc9 = register_module("fc9", torch::nn::Linear(64, 32));
+	ln9 = register_module("ln9", torch::nn::LayerNorm(torch::nn::LayerNormOptions({32})));
+	fc_mean = register_module("fc_mean", torch::nn::Linear(32, action_dim_));
+	fc_log_std = register_module("fc_log_std", torch::nn::Linear(32, action_dim_));
 
 	std::cout << "\nInitializing "<< this->network_name() << " network" << std::endl;
 	count_type count = 0;
@@ -41,7 +45,7 @@ void ActorImpl::initialize_network(torch::Device device) {
 		const auto& child = pair.value();
 
 		if (auto* linear = child->as<torch::nn::LinearImpl>()) {
-			if (name != "fc_mean" && name != "fc_log_std"){
+			if (name != "fc_mean" && name != "fc_log_std" && name != "fc9"){
 				torch::nn::init::kaiming_normal_(
 					linear->weight,
 					std::sqrt(2.0f / (1.0f + std::pow(0.01, 2))),
@@ -59,6 +63,18 @@ void ActorImpl::initialize_network(torch::Device device) {
 			}
 		}
 	}
+
+    torch::nn::init::kaiming_normal_(
+        fc9->weight,
+        std::sqrt(0.2f),
+        torch::kFanIn,
+        torch::kLeakyReLU
+    );
+	torch::nn::init::constant_(fc9->bias, 0.0);
+
+    std::cout << "Initializing parameters for output prepare layer"
+        << " (fc9: " << fc9->weight.size(1) << " -> "
+        << fc9->weight.size(0) << ")" << std::endl;
 
 	// Policy mean 출력층 초기화
 	torch::nn::init::kaiming_normal_(
@@ -122,6 +138,8 @@ std::tuple<tensor_t, tensor_t> ActorImpl::forward(const tensor_t& state) {
 	x = torch::leaky_relu(ln5->forward(fc5->forward(x)), 0.01);
 	x = torch::leaky_relu(ln6->forward(fc6->forward(x)), 0.01);
 	x = torch::leaky_relu(ln7->forward(fc7->forward(x)), 0.01);
+	x = torch::leaky_relu(ln8->forward(fc8->forward(x)), 0.01);
+	x = torch::leaky_relu(ln9->forward(fc9->forward(x)), 0.01);
 
 	auto mean = fc_mean->forward(x);
 	auto log_std = torch::clamp(fc_log_std->forward(x), -20.0, 2.0);

@@ -17,8 +17,8 @@ struct CriticImpl : public BaseNetwork {
 	dim_type action_dim() const { return action_dim_; }
 
 private:
-	torch::nn::Linear fc1{ nullptr }, fc2{ nullptr }, fc3{ nullptr }, fc4{ nullptr }, fc5{ nullptr }, fc6{ nullptr }, fc7{ nullptr }, fc8{ nullptr };
-	torch::nn::LayerNorm ln1{ nullptr }, ln2{ nullptr }, ln3{ nullptr }, ln4{ nullptr }, ln5{ nullptr }, ln6{ nullptr }, ln7{ nullptr };
+	torch::nn::Linear fc1{ nullptr }, fc2{ nullptr }, fc3{ nullptr }, fc4{ nullptr }, fc5{ nullptr }, fc6{ nullptr }, fc7{ nullptr }, fc8{ nullptr }, fc9{ nullptr }, fc10{ nullptr };
+	torch::nn::LayerNorm ln1{ nullptr }, ln2{ nullptr }, ln3{ nullptr }, ln4{ nullptr }, ln5{ nullptr }, ln6{ nullptr }, ln7{ nullptr }, ln8{ nullptr }, ln9{ nullptr };
 	dim_type state_dim_, action_dim_;
 };
 
