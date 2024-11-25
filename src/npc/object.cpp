@@ -621,7 +621,7 @@ tensor_t Agent::update(const real_t dt, const tensor_t& scaled_action, const ten
 
 tensor_t Agent::get_state() const {
     auto normalized_fov_dist = fov_distances_.flatten() / constants::Agent::FOV::RANGE; // [num_rays]
-    auto normalized_position = position_ / torch::tensor({static_cast<real_t>(constants::Display::WIDTH), static_cast<real_t>(constants::Display::HEIGHT)}); // [2]
+    // auto normalized_position = position_ / torch::tensor({static_cast<real_t>(constants::Display::WIDTH), static_cast<real_t>(constants::Display::HEIGHT)}); // [2]
     auto normalized_yaw = torch::tensor({std::sin(yaw_), std::cos(yaw_)}); // [2]
     auto normalized_velocity = velocity_ / constants::Agent::VELOCITY_LIMITS.b; // [2]
     auto goal_in_fov_tensor = torch::tensor({static_cast<real_t>(is_goal_in_fov_)}); // [1]
@@ -641,14 +641,14 @@ tensor_t Agent::get_state() const {
 
     auto state = torch::cat({
         normalized_fov_dist,
-        normalized_position,
+        // normalized_position,
         normalized_yaw,
         normalized_velocity,
         goal_in_fov_tensor,
         normalized_angle_diff,
         normalized_goal_dist,
         normalized_frenet_d
-    }); // [num_rays + 11]
+    }); // [num_rays + 9]
 
     return state;
 };
