@@ -150,6 +150,11 @@ private:
 
     path_planning::RRT* path_planner_;
     tensor_t initial_path_;
+    tensor_t path_segments_p1_;        // 각 선분의 시작점 [num_segments, 2]
+    tensor_t path_segments_p2_;        // 각 선분의 끝점 [num_segments, 2]
+    tensor_t path_segment_vectors_;    // 각 선분의 벡터 [num_segments, 2]
+    tensor_t path_segment_lengths_;    // 각 선분의 길이 [num_segments]
+    tensor_t path_segment_dirs_;       // 각 선분의 방향 벡터 [num_segments, 2]
     Vector2 frenet_point_;
     real_t frenet_d_;
 

@@ -503,58 +503,105 @@ index_type Agent::get_closest_waypoint() {
 }
 
 std::tuple<Vector2, real_t> Agent::get_frenet_d() {
-    if (initial_path_.size(0) > 0) {
-        // 1. 가장 가까운 웨이포인트 찾기
-        index_type closest_waypoint = get_closest_waypoint();
-
-        // 2. 경로 벡터(n_vec) 계산
-        index_type next_waypoint;
-        tensor_t n_vec;
-        if (closest_waypoint == initial_path_.size(0) - 1) {
-            next_waypoint = closest_waypoint;
-            n_vec = initial_path_[next_waypoint] - initial_path_[closest_waypoint - 1];
-        } else {
-            next_waypoint = closest_waypoint + 1;
-            n_vec = initial_path_[next_waypoint] - initial_path_[closest_waypoint];
-        }
-
-        // 3. 경로 벡터 정규화
-        real_t n_vec_norm = torch::norm(n_vec).item<real_t>();
-        n_vec = n_vec / n_vec_norm;
-
-        // 4. 현재 위치에서 가장 가까운 웨이포인트까지의 벡터
-        tensor_t x_vec = position_ - initial_path_[closest_waypoint];
-
-        // 5. 경로 벡터에 대한 투영 계산
-        tensor_t dot_product = torch::dot(x_vec, n_vec);
-        tensor_t proj_vec = dot_product * n_vec;
-
-        // 6. 횡방향 거리 계산
-        tensor_t diff_vec = x_vec - proj_vec;
-        real_t frenet_d = torch::norm(diff_vec).item<real_t>();
-
-        // 7. 부호 결정을 위한 외적 계산
-        tensor_t x_vec_3d = torch::zeros({ 3 });
-        tensor_t n_vec_3d = torch::zeros({ 3 });
-
-        x_vec_3d.index_put_({ torch::indexing::Slice(0, 2) }, x_vec);
-        n_vec_3d.index_put_({ torch::indexing::Slice(0, 2) }, n_vec);
-
-        tensor_t cross_product = torch::cross(x_vec_3d, n_vec_3d, 0);
-
-        if (cross_product[2].item<real_t>() > 0) {
-            frenet_d = -frenet_d;
-        }
-
-        // 8. 투영점의 좌표 반환
-        real_t proj_x = initial_path_[closest_waypoint][0].item<real_t>() + proj_vec[0].item<real_t>();
-        real_t proj_y = initial_path_[closest_waypoint][1].item<real_t>() + proj_vec[1].item<real_t>();
-
-        return std::make_tuple(Vector2(proj_x, proj_y), frenet_d);
-    }
-    else {
+    if (initial_path_.size(0) <= 1) {
         return std::make_tuple(Vector2(), 0.0f);
     }
+
+    // 에이전트에서 각 선분 시작점까지의 벡터 [num_segments, 2]
+    auto to_agent = position_.unsqueeze(0) - path_segments_p1_;
+
+    // 각 선분에 대한 투영 길이 계산 [num_segments]
+    auto proj_length = torch::sum(to_agent * path_segment_dirs_, 1);
+
+    // 투영 길이를 선분 범위 내로 클리핑
+    proj_length = torch::clamp(proj_length, torch::zeros({1}, proj_length.options()), path_segment_lengths_);
+
+    // 투영점 계산 [num_segments, 2]
+    auto proj_points = path_segments_p1_ + path_segment_dirs_ * proj_length.unsqueeze(1);
+
+    // 에이전트와 각 투영점 사이의 거리 벡터 [num_segments, 2]
+    auto diff_vec = position_.unsqueeze(0) - proj_points;
+
+    // 각 투영점까지의 거리 계산 [num_segments]
+    auto distances = torch::norm(diff_vec, 2, 1);
+
+    // 가장 가까운 투영점 찾기
+    auto min_dist_idx = torch::argmin(distances);
+    auto min_dist = distances[min_dist_idx].item<real_t>();
+
+    // 가장 가까운 투영점의 좌표
+    auto closest_proj_point = proj_points[min_dist_idx];
+
+    // frenet_d의 부호 결정
+    auto closest_segment_dir = path_segment_dirs_[min_dist_idx];
+    auto closest_diff_vec = diff_vec[min_dist_idx];
+
+    auto dir_3d = torch::zeros({3});
+    auto diff_3d = torch::zeros({3});
+
+    dir_3d.index_put_({torch::indexing::Slice(0, 2)}, closest_segment_dir);
+    diff_3d.index_put_({torch::indexing::Slice(0, 2)}, closest_diff_vec);
+
+    auto cross_product = torch::cross(dir_3d, diff_3d);
+    auto frenet_d = (cross_product[2].item<real_t>() > 0) ? min_dist : -min_dist;
+
+    return std::make_tuple(
+        Vector2(closest_proj_point[0].item<real_t>(),
+               closest_proj_point[1].item<real_t>()),
+        frenet_d);
+
+    // if (initial_path_.size(0) > 0) {
+    //     // 1. 가장 가까운 웨이포인트 찾기
+    //     index_type closest_waypoint = get_closest_waypoint();
+
+    //     // 2. 경로 벡터(n_vec) 계산
+    //     index_type next_waypoint;
+    //     tensor_t n_vec;
+    //     if (closest_waypoint == initial_path_.size(0) - 1) {
+    //         next_waypoint = closest_waypoint;
+    //         n_vec = initial_path_[next_waypoint] - initial_path_[closest_waypoint - 1];
+    //     } else {
+    //         next_waypoint = closest_waypoint + 1;
+    //         n_vec = initial_path_[next_waypoint] - initial_path_[closest_waypoint];
+    //     }
+
+    //     // 3. 경로 벡터 정규화
+    //     real_t n_vec_norm = torch::norm(n_vec).item<real_t>();
+    //     n_vec = n_vec / n_vec_norm;
+
+    //     // 4. 현재 위치에서 가장 가까운 웨이포인트까지의 벡터
+    //     tensor_t x_vec = position_ - initial_path_[closest_waypoint];
+
+    //     // 5. 경로 벡터에 대한 투영 계산
+    //     tensor_t dot_product = torch::dot(x_vec, n_vec);
+    //     tensor_t proj_vec = dot_product * n_vec;
+
+    //     // 6. 횡방향 거리 계산
+    //     tensor_t diff_vec = x_vec - proj_vec;
+    //     real_t frenet_d = torch::norm(diff_vec).item<real_t>();
+
+    //     // 7. 부호 결정을 위한 외적 계산
+    //     tensor_t x_vec_3d = torch::zeros({ 3 });
+    //     tensor_t n_vec_3d = torch::zeros({ 3 });
+
+    //     x_vec_3d.index_put_({ torch::indexing::Slice(0, 2) }, x_vec);
+    //     n_vec_3d.index_put_({ torch::indexing::Slice(0, 2) }, n_vec);
+
+    //     tensor_t cross_product = torch::cross(x_vec_3d, n_vec_3d, 0);
+
+    //     if (cross_product[2].item<real_t>() > 0) {
+    //         frenet_d = -frenet_d;
+    //     }
+
+    //     // 8. 투영점의 좌표 반환
+    //     real_t proj_x = initial_path_[closest_waypoint][0].item<real_t>() + proj_vec[0].item<real_t>();
+    //     real_t proj_y = initial_path_[closest_waypoint][1].item<real_t>() + proj_vec[1].item<real_t>();
+
+    //     return std::make_tuple(Vector2(proj_x, proj_y), frenet_d);
+    // }
+    // else {
+    //     return std::make_tuple(Vector2(), 0.0f);
+    // }
 }
 
 tensor_t Agent::reset(std::optional<real_t> x, std::optional<real_t> y, const tensor_t& circle_obstacles_state, const tensor_t& rectangle_obstacles_state, const tensor_t& goal_state) {
@@ -578,7 +625,12 @@ tensor_t Agent::reset(std::optional<real_t> x, std::optional<real_t> y, const te
     std::tie(fov_points_, fov_distances_, goal_distance_, angle_to_goal_, is_goal_in_fov_, is_collison_) = calculate_fov(position_, yaw_, circle_obstacles_state_, rectangle_obstacles_state_, goal_state_);
 
 	initial_path_ = path_planner_->plan(position_, move_limit_, circle_obstacles_state_, rectangle_obstacles_state_, goal_state_);
-	std::tie(frenet_point_, frenet_d_) = get_frenet_d();
+    path_segments_p1_ = initial_path_.slice(0, 0, -1);
+    path_segments_p2_ = initial_path_.slice(0, 1);
+    path_segment_vectors_ = path_segments_p2_ - path_segments_p1_;
+    path_segment_lengths_ = torch::norm(path_segment_vectors_, 2, 1);
+    path_segment_dirs_ = path_segment_vectors_ / path_segment_lengths_.unsqueeze(1);
+    std::tie(frenet_point_, frenet_d_) = get_frenet_d();
 
     return get_state();
 }

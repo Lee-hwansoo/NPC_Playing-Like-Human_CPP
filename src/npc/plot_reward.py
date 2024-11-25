@@ -2,7 +2,7 @@
 import matplotlib.pyplot as plt
 
 # 보상 계산 함수들
-def calculate_distance_reward(normalized_goal_dist, dist_factor=0.7):
+def calculate_distance_reward(normalized_goal_dist, dist_factor=0.8):
     """
     거리 기반 보상 계산
     - 1~0.1: 전체 보상의 70% (완만한 증가)
@@ -46,22 +46,36 @@ def calculate_distance_reward(normalized_goal_dist, dist_factor=0.7):
     #     near_goal_progress = (0.1 - normalized_goal_dist) / 0.1
     #     reward = 0.4 + 0.6 * near_goal_progress  # 0.1에서 60% 시작, 선형적으로 100%까지 증가
 
+    # if normalized_goal_dist > 0.1:
+    #     # 1~0.1 구간: 지수 증가
+    #     k = 1.0
+    #     progress = normalized_goal_dist - 0.1
+    #     exp_min = np.exp(-k * 0.9)  # e^(-k * 0.9)
+    #     exp_max = np.exp(-k * 0)    # e^0 = 1
+    #     reward = 0.5 * (np.exp(-progress * k) - exp_min) / (exp_max - exp_min)
+    # else:
+    #     # 0.1~0 구간: 선형 증가
+    #     near_goal_progress = (0.1 - normalized_goal_dist) / 0.1
+    #     reward = 0.5 + 0.5 * near_goal_progress  # 선형적으로 증가
+
     if normalized_goal_dist > 0.1:
         # 1~0.1 구간: 지수 증가
-        A = 0.6  # 최대값
-        k = 2.0
         progress = normalized_goal_dist - 0.1
+        k = 1.0
         exp_min = np.exp(-k * 0.9)  # e^(-k * 0.9)
-        exp_max = np.exp(-k * 0)    # e^0 = 1
-        reward = A * (np.exp(-progress * k) - exp_min) / (exp_max - exp_min)
+        exp_max = 1.0               # e^0 = 1
+        reward = 0.5 * (np.exp(-progress * k) - exp_min) / (exp_max - exp_min)
     else:
-        # 0.1~0 구간: 선형 증가
-        near_goal_progress = (0.1 - normalized_goal_dist) / 0.1
-        reward = 0.6 + 0.4 * near_goal_progress  # 선형적으로 증가
+        # 0.1~0 구간: 지수 증가
+        near_progress = (normalized_goal_dist)
+        k = 1.0
+        exp_min = np.exp(-k * 0.1)  # e^(-k * 0.1)
+        exp_max = 1.0               # e^0 = 1
+        reward = 0.5 + 0.5 * (np.exp(-near_progress * k) - exp_min) / (exp_max - exp_min)
 
     return reward * dist_factor
 
-def calculate_path_reward(normalized_frenet_d, path_factor=0.3):
+def calculate_path_reward(normalized_frenet_d, path_factor=0.2):
     """
     경로 중심 거리 보상 계산
     """
@@ -69,10 +83,9 @@ def calculate_path_reward(normalized_frenet_d, path_factor=0.3):
     return reward
 
 # 통합 보상 계산
-def calculate_total_reward(normalized_goal_dist, normalized_frenet_d,
-                           dist_factor=0.7, path_factor=0.3):
-    dist_reward = calculate_distance_reward(normalized_goal_dist, dist_factor)
-    path_reward = calculate_path_reward(normalized_frenet_d, path_factor)
+def calculate_total_reward(normalized_goal_dist, normalized_frenet_d):
+    dist_reward = calculate_distance_reward(normalized_goal_dist)
+    path_reward = calculate_path_reward(normalized_frenet_d)
     total_reward = dist_reward + path_reward
     return np.clip(total_reward, 0.0, 1.0)
 
