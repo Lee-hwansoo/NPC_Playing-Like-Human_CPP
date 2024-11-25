@@ -17,18 +17,22 @@ ActorImpl::ActorImpl(const std::string& network_name,
 }
 
 void ActorImpl::initialize_network(torch::Device device) {
-	fc1 = register_module("fc1", torch::nn::Linear(state_dim_, 128));
-	ln1 = register_module("ln1", torch::nn::LayerNorm(torch::nn::LayerNormOptions({128})));
-	fc2 = register_module("fc2", torch::nn::Linear(128, 256));
-	ln2 = register_module("ln2", torch::nn::LayerNorm(torch::nn::LayerNormOptions({256})));
-	fc3 = register_module("fc3", torch::nn::Linear(256, 256));
+	fc1 = register_module("fc1", torch::nn::Linear(state_dim_, 64));
+	ln1 = register_module("ln1", torch::nn::LayerNorm(torch::nn::LayerNormOptions({64})));
+	fc2 = register_module("fc2", torch::nn::Linear(64, 128));
+	ln2 = register_module("ln2", torch::nn::LayerNorm(torch::nn::LayerNormOptions({128})));
+	fc3 = register_module("fc3", torch::nn::Linear(128, 256));
 	ln3 = register_module("ln3", torch::nn::LayerNorm(torch::nn::LayerNormOptions({256})));
 	fc4 = register_module("fc4", torch::nn::Linear(256, 256));
 	ln4 = register_module("ln4", torch::nn::LayerNorm(torch::nn::LayerNormOptions({256})));
-	fc5 = register_module("fc5", torch::nn::Linear(256, 128));
-	ln5 = register_module("ln5", torch::nn::LayerNorm(torch::nn::LayerNormOptions({128})));
-	fc_mean = register_module("fc_mean", torch::nn::Linear(128, action_dim_));
-	fc_log_std = register_module("fc_log_std", torch::nn::Linear(128, action_dim_));
+	fc5 = register_module("fc5", torch::nn::Linear(256, 256));
+	ln5 = register_module("ln5", torch::nn::LayerNorm(torch::nn::LayerNormOptions({256})));
+	fc6 = register_module("fc6", torch::nn::Linear(256, 128));
+	ln6 = register_module("ln6", torch::nn::LayerNorm(torch::nn::LayerNormOptions({128})));
+	fc7 = register_module("fc7", torch::nn::Linear(128, 64));
+	ln7 = register_module("ln7", torch::nn::LayerNorm(torch::nn::LayerNormOptions({64})));
+	fc_mean = register_module("fc_mean", torch::nn::Linear(64, action_dim_));
+	fc_log_std = register_module("fc_log_std", torch::nn::Linear(64, action_dim_));
 
 	std::cout << "\nInitializing "<< this->network_name() << " network" << std::endl;
 	count_type count = 0;
@@ -116,6 +120,8 @@ std::tuple<tensor_t, tensor_t> ActorImpl::forward(const tensor_t& state) {
     x = torch::leaky_relu(ln3->forward(fc3->forward(x)), 0.01);
     x = torch::leaky_relu(ln4->forward(fc4->forward(x)), 0.01);
 	x = torch::leaky_relu(ln5->forward(fc5->forward(x)), 0.01);
+	x = torch::leaky_relu(ln6->forward(fc6->forward(x)), 0.01);
+	x = torch::leaky_relu(ln7->forward(fc7->forward(x)), 0.01);
 
 	auto mean = fc_mean->forward(x);
 	auto log_std = torch::clamp(fc_log_std->forward(x), -20.0, 2.0);
