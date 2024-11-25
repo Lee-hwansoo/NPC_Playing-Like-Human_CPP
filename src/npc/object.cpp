@@ -700,7 +700,7 @@ tensor_t Agent::get_state() const {
     auto normalized_velocity = velocity_ / constants::Agent::VELOCITY_LIMITS.b; // [2]
     auto goal_in_fov_tensor = torch::tensor({static_cast<real_t>(is_goal_in_fov_)}); // [1]
     auto normalized_angle_diff = torch::tensor({std::sin(angle_to_goal_), std::cos(angle_to_goal_)}); // [2]
-    auto normalized_goal_dist = torch::tensor({std::min(1.0f, goal_distance_ / (constants::Display::WIDTH > constants::Display::HEIGHT ? constants::Display::WIDTH : constants::Display::HEIGHT))}); // [1]
+    auto normalized_goal_dist = torch::tensor({goal_distance_ / std::sqrt(constants::Display::WIDTH * constants::Display::WIDTH + constants::Display::HEIGHT * constants::Display::HEIGHT)}); // [1]
     auto normalized_frenet_d = torch::tensor({frenet_d_ / (constants::Display::WIDTH > constants::Display::HEIGHT ? constants::Display::WIDTH : constants::Display::HEIGHT)}); // [1]
     // auto normalized_frenet_point = torch::tensor({frenet_point_.a / constants::Display::WIDTH, frenet_point_.b / constants::Display::HEIGHT}); // [2]
 

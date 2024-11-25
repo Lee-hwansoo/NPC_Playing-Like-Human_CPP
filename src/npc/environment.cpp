@@ -225,16 +225,16 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 	}
 
 	real_t dist_reward = 0.0f;
-	if (normalized_goal_dist > 0.2f) {
-		real_t progress = normalized_goal_dist - 0.2f;
+	if (normalized_goal_dist > 0.1f) {
+		real_t progress = normalized_goal_dist - 0.1f;
 		real_t k = 0.3f;
-		real_t exp_min = std::exp(-k * 0.8f);
+		real_t exp_min = std::exp(-k * 0.9f);
 		real_t exp_max = 1.0f;
 		dist_reward = (0.5f * (std::exp(-(progress) * k) - exp_min) / (exp_max - exp_min)) * dist_factor;
 	} else {
 		real_t progress = normalized_goal_dist;
 		real_t k = 2.0f;
-		real_t exp_min = std::exp(-k * 0.2f);
+		real_t exp_min = std::exp(-k * 0.1f);
 		real_t exp_max = 1.0f;
 		dist_reward = (0.5f + 0.5f * (std::exp(-(progress) * k) - exp_min) / (exp_max - exp_min)) * dist_factor;
 	}
