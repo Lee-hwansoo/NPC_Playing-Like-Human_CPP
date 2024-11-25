@@ -61,14 +61,14 @@ def calculate_distance_reward(normalized_goal_dist, dist_factor=0.7):
     if normalized_goal_dist > 0.1:
         # 1~0.1 구간: 지수 증가
         progress = normalized_goal_dist - 0.1
-        k = 0.3
+        k = 1.0
         exp_min = np.exp(-k * 0.9)
         exp_max = 1.0
         reward = 0.5 * (np.exp(-progress * k) - exp_min) / (exp_max - exp_min)
     else:
         # 0.1~0 구간: 지수 증가
         near_progress = (normalized_goal_dist)
-        k = 2.0
+        k = 30.0
         exp_min = np.exp(-k * 0.1)
         exp_max = 1.0
         reward = 0.5 + 0.5 * (np.exp(-near_progress * k) - exp_min) / (exp_max - exp_min)
