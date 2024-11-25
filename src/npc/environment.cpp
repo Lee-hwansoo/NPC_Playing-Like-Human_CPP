@@ -215,13 +215,12 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 
 	// 보상 컴포넌트들
 	real_t dist_factor, path_factor;
-	if (normalized_goal_dist > 0.2f) {
+	if (normalized_goal_dist > 0.05f) {
 		dist_factor = 0.7f;
 		path_factor = 0.3f;
 	} else {
-		// 목표 근처에서 경로 추종 가중치 증가
-		dist_factor = 0.6f;
-		path_factor = 0.4f;
+		dist_factor = 1.0f;
+		path_factor = 0.0f;
 	}
 
 	real_t dist_reward = 0.0f;
