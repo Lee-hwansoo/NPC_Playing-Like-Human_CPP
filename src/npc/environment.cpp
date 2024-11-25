@@ -197,7 +197,7 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 	if (terminated_) {
 		// 빠른 도달에 대한 보너스 보상
 		real_t speed_bonus = (1.0f - static_cast<real_t>(step_count_) / constants::NETWORK::MAX_STEP);
-		return 2.0f + speed_bonus;
+		return 7.0f + (3.0f * speed_bonus);
 	}
 
 	auto state_size = state.size(0);
