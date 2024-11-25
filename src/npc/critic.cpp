@@ -41,7 +41,7 @@ void CriticImpl::initialize_network(torch::Device device) {
 			if (name != "fc9"){
 				torch::nn::init::kaiming_normal_(
 					linear->weight,
-					std::sqrt(2.0f / (1.0f + std::pow(0.01, 2))),
+					std::sqrt(2.0f / (1.0f + std::pow(0.1, 2))),
 					torch::kFanOut,
 					torch::kLeakyReLU
 				);
@@ -100,14 +100,14 @@ tensor_t CriticImpl::forward(const tensor_t& state, const tensor_t& action) {
 
 	auto x = torch::cat({state_dev, action_dev}, 1);
 
-    x = torch::leaky_relu(ln1->forward(fc1->forward(x)), 0.01);
-    x = torch::leaky_relu(ln2->forward(fc2->forward(x)), 0.01);
-    x = torch::leaky_relu(ln3->forward(fc3->forward(x)), 0.01);
-    x = torch::leaky_relu(ln4->forward(fc4->forward(x)), 0.01);
-	x = torch::leaky_relu(ln5->forward(fc5->forward(x)), 0.01);
-	x = torch::leaky_relu(ln6->forward(fc6->forward(x)), 0.01);
-	x = torch::leaky_relu(ln7->forward(fc7->forward(x)), 0.01);
-	x = torch::leaky_relu(ln8->forward(fc8->forward(x)), 0.01);
+    x = torch::leaky_relu(ln1->forward(fc1->forward(x)), 0.1);
+    x = torch::leaky_relu(ln2->forward(fc2->forward(x)), 0.1);
+    x = torch::leaky_relu(ln3->forward(fc3->forward(x)), 0.1);
+    x = torch::leaky_relu(ln4->forward(fc4->forward(x)), 0.1);
+	x = torch::leaky_relu(ln5->forward(fc5->forward(x)), 0.1);
+	x = torch::leaky_relu(ln6->forward(fc6->forward(x)), 0.1);
+	x = torch::leaky_relu(ln7->forward(fc7->forward(x)), 0.1);
+	x = torch::leaky_relu(ln8->forward(fc8->forward(x)), 0.1);
 	x = fc9->forward(x);
 
 	return x;

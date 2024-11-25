@@ -2,7 +2,7 @@
 import matplotlib.pyplot as plt
 
 # 보상 계산 함수들
-def calculate_distance_reward(normalized_goal_dist, dist_factor=0.8):
+def calculate_distance_reward(normalized_goal_dist, dist_factor=0.7):
     """
     거리 기반 보상 계산
     - 1~0.1: 전체 보상의 70% (완만한 증가)
@@ -58,24 +58,24 @@ def calculate_distance_reward(normalized_goal_dist, dist_factor=0.8):
     #     near_goal_progress = (0.1 - normalized_goal_dist) / 0.1
     #     reward = 0.5 + 0.5 * near_goal_progress  # 선형적으로 증가
 
-    if normalized_goal_dist > 0.1:
+    if normalized_goal_dist > 0.2:
         # 1~0.1 구간: 지수 증가
-        progress = normalized_goal_dist - 0.1
-        k = 1.0
-        exp_min = np.exp(-k * 0.9)  # e^(-k * 0.9)
-        exp_max = 1.0               # e^0 = 1
+        progress = normalized_goal_dist - 0.2
+        k = 0.3
+        exp_min = np.exp(-k * 0.8)
+        exp_max = 1.0
         reward = 0.5 * (np.exp(-progress * k) - exp_min) / (exp_max - exp_min)
     else:
         # 0.1~0 구간: 지수 증가
         near_progress = (normalized_goal_dist)
-        k = 1.0
-        exp_min = np.exp(-k * 0.1)  # e^(-k * 0.1)
-        exp_max = 1.0               # e^0 = 1
+        k = 3.0
+        exp_min = np.exp(-k * 0.2)
+        exp_max = 1.0
         reward = 0.5 + 0.5 * (np.exp(-near_progress * k) - exp_min) / (exp_max - exp_min)
 
     return reward * dist_factor
 
-def calculate_path_reward(normalized_frenet_d, path_factor=0.2):
+def calculate_path_reward(normalized_frenet_d, path_factor=0.3):
     """
     경로 중심 거리 보상 계산
     """
@@ -104,7 +104,7 @@ def visualize_rewards():
 
     plt.subplot(2, 1, 1)
     plt.plot(x_dist, y_dist, 'b-', label='Distance Reward', linewidth=2)
-    plt.axvline(x=0.1, color='r', linestyle='--', label='Transition Point')
+    plt.axvline(x=0.2, color='r', linestyle='--', label='Transition Point')
     plt.title('Distance Reward')
     plt.xlabel('Normalized Goal Distance')
     plt.ylabel('Reward')
@@ -138,7 +138,7 @@ def analyze_rewards1():
 def analyze_rewards2():
     distances = {
         "근거리": [0.001, 0.002, 0.003, 0.008, 0.015, 0.02, 0.025, 0.03, 0.035],
-        "전환점 근처": [0.08, 0.09, 0.098, 0.099, 0.1, 0.101, 0.102, 0.11, 0.12],
+        "전환점 근처": [0.18, 0.19, 0.198, 0.199, 0.2, 0.201, 0.202, 0.21, 0.22],
         "원거리": [0.1, 0.2, 0.3, 0.4, 0.5, 0.7, 1.0]
     }
 

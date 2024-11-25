@@ -190,14 +190,14 @@ tensor_t TrainEnvironment::get_observation() const {
 real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t& action, bool debug) {
 	// 중단 보상 (충돌, 경계, 최대 스텝)
 	if (truncated_) {
-		return -1.0f;
+		return -(1.0f * constants::NETWORK::N_STEPS);
 	}
 
 	// 종료 보상
 	if (terminated_) {
 		// 빠른 도달에 대한 보너스 보상
-		real_t speed_bonus = (1.0f - static_cast<real_t>(step_count_) / constants::NETWORK::MAX_STEP);
-		return 7.0f + (3.0f * speed_bonus);
+		real_t speed_bonus = (1.0f - static_cast<real_t>(step_count_) / constants::NETWORK::MAX_STEP) * constants::NETWORK::N_STEPS;
+		return 10.0f * constants::NETWORK::N_STEPS + (10.0f * speed_bonus);
 	}
 
 	auto state_size = state.size(0);
@@ -214,22 +214,22 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
     real_t yaw_change = required_action[1].item<real_t>();
 
 	// 보상 컴포넌트들
-	real_t dist_factor = 0.6f;
-	real_t path_factor = 0.4f;
+	real_t dist_factor = 0.7f;
+	real_t path_factor = 0.3f;
 
 	real_t dist_reward = 0.0f;
-	if (normalized_goal_dist > 0.1f) {
-		real_t progress = normalized_goal_dist - 0.1f;
-		real_t k = 1.0f;
-		real_t exp_min = std::exp(-k * 0.9f);
+	if (normalized_goal_dist > 0.2f) {
+		real_t progress = normalized_goal_dist - 0.2f;
+		real_t k = 0.3f;
+		real_t exp_min = std::exp(-k * 0.8f);
 		real_t exp_max = 1.0f;
-		dist_reward = (0.6f * (std::exp(-(progress) * k) - exp_min) / (exp_max - exp_min)) * dist_factor;
+		dist_reward = (0.5f * (std::exp(-(progress) * k) - exp_min) / (exp_max - exp_min)) * dist_factor;
 	} else {
 		real_t progress = normalized_goal_dist;
-		real_t k = 1.0f;
-		real_t exp_min = std::exp(-k * 0.1f);
+		real_t k = 3.0f;
+		real_t exp_min = std::exp(-k * 0.2f);
 		real_t exp_max = 1.0f;
-		dist_reward = (0.6f + 0.4f * (std::exp(-(progress) * k) - exp_min) / (exp_max - exp_min)) * dist_factor;
+		dist_reward = (0.5f + 0.5f * (std::exp(-(progress) * k) - exp_min) / (exp_max - exp_min)) * dist_factor;
 	}
 	real_t path_reward = std::exp(-std::abs(normalized_frenet_d) * (25.0f)) * path_factor;
 

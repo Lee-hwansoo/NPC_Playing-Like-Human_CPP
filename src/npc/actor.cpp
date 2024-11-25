@@ -46,7 +46,7 @@ void ActorImpl::initialize_network(torch::Device device) {
 			if (name != "fc_mean" && name != "fc_log_std"){
 				torch::nn::init::kaiming_normal_(
 					linear->weight,
-					std::sqrt(2.0f / (1.0f + std::pow(0.01, 2))),
+					std::sqrt(2.0f / (1.0f + std::pow(0.1, 2))),
 					torch::kFanOut,
 					torch::kLeakyReLU
 				);
@@ -117,14 +117,14 @@ void ActorImpl::to(torch::Device device) {
 std::tuple<tensor_t, tensor_t> ActorImpl::forward(const tensor_t& state) {
 	auto x = state.to(this->device());
 
-    x = torch::leaky_relu(ln1->forward(fc1->forward(x)), 0.01);
-    x = torch::leaky_relu(ln2->forward(fc2->forward(x)), 0.01);
-    x = torch::leaky_relu(ln3->forward(fc3->forward(x)), 0.01);
-    x = torch::leaky_relu(ln4->forward(fc4->forward(x)), 0.01);
-	x = torch::leaky_relu(ln5->forward(fc5->forward(x)), 0.01);
-	x = torch::leaky_relu(ln6->forward(fc6->forward(x)), 0.01);
-	x = torch::leaky_relu(ln7->forward(fc7->forward(x)), 0.01);
-	x = torch::leaky_relu(ln8->forward(fc8->forward(x)), 0.01);
+    x = torch::leaky_relu(ln1->forward(fc1->forward(x)), 0.1);
+    x = torch::leaky_relu(ln2->forward(fc2->forward(x)), 0.1);
+    x = torch::leaky_relu(ln3->forward(fc3->forward(x)), 0.1);
+    x = torch::leaky_relu(ln4->forward(fc4->forward(x)), 0.1);
+	x = torch::leaky_relu(ln5->forward(fc5->forward(x)), 0.1);
+	x = torch::leaky_relu(ln6->forward(fc6->forward(x)), 0.1);
+	x = torch::leaky_relu(ln7->forward(fc7->forward(x)), 0.1);
+	x = torch::leaky_relu(ln8->forward(fc8->forward(x)), 0.1);
 
 	auto mean = fc_mean->forward(x);
 	auto log_std = torch::clamp(fc_log_std->forward(x), -20.0, 2.0);
