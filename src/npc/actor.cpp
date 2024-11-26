@@ -127,7 +127,7 @@ std::tuple<tensor_t, tensor_t> ActorImpl::forward(const tensor_t& state) {
 	x = torch::leaky_relu(ln8->forward(fc8->forward(x)), 0.1);
 
 	auto mean = fc_mean->forward(x);
-	auto log_std = torch::clamp(fc_log_std->forward(x), -20.0, 2.0);
+	auto log_std = torch::clamp(fc_log_std->forward(x), -10.0, 2.0);
 
 	return std::make_tuple(mean, log_std);
 }

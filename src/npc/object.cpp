@@ -528,35 +528,35 @@ std::tuple<Vector2, real_t> Agent::get_frenet_d() {
     // 각 투영점까지의 거리 계산 [num_segments]
     auto distances = torch::norm(diff_vec, 2, 1);
 
-    // 에이전트 방향과 경로 선분 방향 사이의 각도 계산 [num_segments]
-    auto dir_similarity = torch::sum(agent_dir.unsqueeze(0) * path_segment_dirs_, 1);
+    // // 에이전트 방향과 경로 선분 방향 사이의 각도 계산 [num_segments]
+    // auto dir_similarity = torch::sum(agent_dir.unsqueeze(0) * path_segment_dirs_, 1);
 
-    // 거리와 방향 유사도를 결합한 가중치 계산
-    // weight = distance_weight + direction_weight
-    real_t direction_weight = 20.0f; // 방향 가중치 계수
-    auto weights = distances + direction_weight * (1.0f - dir_similarity);
+    // // 거리와 방향 유사도를 결합한 가중치 계산
+    // // weight = distance_weight + direction_weight
+    // real_t direction_weight = 20.0f; // 방향 가중치 계수
+    // auto weights = distances + direction_weight * (1.0f - dir_similarity);
 
-    // 가중치가 최소인 투영점 선택
-    auto min_weight_idx = torch::argmin(weights);
-    auto min_dist = distances[min_weight_idx].item<real_t>();
-
-    // 가장 가까운 투영점의 좌표
-    auto closest_proj_point = proj_points[min_weight_idx];
-
-    // frenet_d의 부호 결정
-    auto closest_segment_dir = path_segment_dirs_[min_weight_idx];
-    auto closest_diff_vec = diff_vec[min_weight_idx];
-
-    // // 가장 가까운 투영점 찾기
-    // auto min_dist_idx = torch::argmin(distances);
-    // auto min_dist = distances[min_dist_idx].item<real_t>();
+    // // 가중치가 최소인 투영점 선택
+    // auto min_weight_idx = torch::argmin(weights);
+    // auto min_dist = distances[min_weight_idx].item<real_t>();
 
     // // 가장 가까운 투영점의 좌표
-    // auto closest_proj_point = proj_points[min_dist_idx];
+    // auto closest_proj_point = proj_points[min_weight_idx];
 
     // // frenet_d의 부호 결정
-    // auto closest_segment_dir = path_segment_dirs_[min_dist_idx];
-    // auto closest_diff_vec = diff_vec[min_dist_idx];
+    // auto closest_segment_dir = path_segment_dirs_[min_weight_idx];
+    // auto closest_diff_vec = diff_vec[min_weight_idx];
+
+    // 가장 가까운 투영점 찾기
+    auto min_dist_idx = torch::argmin(distances);
+    auto min_dist = distances[min_dist_idx].item<real_t>();
+
+    // 가장 가까운 투영점의 좌표
+    auto closest_proj_point = proj_points[min_dist_idx];
+
+    // frenet_d의 부호 결정
+    auto closest_segment_dir = path_segment_dirs_[min_dist_idx];
+    auto closest_diff_vec = diff_vec[min_dist_idx];
 
     auto dir_3d = torch::zeros({3});
     auto diff_3d = torch::zeros({3});

@@ -190,14 +190,14 @@ tensor_t TrainEnvironment::get_observation() const {
 real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t& action, bool debug) {
 	// 중단 보상 (충돌, 경계, 최대 스텝)
 	if (truncated_) {
-		return -(1.0f * constants::NETWORK::N_STEPS);
+		return -1.0f;
 	}
 
 	// 종료 보상
 	if (terminated_) {
 		// 빠른 도달에 대한 보너스 보상
-		real_t speed_bonus = (1.0f - static_cast<real_t>(step_count_) / constants::NETWORK::MAX_STEP) * constants::NETWORK::N_STEPS;
-		return 10.0f * constants::NETWORK::N_STEPS + (10.0f * speed_bonus);
+		real_t speed_bonus = (1.0f - static_cast<real_t>(step_count_) / constants::NETWORK::MAX_STEP);
+		return 2.0f + (speed_bonus);
 	}
 
 	auto state_size = state.size(0);
