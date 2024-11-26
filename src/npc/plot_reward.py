@@ -104,7 +104,7 @@ def visualize_rewards():
 
     plt.subplot(2, 1, 1)
     plt.plot(x_dist, y_dist, 'b-', label='Distance Reward', linewidth=2)
-    plt.axvline(x=0.2, color='r', linestyle='--', label='Transition Point')
+    plt.axvline(x=0.1, color='r', linestyle='--', label='Transition Point')
     plt.title('Distance Reward')
     plt.xlabel('Normalized Goal Distance')
     plt.ylabel('Reward')
@@ -138,7 +138,7 @@ def analyze_rewards1():
 def analyze_rewards2():
     distances = {
         "근거리": [0.001, 0.002, 0.003, 0.008, 0.015, 0.02, 0.025, 0.03, 0.035],
-        "전환점 근처": [0.18, 0.19, 0.198, 0.199, 0.2, 0.201, 0.202, 0.21, 0.22],
+        "전환점 근처": [0.08, 0.09, 0.096, 0.097, 0.098, 0.099, 0.1, 0.101, 0.102, 0.103, 0.104, 0.11, 0.12],
         "원거리": [0.1, 0.2, 0.3, 0.4, 0.5, 0.7, 1.0]
     }
 
@@ -156,7 +156,7 @@ def analyze_rewards2():
 
     # 변화율 분석
     print("\n변화율 분석:")
-    close_points = [0.001, 0.005, 0.01, 0.02, 0.03, 0.04, 0.1, 0.3, 0.5, 1.0]
+    close_points = [0.001, 0.003, 0.005, 0.007, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.3, 0.5, 0.7, 1.0]
     for i in range(len(close_points)-1):
         d1, d2 = close_points[i], close_points[i+1]
         r1 = calculate_distance_reward(d1)
