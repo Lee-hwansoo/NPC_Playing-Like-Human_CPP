@@ -29,12 +29,12 @@ void ActorImpl::initialize_network(torch::Device device) {
 	ln5 = register_module("ln5", torch::nn::LayerNorm(torch::nn::LayerNormOptions({256})));
 	fc6 = register_module("fc6", torch::nn::Linear(256, 128));
 	ln6 = register_module("ln6", torch::nn::LayerNorm(torch::nn::LayerNormOptions({128})));
-	fc7 = register_module("fc7", torch::nn::Linear(128, 64));
-	ln7 = register_module("ln7", torch::nn::LayerNorm(torch::nn::LayerNormOptions({64})));
-	fc8 = register_module("fc8", torch::nn::Linear(64, 32));
-	ln8 = register_module("ln8", torch::nn::LayerNorm(torch::nn::LayerNormOptions({32})));
-	fc_mean = register_module("fc_mean", torch::nn::Linear(32, action_dim_));
-	fc_log_std = register_module("fc_log_std", torch::nn::Linear(32, action_dim_));
+	fc7 = register_module("fc7", torch::nn::Linear(128, 128));
+	ln7 = register_module("ln7", torch::nn::LayerNorm(torch::nn::LayerNormOptions({128})));
+	fc8 = register_module("fc8", torch::nn::Linear(128, 64));
+	ln8 = register_module("ln8", torch::nn::LayerNorm(torch::nn::LayerNormOptions({64})));
+	fc_mean = register_module("fc_mean", torch::nn::Linear(64, action_dim_));
+	fc_log_std = register_module("fc_log_std", torch::nn::Linear(64, action_dim_));
 
 	std::cout << "\nInitializing "<< this->network_name() << " network" << std::endl;
 	count_type count = 0;
@@ -82,7 +82,7 @@ void ActorImpl::initialize_network(torch::Device device) {
 		torch::kFanIn,
 		torch::kLeakyReLU
 	);
-	torch::nn::init::constant_(fc_log_std->bias, -1.0);
+	torch::nn::init::constant_(fc_log_std->bias, 0.0);
 
     std::cout << "Initializing parameters for Log std output layer"
         << " (fc_log_std: " << fc_log_std->weight.size(1) << " -> "
