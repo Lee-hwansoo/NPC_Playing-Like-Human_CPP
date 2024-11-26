@@ -2,7 +2,7 @@
 import matplotlib.pyplot as plt
 
 # 보상 계산 함수들
-def calculate_distance_reward(normalized_goal_dist, dist_factor=0.7):
+def calculate_distance_reward(normalized_goal_dist, dist_factor=0.8):
     """
     거리 기반 보상 계산
     - 1~0.1: 전체 보상의 70% (완만한 증가)
@@ -91,11 +91,11 @@ def calculate_distance_reward(normalized_goal_dist, dist_factor=0.7):
 
     return reward * dist_factor
 
-def calculate_path_reward(normalized_frenet_d, path_factor=0.3):
+def calculate_path_reward(normalized_frenet_d, path_factor=0.2):
     """
     경로 중심 거리 보상 계산
     """
-    reward = np.exp(-np.abs(normalized_frenet_d) * 25.0) * path_factor
+    reward = np.exp(-np.abs(normalized_frenet_d) * 20.0) * path_factor
     return reward
 
 # 통합 보상 계산
