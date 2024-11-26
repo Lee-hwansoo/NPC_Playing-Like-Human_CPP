@@ -27,9 +27,9 @@ void CriticImpl::initialize_network(torch::Device device) {
 	ln6 = register_module("ln6", torch::nn::LayerNorm(torch::nn::LayerNormOptions({128})));
 	fc7 = register_module("fc7", torch::nn::Linear(128, 128));
 	ln7 = register_module("ln7", torch::nn::LayerNorm(torch::nn::LayerNormOptions({128})));
-	fc8 = register_module("fc8", torch::nn::Linear(128, 64));
-	ln8 = register_module("ln8", torch::nn::LayerNorm(torch::nn::LayerNormOptions({64})));
-    fc9 = register_module("fc9", torch::nn::Linear(64, 1));
+	fc8 = register_module("fc8", torch::nn::Linear(128, 128));
+	ln8 = register_module("ln8", torch::nn::LayerNorm(torch::nn::LayerNormOptions({128})));
+    fc9 = register_module("fc9", torch::nn::Linear(128, 1));
 
 	std::cout << "\nInitializing "<< this->network_name() << " network" << std::endl;
 	count_type count = 0;

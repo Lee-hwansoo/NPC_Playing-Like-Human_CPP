@@ -31,10 +31,10 @@ void ActorImpl::initialize_network(torch::Device device) {
 	ln6 = register_module("ln6", torch::nn::LayerNorm(torch::nn::LayerNormOptions({128})));
 	fc7 = register_module("fc7", torch::nn::Linear(128, 128));
 	ln7 = register_module("ln7", torch::nn::LayerNorm(torch::nn::LayerNormOptions({128})));
-	fc8 = register_module("fc8", torch::nn::Linear(128, 64));
-	ln8 = register_module("ln8", torch::nn::LayerNorm(torch::nn::LayerNormOptions({64})));
-	fc_mean = register_module("fc_mean", torch::nn::Linear(64, action_dim_));
-	fc_log_std = register_module("fc_log_std", torch::nn::Linear(64, action_dim_));
+	fc8 = register_module("fc8", torch::nn::Linear(128, 128));
+	ln8 = register_module("ln8", torch::nn::LayerNorm(torch::nn::LayerNormOptions({128})));
+	fc_mean = register_module("fc_mean", torch::nn::Linear(128, action_dim_));
+	fc_log_std = register_module("fc_log_std", torch::nn::Linear(128, action_dim_));
 
 	std::cout << "\nInitializing "<< this->network_name() << " network" << std::endl;
 	count_type count = 0;
