@@ -58,20 +58,33 @@ def calculate_distance_reward(normalized_goal_dist, dist_factor=0.7):
     #     near_goal_progress = (0.1 - normalized_goal_dist) / 0.1
     #     reward = 0.5 + 0.5 * near_goal_progress  # 선형적으로 증가
 
+    # if normalized_goal_dist > 0.1:
+    #     # 1~0.1 구간: 지수 증가
+    #     progress = normalized_goal_dist - 0.1
+    #     k = 1.0
+    #     exp_min = np.exp(-k * 0.9)
+    #     exp_max = 1.0
+    #     reward = 0.5 * (np.exp(-progress * k) - exp_min) / (exp_max - exp_min)
+    # else:
+    #     # 0.1~0 구간: 지수 증가
+    #     near_progress = (normalized_goal_dist)
+    #     k = 30.0
+    #     exp_min = np.exp(-k * 0.1)
+    #     exp_max = 1.0
+    #     reward = 0.5 + 0.5 * (np.exp(-near_progress * k) - exp_min) / (exp_max - exp_min)
+
     if normalized_goal_dist > 0.1:
-        # 1~0.1 구간: 지수 증가
-        progress = normalized_goal_dist - 0.1
-        k = 1.0
-        exp_min = np.exp(-k * 0.9)
-        exp_max = 1.0
-        reward = 0.5 * (np.exp(-progress * k) - exp_min) / (exp_max - exp_min)
+        progress = 1 - normalized_goal_dist
+        reward = 0.5 * (progress / 0.9)
+    elif normalized_goal_dist > 0.05:
+        progress = (0.1 - normalized_goal_dist) / 0.05
+        reward = 0.5 + 0.1 * progress
+    elif normalized_goal_dist > 0.03:
+        progress = (0.05 - normalized_goal_dist) / 0.02
+        reward = 0.6 + 0.1 * progress
     else:
-        # 0.1~0 구간: 지수 증가
-        near_progress = (normalized_goal_dist)
-        k = 30.0
-        exp_min = np.exp(-k * 0.1)
-        exp_max = 1.0
-        reward = 0.5 + 0.5 * (np.exp(-near_progress * k) - exp_min) / (exp_max - exp_min)
+        progress = 1.0 - (normalized_goal_dist / 0.03)
+        reward = 0.7 + 0.3 * progress
 
     return reward * dist_factor
 
@@ -105,6 +118,8 @@ def visualize_rewards():
     plt.subplot(2, 1, 1)
     plt.plot(x_dist, y_dist, 'b-', label='Distance Reward', linewidth=2)
     plt.axvline(x=0.1, color='r', linestyle='--', label='Transition Point')
+    plt.axvline(x=0.05, color='r', linestyle='--', label='Transition Point')
+    plt.axvline(x=0.03, color='r', linestyle='--', label='Transition Point')
     plt.title('Distance Reward')
     plt.xlabel('Normalized Goal Distance')
     plt.ylabel('Reward')

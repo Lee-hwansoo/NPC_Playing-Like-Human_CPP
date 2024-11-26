@@ -227,19 +227,22 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 	real_t path_factor = 0.3f;
 
 	real_t dist_reward = 0.0f;
-	if (normalized_goal_dist > 0.1f) {
-		real_t progress = normalized_goal_dist - 0.1f;
-		real_t k = 1.0f;
-		real_t exp_min = std::exp(-k * 0.9f);
-		real_t exp_max = 1.0f;
-		dist_reward = (0.5f * (std::exp(-(progress) * k) - exp_min) / (exp_max - exp_min)) * dist_factor;
-	} else {
-		real_t progress = normalized_goal_dist;
-		real_t k = 30.0f;
-		real_t exp_min = std::exp(-k * 0.1f);
-		real_t exp_max = 1.0f;
-		dist_reward = (0.5f + 0.5f * (std::exp(-(progress) * k) - exp_min) / (exp_max - exp_min)) * dist_factor;
-	}
+    if (normalized_goal_dist > 0.1f) {
+        progress = 1.0f - normalized_goal_dist;
+        dist_reward = (0.5f * (progress / 0.9f)) * dist_factor;
+    }
+    else if (normalized_goal_dist > 0.05f) {
+        progress = (0.1f - normalized_goal_dist) / 0.05f;
+        dist_reward = (0.5f + 0.1f * progress) * dist_factor;
+    }
+    else if (normalized_goal_dist > 0.03f) {
+        progress = (0.05f - normalized_goal_dist) / 0.02f;
+        dist_reward = (0.6f + 0.1f * progress) * dist_factor;
+    }
+    else {
+        progress = 1.0f - (normalized_goal_dist / 0.03f);
+        dist_reward = (0.7f + 0.3f * progress) * dist_factor;
+    }
 	real_t path_reward = std::exp(-std::abs(normalized_frenet_d) * (25.0f)) * path_factor;
 
 	real_t reward = dist_reward +
