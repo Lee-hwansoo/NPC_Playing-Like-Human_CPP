@@ -75,19 +75,19 @@ def calculate_distance_reward(normalized_goal_dist, dist_factor=0.7):
 
     if normalized_goal_dist > 0.2:
         progress = 1 - normalized_goal_dist
-        reward = 0.4 * (progress / 0.8)
+        reward = 0.5 * (progress / 0.8)
     elif normalized_goal_dist > 0.1:
         progress = (0.2 - normalized_goal_dist) / 0.1
-        reward = 0.4 + 0.1 * progress
+        reward = 0.5 + 0.1 * progress
     elif normalized_goal_dist > 0.05:
         progress = (0.1 - normalized_goal_dist) / 0.05
-        reward = 0.5 + 0.1 * progress
-    elif normalized_goal_dist > 0.03:
-        progress = (0.05 - normalized_goal_dist) / 0.02
         reward = 0.6 + 0.1 * progress
+    elif normalized_goal_dist > 0.025:
+        progress = (0.05 - normalized_goal_dist) / 0.025
+        reward = 0.7 + 0.1 * progress
     else:
-        progress = 1.0 - (normalized_goal_dist / 0.03)
-        reward = 0.7 + 0.3 * progress
+        progress = 1.0 - (normalized_goal_dist / 0.025)
+        reward = 0.8 + 0.2 * progress
 
     return reward * dist_factor
 
@@ -123,7 +123,7 @@ def visualize_rewards():
     plt.axvline(x=0.2, color='r', linestyle='--', label='Transition Point 1')
     plt.axvline(x=0.1, color='r', linestyle='--', label='Transition Point 2')
     plt.axvline(x=0.05, color='r', linestyle='--', label='Transition Point 3')
-    plt.axvline(x=0.03, color='r', linestyle='--', label='Transition Point 4')
+    plt.axvline(x=0.025, color='r', linestyle='--', label='Transition Point 4')
     plt.title('Distance Reward')
     plt.xlabel('Normalized Goal Distance')
     plt.ylabel('Reward')
