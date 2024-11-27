@@ -190,14 +190,14 @@ tensor_t TrainEnvironment::get_observation() const {
 real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t& action, bool debug) {
 	// 중단 보상 (충돌, 경계, 최대 스텝)
 	if (truncated_) {
-		return -1.0f;
+		return -2.5f;
 	}
 
 	// 종료 보상
 	if (terminated_) {
 		// 빠른 도달에 대한 보너스 보상
 		real_t speed_bonus = (1.0f - static_cast<real_t>(step_count_) / constants::NETWORK::MAX_STEP);
-		return 2.0f + (speed_bonus);
+		return 3.0f + (2.0f * speed_bonus);
 	}
 
 	auto state_size = state.size(0);
@@ -214,31 +214,31 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
     real_t yaw_change = required_action[1].item<real_t>();
 
 	// 보상 컴포넌트들
-	real_t dist_factor = 0.9f;
-	real_t path_factor = 0.1f;
+	real_t dist_factor = 0.75f;
+	real_t path_factor = 0.15f;
 
 	real_t dist_reward = 0.0f;
 	if (normalized_goal_dist > 0.2f) {
 		real_t progress = 1.0f - normalized_goal_dist;
-		dist_reward = (0.5f * (progress / 0.8f)) * dist_factor;
+		dist_reward = (0.43f * (progress / 0.8f)) * dist_factor;
 	}
 	else if (normalized_goal_dist > 0.1f) {
 		real_t progress = (0.2f - normalized_goal_dist) / 0.1f;
-		dist_reward = (0.5f + 0.1f * progress) * dist_factor;
+		dist_reward = (0.43f + 0.07f * progress) * dist_factor;
 	}
 	else if (normalized_goal_dist > 0.05f) {
 		real_t progress = (0.1f - normalized_goal_dist) / 0.05f;
-		dist_reward = (0.6f + 0.1f * progress) * dist_factor;
+		dist_reward = (0.5f + 0.1f * progress) * dist_factor;
 	}
 	else if (normalized_goal_dist > 0.025f) {
 		real_t progress = (0.05f - normalized_goal_dist) / 0.025f;
-		dist_reward = (0.7f + 0.1f * progress) * dist_factor;
+		dist_reward = (0.6f + 0.15f * progress) * dist_factor;
 	}
 	else {
 		real_t progress = 1.0f - (normalized_goal_dist / 0.025f);
-		dist_reward = (0.8f + 0.2f * progress) * dist_factor;
+		dist_reward = (0.75f + 0.25f * progress) * dist_factor;
 	}
-	real_t path_reward = std::exp(-std::abs(normalized_frenet_d) * (20.0f)) * path_factor;
+	real_t path_reward = std::exp(-std::abs(normalized_frenet_d) * (10.0f)) * path_factor;
 
 	real_t reward = dist_reward +
 			path_reward;

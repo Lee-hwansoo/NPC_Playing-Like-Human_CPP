@@ -122,10 +122,10 @@ private:
 
 void testBasicTrainEnvironment(SDL_Renderer* renderer) {
     torch::Device device = get_device();
-    environment::TrainEnvironment env(constants::Display::WIDTH, constants::Display::HEIGHT, device, 1, true);
+    environment::TrainEnvironment env(constants::Display::WIDTH, constants::Display::HEIGHT, torch::kCPU, 1, true);
     env.set_render(renderer);
-    // env.load("20241125_063502", 1200);
-    env.train(1000, false, false, false);
+    env.load("20241127_030207", 75);
+    env.train(125, false, false, false);
     // env.test(10, true);
 }
 

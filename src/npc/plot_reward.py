@@ -2,7 +2,7 @@
 import matplotlib.pyplot as plt
 
 # 보상 계산 함수들
-def calculate_distance_reward(normalized_goal_dist, dist_factor=0.8):
+def calculate_distance_reward(normalized_goal_dist, dist_factor=0.9):
     """
     거리 기반 보상 계산
     - 1~0.1: 전체 보상의 70% (완만한 증가)
@@ -75,27 +75,27 @@ def calculate_distance_reward(normalized_goal_dist, dist_factor=0.8):
 
     if normalized_goal_dist > 0.2:
         progress = 1 - normalized_goal_dist
-        reward = 0.5 * (progress / 0.8)
+        reward = 0.43 * (progress / 0.8)
     elif normalized_goal_dist > 0.1:
         progress = (0.2 - normalized_goal_dist) / 0.1
-        reward = 0.5 + 0.1 * progress
+        reward = 0.43 + 0.07 * progress
     elif normalized_goal_dist > 0.05:
         progress = (0.1 - normalized_goal_dist) / 0.05
-        reward = 0.6 + 0.1 * progress
+        reward = 0.5 + 0.1 * progress
     elif normalized_goal_dist > 0.025:
         progress = (0.05 - normalized_goal_dist) / 0.025
-        reward = 0.7 + 0.1 * progress
+        reward = 0.6 + 0.15 * progress
     else:
         progress = 1.0 - (normalized_goal_dist / 0.025)
-        reward = 0.8 + 0.2 * progress
+        reward = 0.75 + 0.25 * progress
 
     return reward * dist_factor
 
-def calculate_path_reward(normalized_frenet_d, path_factor=0.2):
+def calculate_path_reward(normalized_frenet_d, path_factor=0.1):
     """
     경로 중심 거리 보상 계산
     """
-    reward = np.exp(-np.abs(normalized_frenet_d) * 20.0) * path_factor
+    reward = np.exp(-np.abs(normalized_frenet_d) * 10.0) * path_factor
     return reward
 
 # 통합 보상 계산
@@ -175,7 +175,7 @@ def analyze_rewards2():
 
     # 변화율 분석
     print("\n변화율 분석:")
-    close_points = [0.001, 0.003, 0.005, 0.007, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.3, 0.5, 0.7, 1.0]
+    close_points = [0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.3, 0.5, 0.7, 1.0]
     for i in range(len(close_points)-1):
         d1, d2 = close_points[i], close_points[i+1]
         r1 = calculate_distance_reward(d1)

@@ -105,7 +105,7 @@ namespace constants
     //--------------------------------------------------------------------------------
     namespace CircleObstacle
     {
-        constexpr count_type COUNT = 0;
+        constexpr count_type COUNT = 5;
         constexpr real_t RADIUS = 10.0f;
 
         // Movement boundaries
@@ -167,6 +167,6 @@ namespace constants
         constexpr count_type UPDATE_INTERVAL = 5;
         constexpr count_type LOG_INTERVAL = 25;
 
-        constexpr types::count_type N_STEPS = 4;
+        constexpr types::count_type N_STEPS = 3;
     }
 }
