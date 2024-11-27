@@ -202,20 +202,20 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 
 	auto state_size = state.size(0);
 
-	auto required_state = state.slice(0, state_size-3, state_size).to(torch::kCPU);
+	auto required_state = state.slice(0, state_size-2, state_size).to(torch::kCPU);
     auto required_action = action.to(torch::kCPU);
 
 	real_t angle_diff_cos = required_state[0].item<real_t>();
 	real_t normalized_alignment = (angle_diff_cos + 1.0f) * 0.5f;
     real_t normalized_goal_dist = required_state[1].item<real_t>();
-    real_t normalized_frenet_d = required_state[2].item<real_t>();
+    // real_t normalized_frenet_d = required_state[2].item<real_t>();
 
     real_t force = required_action[0].item<real_t>();
     real_t yaw_change = required_action[1].item<real_t>();
 
 	// 보상 컴포넌트들
-	real_t dist_factor = 0.75f;
-	real_t path_factor = 0.15f;
+	real_t dist_factor = 1.0f;
+	real_t path_factor = 0.0f;
 
 	real_t dist_reward = 0.0f;
 	if (normalized_goal_dist > 0.2f) {
@@ -238,17 +238,16 @@ real_t TrainEnvironment::calculate_reward(const tensor_t& state, const tensor_t&
 		real_t progress = 1.0f - (normalized_goal_dist / 0.025f);
 		dist_reward = (0.75f + 0.25f * progress) * dist_factor;
 	}
-	real_t path_reward = std::exp(-std::abs(normalized_frenet_d) * (10.0f)) * path_factor;
+	// real_t path_reward = std::exp(-std::abs(normalized_frenet_d) * (10.0f)) * path_factor;
 
-	real_t reward = dist_reward +
-			path_reward;
+	real_t reward = dist_reward;
 
-	if (debug){
-		std::cout <<"\ndist: " << std::fixed << std::setprecision(5) << normalized_goal_dist
-			<< ", dist_reward: " << dist_reward
-			<< ", path_reward: " << path_reward
-			<< std::endl;
-	}
+	// if (debug){
+	// 	std::cout <<"\ndist: " << std::fixed << std::setprecision(5) << normalized_goal_dist
+	// 		<< ", dist_reward: " << dist_reward
+	// 		<< ", path_reward: " << path_reward
+	// 		<< std::endl;
+	// }
 
 	// 기본 보상 컴포넌트들 (0.0 ~ 1.0 범위로 조정)
 	return std::clamp(reward, 0.0f, 1.0f);
@@ -772,7 +771,7 @@ MultiAgentEnvironment::MultiAgentEnvironment(count_type width, count_type height
 	std::cout << "min_action: " << min_action << ", max_action: " << max_action << std::endl;
 
 	circle_obstacles_num_ = 0;
-	rectangle_obstacles_num_ = 5;
+	rectangle_obstacles_num_ = 0;
 	circle_obstacles_spawn_bounds_ = Bounds2D(0, constants::Display::WIDTH, 0, constants::Display::HEIGHT);;
 	rectangle_obstacles_spawn_bounds_ = Bounds2D(0, constants::Display::WIDTH, 0, constants::Display::HEIGHT);;
 	goal_spawn_bounds_ = Bounds2D(0, constants::Display::WIDTH, 0, constants::Display::HEIGHT);

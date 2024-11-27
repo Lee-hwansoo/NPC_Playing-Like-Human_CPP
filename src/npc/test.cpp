@@ -125,23 +125,23 @@ void testBasicTrainEnvironment(SDL_Renderer* renderer) {
     environment::TrainEnvironment env(constants::Display::WIDTH, constants::Display::HEIGHT, torch::kCPU, 1, true);
     env.set_render(renderer);
     env.load("20241127_030207", 75);
-    env.train(125, false, false, false);
-    // env.test(10, true);
+    // env.train(500, false, false, false);
+    env.test(10, true);
 }
 
 void testMultiAgentEnvironment(SDL_Renderer* renderer) {
     torch::Device device = get_device();
-    environment::MultiAgentEnvironment env(constants::Display::WIDTH, constants::Display::HEIGHT, torch::kCPU, 5);
+    environment::MultiAgentEnvironment env(constants::Display::WIDTH, constants::Display::HEIGHT, torch::kCPU, 10);
     env.set_render(renderer);
-    // env.load("20241112_051733", 5000);
+    env.load("20241127_030207", 75);
     env.test(true);
 }
 
 void testMazeAgentEnvironment(SDL_Renderer* renderer) {
     torch::Device device = get_device();
-    environment::MazeAgentEnvironment env(constants::Display::WIDTH, constants::Display::HEIGHT, torch::kCPU, 5);
+    environment::MazeAgentEnvironment env(constants::Display::WIDTH, constants::Display::HEIGHT, torch::kCPU, 1);
     env.set_render(renderer);
-    // env.load("20241112_051733", 5000);
+    env.load("20241127_030207", 75);
     env.test(true);
 }
 
@@ -151,8 +151,8 @@ int main(int argc, char* argv[]) {
         RenderWindow window;
 
         testBasicTrainEnvironment(window.getRenderer());
-        // testMultiAgentEnvironment(window.getRenderer());
-        // testMazeAgentEnvironment(window.getRenderer());
+        testMultiAgentEnvironment(window.getRenderer());
+        testMazeAgentEnvironment(window.getRenderer());
         return 0;
 
     } catch (const std::exception& e) {

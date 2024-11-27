@@ -722,7 +722,7 @@ tensor_t Agent::get_state() const {
         normalized_angle_diff,
         normalized_goal_dist,
         normalized_frenet_d
-    }); // [num_rays + 9]
+    }); // [num_rays + 8]
 
     return state;
 };
