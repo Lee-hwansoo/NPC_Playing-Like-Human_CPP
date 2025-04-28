@@ -1,14 +1,14 @@
 add_subdirectory(npc)
 
-find_package(SDL2 REQUIRED)
-find_package(Eigen3 REQUIRED)
+find_package(SDL2 REQUIRED HINTS ${SDL2_CMAKE_PATH})
+find_package(Eigen3 REQUIRED HINTS ${Eigen3_CMAKE_PATH})
 
 if(WIN32)
     find_package(CUDAToolkit REQUIRED)
-    find_package(Torch REQUIRED)
+    find_package(Torch REQUIRED HINTS ${Torch_CMAKE_PATH})
     enable_language(CUDA)
 elseif(APPLE)
-    find_package(Torch REQUIRED)
+    find_package(Torch REQUIRED HINTS ${Torch_CMAKE_PATH})
 endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
@@ -41,7 +41,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${COMMON_INCLUDE_DIRS}
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    ${PROJECT_NAME}_EXAMPLE_LIBRARIES
+    # ${PROJECT_NAME}_EXAMPLE_LIBRARIES
     ${COMMON_LIBRARIES}
 )
 set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 17)
